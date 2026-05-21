@@ -37,8 +37,8 @@ dim = (
         "company_name",
         "sector_b3",
         "subsector_b3",
-        "to_date(listed_from) AS valid_from",
-        "to_date(listed_to)   AS valid_to",
+        "try_cast(listed_from AS DATE) AS valid_from",
+        "try_cast(listed_to   AS DATE) AS valid_to",
         "listed_to IS NULL    AS is_current",
         "canonical_root",
     )

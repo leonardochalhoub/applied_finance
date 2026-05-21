@@ -9,12 +9,12 @@ CREATE OR REPLACE TABLE {catalog}.silver.b3_index_members_long
 USING DELTA
 AS
 SELECT
-    upper(index)            AS index,
+    upper(index)                       AS index,
     ticker,
-    CAST(weight AS DOUBLE)  AS weight,
-    to_date(valid_from)     AS valid_from,
-    to_date(valid_to)       AS valid_to,
-    valid_to IS NULL        AS is_current
+    CAST(weight AS DOUBLE)             AS weight,
+    try_cast(valid_from AS DATE)       AS valid_from,
+    try_cast(valid_to   AS DATE)       AS valid_to,
+    valid_to IS NULL                   AS is_current
 FROM {catalog}.bronze.b3_index_members
 """)
 

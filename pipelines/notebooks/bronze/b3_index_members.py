@@ -8,14 +8,11 @@ import pandas as pd
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 
-repo_root = Path("/Workspace/Repos") if Path("/Workspace/Repos").exists() else Path.cwd().parent.parent
-csv_path = next(
-    p for p in [
-        Path(f"/Volumes/{catalog}/bronze/reference/index_membership.csv"),
-        repo_root / "data" / "index_membership.csv",
-    ]
-    if p.exists()
-)
+csv_path = Path(f"/Volumes/{catalog}/bronze/reference/index_membership.csv")
+if not csv_path.exists():
+    raise FileNotFoundError(
+        f"{csv_path} not found. Upload data/index_membership.csv to the UC Volume first."
+    )
 
 df = pd.read_csv(csv_path, parse_dates=["valid_from", "valid_to"])
 df["ingested_at"] = pd.Timestamp.utcnow()

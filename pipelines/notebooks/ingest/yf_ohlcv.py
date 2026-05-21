@@ -1,13 +1,18 @@
 # Databricks notebook source
 """Ingest OHLCV from Yahoo Finance via yfr_py and land Parquet to a UC Volume."""
 # COMMAND ----------
-# MAGIC %pip install -q yfinance pyarrow httpx
+# MAGIC %pip install -q "yfr_py @ git+https://github.com/leonardochalhoub/applied_finance.git#subdirectory=yfr_py"
+# COMMAND ----------
+dbutils.library.restartPython()
 # COMMAND ----------
 import datetime as dt
 import os
-import sys
 import uuid
 from pathlib import Path
+
+import pandas as pd
+
+from yfr_py import yf_get
 
 dbutils.widgets.text("catalog", "finance_prd")
 dbutils.widgets.text("volume_dir", "/Volumes/finance_prd/bronze/raw/yf")
@@ -17,24 +22,16 @@ catalog = dbutils.widgets.get("catalog")
 volume_dir = dbutils.widgets.get("volume_dir")
 lookback_days = int(dbutils.widgets.get("lookback_days"))
 
-repo_root = Path("/Workspace/Repos") if Path("/Workspace/Repos").exists() else Path.cwd().parent.parent
-sys.path.insert(0, str(repo_root / "yfr_py" / "src"))
-
-from yfr_py import yf_get  # noqa: E402
-
-import pandas as pd  # noqa: E402
-
 today = dt.date.today()
 first_date = today - dt.timedelta(days=lookback_days)
 last_date = today
 
-universe_path = next(
-    p for p in [
-        Path(f"/Volumes/{catalog}/bronze/reference/ticker_universe.csv"),
-        repo_root / "data" / "ticker_universe.csv",
-    ]
-    if p.exists()
-)
+universe_path = Path(f"/Volumes/{catalog}/bronze/reference/ticker_universe.csv")
+if not universe_path.exists():
+    raise FileNotFoundError(
+        f"{universe_path} not found. Upload data/ticker_universe.csv to the UC Volume first:"
+        f"  databricks fs cp data/ticker_universe.csv dbfs:/Volumes/{catalog}/bronze/reference/"
+    )
 universe = pd.read_csv(universe_path)
 active = universe[universe["listed_to"].isna()]
 tickers = active["ticker"].tolist()
