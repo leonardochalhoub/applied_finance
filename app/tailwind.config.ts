@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: ["variant", "&:where(.dark, .dark *)"],
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -9,15 +10,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        base: "#FFFFFF",
-        subtle: "#F5F5F5",
-        border: "#E5E5E5",
-        muted: "#A3A3A3",
-        body: "#525252",
-        strong: "#171717",
-        ink: "#000000",
-        gain: "#16A34A",
-        loss: "#DC2626",
         sector: {
           financeiro: "#0EA5E9",
           materiais: "#A16207",
