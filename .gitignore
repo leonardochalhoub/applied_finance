@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets & local configuration — NEVER commit
+# ─────────────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.databrickscfg
+.databricks/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# uv / poetry
+uv.lock.local
+.python-version
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Node / Next.js
+# ─────────────────────────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+.eslintcache
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Databricks
+# ─────────────────────────────────────────────────────────────────────────────
+.databricks/
+.databricks-bundle-state/
+*.databrickscfg.local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Local data / caches (raw scrapes, yfR cache, parquet snapshots during dev)
+# ─────────────────────────────────────────────────────────────────────────────
+data/cache/
+data/raw_local/
+*.parquet.local
+*.delta.local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OS / Editor
+# ─────────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test artifacts
+# ─────────────────────────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Build / FinOps logs (kept locally but not committed)
+# ─────────────────────────────────────────────────────────────────────────────
+build-output.log
+*.log
+finops/raw/

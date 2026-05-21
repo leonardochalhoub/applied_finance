@@ -1,0 +1,63 @@
+name: Deploy frontend on main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('app/package.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+
+      - name: Build frontend
+        working-directory: app
+        env:
+          GH_PAGES_BASE: /applied_finance
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Pull existing data/ from gh-pages
+        run: |
+          git fetch origin gh-pages || true
+          mkdir -p _existing
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            git --work-tree=_existing checkout origin/gh-pages -- data || true
+          fi
+
+      - name: Assemble payload
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -r app/out/* _site/
+          if [ -d _existing/data ]; then cp -r _existing/data _site/data; fi
+
+      - name: Force-push gh-pages (app-only refresh; preserves data/)
+        run: |
+          cd _site
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy app @ ${{ github.sha }}"
+          git push -f "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://applied-finance.local/contracts/kpis_per_ticker.schema.json",
+  "title": "KPIs per ticker",
+  "description": "Per-ticker KPI snapshot published by gold.kpis_per_ticker.",
+  "type": "object",
+  "required": ["as_of", "source_run_id", "bronze_max_trading_date", "tickers"],
+  "additionalProperties": false,
+  "properties": {
+    "as_of": { "type": "string", "format": "date" },
+    "source_run_id": { "type": "string", "minLength": 1 },
+    "bronze_max_trading_date": { "type": "string", "format": "date" },
+    "tickers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ticker", "return_ytd", "vol_annual", "max_drawdown", "sharpe_vs_cdi"],
+        "additionalProperties": false,
+        "properties": {
+          "ticker": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
+          "company_name": { "type": "string" },
+          "sector_b3": { "type": "string" },
+          "return_ytd": { "type": "number" },
+          "vol_annual": { "type": "number", "minimum": 0 },
+          "max_drawdown": { "type": "number", "maximum": 0 },
+          "sharpe_vs_cdi": { "type": "number" },
+          "last_close": { "type": "number" },
+          "last_close_date": { "type": "string", "format": "date" }
+        }
+      }
+    }
+  }
+}

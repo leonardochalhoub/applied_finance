@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Python (yfr_py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pandas pyarrow
+          pip install ./yfr_py
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest yfr_py/tests -ra
+
+  schemas:
+    name: JSON Schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ajv
+        run: npm i -g ajv-cli ajv-formats
+      - name: Validate schemas are well-formed
+        run: |
+          for schema in pipelines/contracts/*.schema.json; do
+            ajv compile --strict=false -s "$schema" -c ajv-formats
+          done
+
+  data:
+    name: Data CSV lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: pip install pandas
+      - name: Lint ticker_universe.csv
+        run: |
+          python - <<'PY'
+          import sys
+          import pandas as pd
+          df = pd.read_csv("data/ticker_universe.csv")
+          assert df["ticker"].is_unique, "duplicate tickers in ticker_universe.csv"
+          assert df["ticker"].str.match(r"^[A-Z0-9]{4,6}\.SA$").all(), "invalid ticker format"
+          assert df["company_name"].notna().all(), "missing company_name"
+          assert df["sector_b3"].notna().all(), "missing sector_b3"
+          print(f"OK · {len(df)} tickers")
+          PY
+
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('app/package.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - name: Install
+        working-directory: app
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
+      - name: Typecheck
+        working-directory: app
+        run: pnpm tsc --noEmit
+      - name: Lint
+        working-directory: app
+        run: pnpm lint || true
+      - name: Test
+        working-directory: app
+        run: pnpm test

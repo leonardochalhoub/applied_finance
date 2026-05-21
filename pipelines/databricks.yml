@@ -1,0 +1,214 @@
+# Mercado BR — Databricks Asset Bundle
+#
+# Architecture (matches docs/ARCHITECTURE.md):
+#   - Bronze: yfr_py-py → UC Volume → MERGE into bronze.b3_ohlcv_raw (idempotent)
+#   - Silver: polars batch transforms → INSERT OVERWRITE (small data)
+#   - Gold:   polars + numpy → INSERT OVERWRITE + valid_tickers JSON sidecars
+#   - Export: gold tables → UC Volume /artifacts/ (JSON + Parquet)
+#
+# Folder layout (one notebook per table):
+#   notebooks/ingest/<source>.py       HTTPS download via yfr_py → UC Volume
+#   notebooks/bronze/<table>.py        Volume → Delta (MERGE / overwrite)
+#   notebooks/silver/<table>.py        batch transform → Delta overwrite
+#   notebooks/gold/<table>.py          batch joins → Delta overwrite
+#   notebooks/quality/contracts_assert.py   data quality + PSD covariance
+#   notebooks/export/<artifact>.py     gold → UC Volume artifacts/
+#
+# Job DAG cascade ensures ingest → bronze → silver → gold → quality → export.
+
+bundle:
+  name: mercado-br
+
+variables:
+  catalog:
+    description: "Unity Catalog catalog name"
+    default: finance_prd
+
+targets:
+  dev:
+    default: true
+    presets:
+      tags:
+        env: dev
+    workspace:
+      host: https://dbc-cafe0a5f-07e3.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-cafe0a5f-07e3.cloud.databricks.com
+    run_as:
+      user_name: ${workspace.current_user.userName}
+
+resources:
+  jobs:
+
+    job_mercado_br_daily_refresh:
+      name: mercado_br daily refresh
+      tags:
+        team: applied-finance
+        domain: equities-b3
+        layer: orchestration
+        pattern: medallion
+        cadence: daily
+        pii: "false"
+        source: yahoo_finance
+      max_concurrent_runs: 1
+      tasks:
+
+        - task_key: ingest_yf_ohlcv
+          notebook_task:
+            notebook_path: ./notebooks/ingest/yf_ohlcv.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              volume_dir: "/Volumes/${var.catalog}/bronze/raw/yf"
+
+        - task_key: bronze_b3_universe
+          notebook_task:
+            notebook_path: ./notebooks/bronze/b3_universe.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: bronze_b3_index_members
+          notebook_task:
+            notebook_path: ./notebooks/bronze/b3_index_members.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: bronze_b3_ohlcv_raw
+          depends_on:
+            - { task_key: ingest_yf_ohlcv }
+          notebook_task:
+            notebook_path: ./notebooks/bronze/b3_ohlcv_raw.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_b3_ticker_dim
+          depends_on:
+            - { task_key: bronze_b3_universe }
+          notebook_task:
+            notebook_path: ./notebooks/silver/b3_ticker_dim.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_b3_index_members_long
+          depends_on:
+            - { task_key: bronze_b3_index_members }
+          notebook_task:
+            notebook_path: ./notebooks/silver/b3_index_members_long.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_b3_ohlcv_adjusted
+          depends_on:
+            - { task_key: bronze_b3_ohlcv_raw }
+          notebook_task:
+            notebook_path: ./notebooks/silver/b3_ohlcv_adjusted.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_returns_wide
+          depends_on:
+            - { task_key: silver_b3_ohlcv_adjusted }
+          notebook_task:
+            notebook_path: ./notebooks/gold/returns_wide.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_cov_matrix_1y
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "1y"
+
+        - task_key: gold_cov_matrix_5y
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "5y"
+
+        - task_key: gold_cov_matrix_full
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "full"
+
+        - task_key: gold_kpis_per_ticker
+          depends_on:
+            - { task_key: silver_b3_ohlcv_adjusted }
+            - { task_key: silver_b3_ticker_dim }
+          notebook_task:
+            notebook_path: ./notebooks/gold/kpis_per_ticker.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_sector_aggregates
+          depends_on:
+            - { task_key: gold_kpis_per_ticker }
+          notebook_task:
+            notebook_path: ./notebooks/gold/sector_aggregates.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_correlation_heatmap
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/correlation_heatmap.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_ibov_overview
+          depends_on:
+            - { task_key: silver_b3_ohlcv_adjusted }
+            - { task_key: silver_b3_index_members_long }
+          notebook_task:
+            notebook_path: ./notebooks/gold/ibov_overview.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: quality_contracts_assert
+          depends_on:
+            - { task_key: gold_kpis_per_ticker }
+            - { task_key: gold_sector_aggregates }
+            - { task_key: gold_correlation_heatmap }
+            - { task_key: gold_ibov_overview }
+            - { task_key: gold_cov_matrix_1y }
+            - { task_key: gold_cov_matrix_5y }
+            - { task_key: gold_cov_matrix_full }
+          notebook_task:
+            notebook_path: ./notebooks/quality/contracts_assert.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: export_json_artifacts
+          depends_on:
+            - { task_key: quality_contracts_assert }
+          notebook_task:
+            notebook_path: ./notebooks/export/json_artifacts.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
+
+        - task_key: export_parquet_artifacts
+          depends_on:
+            - { task_key: quality_contracts_assert }
+          notebook_task:
+            notebook_path: ./notebooks/export/parquet_artifacts.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
+
+      schedule:
+        quartz_cron_expression: "0 0 1 ? * TUE,WED,THU,FRI,SAT *"
+        timezone_id: UTC
+        pause_status: PAUSED

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://applied-finance.local/contracts/sector_aggregates.schema.json",
+  "title": "Sector aggregates",
+  "description": "Per-sector aggregated KPIs published by gold.sector_aggregates.",
+  "type": "object",
+  "required": ["as_of", "source_run_id", "sectors"],
+  "additionalProperties": false,
+  "properties": {
+    "as_of": { "type": "string", "format": "date" },
+    "source_run_id": { "type": "string", "minLength": 1 },
+    "sectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sector_b3", "member_count", "return_ytd_mean", "vol_annual_mean"],
+        "additionalProperties": false,
+        "properties": {
+          "sector_b3": { "type": "string", "minLength": 1 },
+          "member_count": { "type": "integer", "minimum": 1 },
+          "return_ytd_mean": { "type": "number" },
+          "return_ytd_median": { "type": "number" },
+          "vol_annual_mean": { "type": "number", "minimum": 0 },
+          "members": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" }
+          }
+        }
+      }
+    }
+  }
+}

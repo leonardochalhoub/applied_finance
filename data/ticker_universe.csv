@@ -1,0 +1,70 @@
+ticker,company_name,sector_b3,subsector_b3,listed_from,listed_to,prior_tickers,cnpj,notes
+ALOS3.SA,Allos S.A.,Consumo Não Cíclico,Comércio e Distribuição,2006-02-06,,,07628528000159,fusão Aliansce Sonae + brMalls 2023
+ALPA4.SA,Alpargatas S.A.,Consumo Cíclico,Tecidos Vestuário e Calçados,1969-12-30,,,61079117000115,
+ABEV3.SA,Ambev S.A.,Consumo Não Cíclico,Bebidas,1995-05-31,,,07526557000100,
+ASAI3.SA,Sendas Distribuidora,Consumo Não Cíclico,Comércio e Distribuição,2021-03-01,,,06057223000171,spin-off do GPA
+AZUL4.SA,Azul S.A.,Bens Industriais,Transporte,2017-04-11,,,09305994000129,
+B3SA3.SA,B3 S.A. - Brasil Bolsa Balcão,Financeiro,Serviços Financeiros Diversos,2008-08-26,,BVMF3,09346601000125,fusão BM&F + Bovespa
+BPAC11.SA,BTG Pactual,Financeiro,Bancos,2018-07-31,,,30306294000145,Unit (ON+PN)
+BBSE3.SA,BB Seguridade,Financeiro,Previdência e Seguros,2013-04-29,,,17344036000105,
+BBDC4.SA,Bradesco PN,Financeiro,Bancos,1968-01-01,,,60746948000112,
+BBAS3.SA,Banco do Brasil,Financeiro,Bancos,1906-12-15,,,00000000000191,
+BRAV3.SA,3R Petroleum,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,2020-11-09,,,12091809000155,
+BRFS3.SA,BRF S.A.,Consumo Não Cíclico,Alimentos Processados,2009-07-08,SADIA3|PRGA3,01838723000127,fusão Sadia + Perdigão
+BRKM5.SA,Braskem,Materiais Básicos,Químicos,2002-05-02,,,42150391000170,
+CCRO3.SA,CCR,Bens Industriais,Transporte,2002-02-01,,,02846056000197,
+CMIG4.SA,Cemig PN,Utilidade Pública,Energia Elétrica,1969-12-30,,,17155730000164,
+CPLE6.SA,Copel PN,Utilidade Pública,Energia Elétrica,1994-04-12,,,76483817000120,
+CSAN3.SA,Cosan S.A.,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,2005-11-17,,,50746577000115,
+CSNA3.SA,Companhia Siderúrgica Nacional,Materiais Básicos,Siderurgia e Metalurgia,1993-11-25,,,33042730000104,
+CVCB3.SA,CVC Brasil,Consumo Cíclico,Diversos,2013-12-09,,,10760260000119,
+CYRE3.SA,Cyrela Realty,Consumo Cíclico,Construção Civil,2005-09-29,,,73178600000118,
+DXCO3.SA,Dexco S.A.,Materiais Básicos,Madeira e Papel,2009-08-18,DURB3,97837181000147,ex-Duratex
+ELET3.SA,Eletrobras ON,Utilidade Pública,Energia Elétrica,1972-04-26,,,00001180000126,privatizada 2022
+ELET6.SA,Eletrobras PNB,Utilidade Pública,Energia Elétrica,1972-04-26,,,00001180000126,privatizada 2022
+EMBR3.SA,Embraer,Bens Industriais,Material de Transporte,2006-02-06,,,07689002000189,
+ENGI11.SA,Energisa,Utilidade Pública,Energia Elétrica,2010-07-05,,,00864214000106,Unit (ON+PN)
+ENEV3.SA,Eneva,Utilidade Pública,Energia Elétrica,2007-10-15,,MPXE3,04423567000121,ex-MPX Energia
+EQTL3.SA,Equatorial Energia,Utilidade Pública,Energia Elétrica,2006-04-03,,,03220438000173,
+EZTC3.SA,EZ Tec,Consumo Cíclico,Construção Civil,2007-06-22,,,08312229000173,
+FLRY3.SA,Fleury,Saúde,Serviços Médico Hospitalares,2009-12-17,,,60840055000131,
+GGBR4.SA,Gerdau PN,Materiais Básicos,Siderurgia e Metalurgia,1969-01-01,,,33611500000119,
+GOAU4.SA,Metalúrgica Gerdau PN,Materiais Básicos,Siderurgia e Metalurgia,1947-11-11,,,92690783000109,
+HAPV3.SA,Hapvida,Saúde,Serviços Médico Hospitalares,2018-04-25,,,05197443000138,
+HYPE3.SA,Hypera,Saúde,Comércio e Distribuição,2008-04-25,,,02932074000191,ex-Hypermarcas
+ITSA4.SA,Itaúsa PN,Financeiro,Bancos,1974-03-22,,,61532644000115,
+ITUB4.SA,Itaú Unibanco PN,Financeiro,Bancos,1944-09-09,,,60872504000123,
+JBSS3.SA,JBS,Consumo Não Cíclico,Alimentos Processados,2007-03-29,,,02916265000160,
+KLBN11.SA,Klabin,Materiais Básicos,Madeira e Papel,1979-12-12,,,89637490000145,Unit
+LREN3.SA,Lojas Renner,Consumo Cíclico,Comércio,1967-01-01,,,92754738000162,
+MGLU3.SA,Magazine Luiza,Consumo Cíclico,Comércio,2011-05-02,,,47960950000121,
+MRFG3.SA,Marfrig,Consumo Não Cíclico,Alimentos Processados,2007-06-29,,,03853896000140,
+MRVE3.SA,MRV Engenharia,Consumo Cíclico,Construção Civil,2007-07-20,,,08343492000120,
+MULT3.SA,Multiplan,Financeiro,Exploração de Imóveis,2007-07-26,,,07816890000153,
+NTCO3.SA,Natura,Consumo Não Cíclico,Produtos de Uso Pessoal,2019-09-12,,,71673990000177,ex-Natura Cosméticos (NATU3)
+PCAR3.SA,GPA,Consumo Não Cíclico,Comércio e Distribuição,1995-05-03,PCAR4,47508411000156,
+PETR3.SA,Petrobras ON,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,1953-10-03,,,33000167000101,
+PETR4.SA,Petrobras PN,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,1953-10-03,,,33000167000101,
+PRIO3.SA,PetroRio,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,2007-06-15,,HRTP3,10629105000168,ex-HRT
+RADL3.SA,Raia Drogasil,Saúde,Comércio e Distribuição,2011-04-26,,,61585865000151,
+RAIL3.SA,Rumo,Bens Industriais,Transporte,2015-04-01,ALLL3,02387241000160,
+RAIZ4.SA,Raízen,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,2021-08-04,,,33453598000123,
+RDOR3.SA,Rede D'Or São Luiz,Saúde,Serviços Médico Hospitalares,2020-12-09,,,06047087000139,
+RENT3.SA,Localiza,Consumo Cíclico,Diversos,2005-05-19,,,16670085000155,fusão com Unidas 2022
+SANB11.SA,Santander Brasil,Financeiro,Bancos,2009-10-07,,,90400888000142,Unit
+SBSP3.SA,Sabesp,Utilidade Pública,Água e Saneamento,1997-04-21,,,43776517000180,
+SLCE3.SA,SLC Agrícola,Consumo Não Cíclico,Agropecuária,2007-06-15,,,89096457000155,
+SMTO3.SA,São Martinho,Consumo Não Cíclico,Alimentos Processados,2007-02-12,,,51466860000156,
+STBP3.SA,Santos Brasil,Bens Industriais,Transporte,2006-10-13,,,02762121000104,
+SUZB3.SA,Suzano Papel e Celulose,Materiais Básicos,Madeira e Papel,2018-04-04,SUZB5|FIBR3,16404287000155,fusão Suzano + Fibria
+TAEE11.SA,Taesa,Utilidade Pública,Energia Elétrica,2006-06-27,,,07859971000130,Unit
+TIMS3.SA,TIM Brasil,Comunicações,Telefonia Fixa,2020-08-31,TIMP3,02421421000111,ex-TIM Participações
+TOTS3.SA,Totvs,Tecnologia da Informação,Programas e Serviços,2006-03-09,,,53113791000122,
+UGPA3.SA,Ultrapar,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,1999-10-06,,,33256439000139,
+USIM5.SA,Usiminas PNA,Materiais Básicos,Siderurgia e Metalurgia,1956-04-25,,,60894730000105,
+VALE3.SA,Vale,Materiais Básicos,Mineração,1968-12-13,,,33592510000154,
+VAMO3.SA,Vamos,Bens Industriais,Diversos,2021-01-29,,,10227519000106,
+VBBR3.SA,Vibra Energia,Petróleo Gás e Biocombustíveis,Exploração Refino e Distribuição,2017-12-12,BRDT3,34274233000102,ex-BR Distribuidora
+VIVT3.SA,Telefônica Brasil,Comunicações,Telefonia Fixa,1998-09-21,VIVT4,02558157000162,
+WEGE3.SA,WEG,Bens Industriais,Máquinas e Equipamentos,1971-12-22,,,84429695000111,
+YDUQ3.SA,Yduqs,Consumo Cíclico,Diversos,2013-04-15,ESTC3,08807432000110,ex-Estácio Participações

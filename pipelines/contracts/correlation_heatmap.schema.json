@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://applied-finance.local/contracts/correlation_heatmap.schema.json",
+  "title": "Correlation heatmap",
+  "description": "Top-N most-correlated and least-correlated pairs over a fixed lookback window.",
+  "type": "object",
+  "required": ["as_of", "source_run_id", "window_label", "top_correlated", "top_anti_correlated"],
+  "additionalProperties": false,
+  "properties": {
+    "as_of": { "type": "string", "format": "date" },
+    "source_run_id": { "type": "string", "minLength": 1 },
+    "window_label": { "type": "string", "enum": ["1y", "5y", "full"] },
+    "top_correlated": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/pair" }
+    },
+    "top_anti_correlated": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/pair" }
+    }
+  },
+  "definitions": {
+    "pair": {
+      "type": "object",
+      "required": ["ticker_i", "ticker_j", "correlation"],
+      "additionalProperties": false,
+      "properties": {
+        "ticker_i": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
+        "ticker_j": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
+        "correlation": { "type": "number", "minimum": -1, "maximum": 1 },
+        "sector_i": { "type": "string" },
+        "sector_j": { "type": "string" }
+      }
+    }
+  }
+}

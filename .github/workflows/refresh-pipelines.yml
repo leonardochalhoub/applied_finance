@@ -1,0 +1,86 @@
+name: Refresh pipelines
+
+on:
+  schedule:
+    - cron: "0 1 * * 2-6"  # ~22:00 BRT Mon-Fri (after B3 close)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-pipelines
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST:    ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN:   ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_CATALOG: finance_prd
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        working-directory: pipelines
+        run: databricks bundle validate --target prod
+
+      - name: Deploy bundle
+        working-directory: pipelines
+        run: databricks bundle deploy --target prod
+
+      - name: Run daily refresh job
+        working-directory: pipelines
+        run: databricks bundle run --target prod job_mercado_br_daily_refresh
+
+      - name: Copy artifacts out
+        run: |
+          mkdir -p _artifacts/data
+          databricks fs cp -r \
+            "dbfs:/Volumes/${DATABRICKS_CATALOG}/gold/artifacts/" \
+            _artifacts/data/ \
+            --overwrite
+
+      - name: Validate JSON schemas
+        run: |
+          npm i -g ajv-cli ajv-formats
+          for schema in pipelines/contracts/*.schema.json; do
+            name=$(basename "$schema" .schema.json)
+            target="_artifacts/data/${name}.json"
+            if [ -f "$target" ]; then
+              echo "Validating $target against $schema"
+              ajv validate --strict=false -c ajv-formats -s "$schema" -d "$target"
+            fi
+          done
+
+      - name: Build frontend
+        if: ${{ hashFiles('app/package.json') != '' }}
+        working-directory: app
+        env:
+          GH_PAGES_BASE: /applied_finance
+        run: |
+          npm i -g pnpm@9
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Assemble gh-pages payload
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          if [ -d app/out ]; then cp -r app/out/* _site/; fi
+          cp -r _artifacts/data _site/data
+
+      - name: Force-push gh-pages
+        run: |
+          cd _site
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Refresh ${{ github.run_number }} @ $(date -u +%FT%TZ)"
+          git push -f "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

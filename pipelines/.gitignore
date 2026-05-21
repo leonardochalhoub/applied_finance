@@ -1,0 +1,4 @@
+.bundle/
+.databricks/
+*.databrickscfg.local
+.databricks-bundle-state/

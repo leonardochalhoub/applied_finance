@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://applied-finance.local/contracts/ibov_overview.schema.json",
+  "title": "IBOV overview",
+  "description": "Current IBOV composition with per-component YTD return and weight.",
+  "type": "object",
+  "required": ["as_of", "source_run_id", "index_level", "members"],
+  "additionalProperties": false,
+  "properties": {
+    "as_of": { "type": "string", "format": "date" },
+    "source_run_id": { "type": "string", "minLength": 1 },
+    "index_level": { "type": "number", "minimum": 0 },
+    "index_return_ytd": { "type": "number" },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ticker", "weight", "return_ytd"],
+        "additionalProperties": false,
+        "properties": {
+          "ticker": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
+          "company_name": { "type": "string" },
+          "sector_b3": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "return_ytd": { "type": "number" },
+          "contribution_to_ytd": { "type": "number" }
+        }
+      }
+    }
+  }
+}

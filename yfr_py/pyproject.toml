@@ -1,0 +1,42 @@
+[project]
+name = "yfr_py"
+version = "0.1.0"
+description = "Python port of msperlin/yfR — Brazilian-friendly Yahoo Finance ingestion with caching, batching, and parallel fetch"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Leonardo Chalhoub", email = "leonardochalhoub@gmail.com" }]
+keywords = ["yfinance", "yfR", "b3", "brazil", "finance", "stocks"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business :: Financial",
+]
+
+dependencies = [
+  "yfinance>=0.2.40",
+  "pandas>=2.2",
+  "pyarrow>=17.0",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "pytest-mock>=3.14",
+  "responses>=0.25",
+  "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yfr_py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
