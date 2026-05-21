@@ -58,13 +58,16 @@ jobs:
           done
 
       - name: Build frontend
-        if: ${{ hashFiles('app/package.json') != '' }}
         working-directory: app
         env:
           GH_PAGES_BASE: /applied_finance
         run: |
           npm i -g pnpm@9
-          pnpm install --frozen-lockfile
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
           pnpm build
 
       - name: Assemble gh-pages payload
