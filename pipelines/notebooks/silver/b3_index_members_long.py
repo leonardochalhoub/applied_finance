@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Pivot index membership snapshots into a long-format Delta table."""
 # COMMAND ----------
@@ -19,4 +24,4 @@ FROM {catalog}.bronze.b3_index_members
 """)
 
 rows = spark.table(f"{catalog}.silver.b3_index_members_long").count()
-print(f"silver.b3_index_members_long → {rows} rows")
+log.info(f"silver.b3_index_members_long → {rows} rows")

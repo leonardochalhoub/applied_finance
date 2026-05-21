@@ -1,10 +1,5 @@
 /**
- * Typed loaders for Gold artifacts.
- *
- * At build time (Next.js static export), pages run in Node. We read the JSON
- * from `app/public/data/*.json` via fs — no HTTP server exists during build, so
- * `fetch()` would fail. The CI copies the Databricks artifacts there before
- * `pnpm build`.
+ * Typed loaders for Gold artifacts (read via node:fs at build time).
  */
 
 import { readFile } from "node:fs/promises";
@@ -18,6 +13,8 @@ export type KpiRow = {
   vol_annual: number | null;
   max_drawdown: number | null;
   sharpe_vs_cdi: number | null;
+  cdi_annual_used?: number | null;
+  n_obs?: number | null;
   last_close?: number;
   last_close_date?: string;
 };
@@ -26,6 +23,7 @@ export type KpiArtifact = {
   as_of: string;
   source_run_id: string;
   bronze_max_trading_date: string;
+  cdi_global_mean?: number;
   tickers: KpiRow[];
 };
 
@@ -77,6 +75,13 @@ export type IbovArtifact = {
   members: IbovMember[];
 };
 
+export type PricesArtifact = {
+  as_of: string;
+  rebase: number;
+  dates: string[];
+  series: Record<string, (number | null)[]>;
+};
+
 async function _load<T>(name: string): Promise<T | null> {
   try {
     const file = path.join(process.cwd(), "public", "data", `${name}.json`);
@@ -91,3 +96,4 @@ export const loadKpis = () => _load<KpiArtifact>("kpis_per_ticker");
 export const loadSectors = () => _load<SectorArtifact>("sector_aggregates");
 export const loadCorrelations = () => _load<CorrelationArtifact>("correlation_heatmap");
 export const loadIbov = () => _load<IbovArtifact>("ibov_overview");
+export const loadPrices = () => _load<PricesArtifact>("prices_normalized");

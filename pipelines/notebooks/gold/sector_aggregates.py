@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Per-sector aggregates over gold.kpis_per_ticker."""
 # COMMAND ----------
@@ -22,4 +27,4 @@ WHERE sector_b3 IS NOT NULL
 GROUP BY sector_b3
 """)
 
-print(f"gold.sector_aggregates → {spark.table(f'{catalog}.gold.sector_aggregates').count()} sectors")
+log.info(f"gold.sector_aggregates → {spark.table(f'{catalog}.gold.sector_aggregates').count()} sectors")

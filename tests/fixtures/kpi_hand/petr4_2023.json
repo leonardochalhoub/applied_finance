@@ -1,0 +1,21 @@
+{
+  "label": "PETR4.SA \u2014 full year 2023 (Yahoo adjusted close)",
+  "ticker": "PETR4.SA",
+  "first_date": "2023-01-02",
+  "last_date": "2023-12-28",
+  "cdi_annual": 0.13278,
+  "cdi_source": "BCB SGS s\u00e9rie 12 \u2014 mean of 2023 daily annualized CDI",
+  "expected": {
+    "first_close": 12.796212,
+    "last_close": 26.920527,
+    "n_obs": 247,
+    "mean_log_return_daily": 0.00301109,
+    "std_log_return_daily_ddof1": 0.02002202,
+    "return_log_full": 0.74373986,
+    "vol_annual": 0.31783969,
+    "annualized_mean": 0.75879532,
+    "max_drawdown": -0.15404587,
+    "sharpe_vs_cdi": 1.969595
+  },
+  "tolerance_rel": 1e-06
+}

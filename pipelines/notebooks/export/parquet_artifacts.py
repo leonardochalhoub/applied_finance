@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Export Gold Parquet artifacts to /Volumes/.../gold/artifacts/."""
 # COMMAND ----------
@@ -26,4 +31,4 @@ for w in ("1y", "5y", "full"):
         f"{artifacts_dir}/cov_matrix_{w}.parquet", index=False
     )
 
-print("Parquet artifacts emitted to", artifacts_dir)
+log.info("Parquet artifacts emitted to %s", artifacts_dir)

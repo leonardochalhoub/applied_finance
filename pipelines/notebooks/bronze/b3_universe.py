@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Overwrite bronze.b3_universe from the committed CSV."""
 # COMMAND ----------
@@ -25,4 +30,4 @@ sdf = spark.createDataFrame(df)
 sdf.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     f"{catalog}.bronze.b3_universe"
 )
-print(f"bronze.b3_universe → {len(df)} rows")
+log.info(f"bronze.b3_universe → {len(df)} rows")

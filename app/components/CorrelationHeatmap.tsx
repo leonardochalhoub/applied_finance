@@ -1,13 +1,13 @@
 import type { CorrelationPair } from "@/lib/data";
-import { fmtNum } from "@/lib/format";
+import { fmtNum2 } from "@/lib/format";
 
 function _color(rho: number): string {
-  if (rho >= 0.7) return "#16A34A";
-  if (rho >= 0.4) return "#65A30D";
-  if (rho >= 0.1) return "#D4D4D4";
-  if (rho >= -0.1) return "#E5E5E5";
-  if (rho >= -0.4) return "#F59E0B";
-  return "#DC2626";
+  if (!Number.isFinite(rho)) return "var(--neutral-cell)";
+  const intensity = Math.min(1, Math.abs(rho));
+  if (rho >= 0) {
+    return `color-mix(in srgb, var(--gain) ${Math.round(intensity * 80)}%, var(--bg-subtle))`;
+  }
+  return `color-mix(in srgb, var(--loss) ${Math.round(intensity * 80)}%, var(--bg-subtle))`;
 }
 
 export function CorrelationHeatmap({
@@ -18,21 +18,36 @@ export function CorrelationHeatmap({
   title: string;
 }) {
   return (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">{title}</h3>
-      <ul className="divide-y divide-border rounded-md border border-border">
+    <div className="card overflow-hidden">
+      <div className="border-b border-border px-5 py-3">
+        <span className="eyebrow">{title}</span>
+      </div>
+      <ul className="divide-y divide-border">
         {pairs.map((p, i) => (
-          <li key={`${p.ticker_i}-${p.ticker_j}-${i}`} className="flex items-center justify-between gap-2 p-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="font-mono text-sm">{p.ticker_i}</span>
+          <li
+            key={`${p.ticker_i}-${p.ticker_j}-${i}`}
+            className="flex items-center justify-between gap-2 px-5 py-3"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <a
+                className="mono text-sm hover:underline"
+                href={`/ticker/${encodeURIComponent(p.ticker_i)}/`}
+              >
+                {p.ticker_i.replace(/\.SA$/, "")}
+              </a>
               <span className="text-muted">×</span>
-              <span className="font-mono text-sm">{p.ticker_j}</span>
+              <a
+                className="mono text-sm hover:underline"
+                href={`/ticker/${encodeURIComponent(p.ticker_j)}/`}
+              >
+                {p.ticker_j.replace(/\.SA$/, "")}
+              </a>
             </div>
             <span
-              className="rounded px-2 py-1 text-xs font-semibold tabular text-white"
-              style={{ backgroundColor: _color(p.correlation) }}
+              className="rounded px-2 py-1 text-xs font-semibold tabular text-strong"
+              style={{ background: _color(p.correlation) }}
             >
-              {fmtNum(p.correlation)}
+              {fmtNum2(p.correlation)}
             </span>
           </li>
         ))}

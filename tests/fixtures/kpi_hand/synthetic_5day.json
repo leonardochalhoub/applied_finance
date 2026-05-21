@@ -1,19 +1,36 @@
 {
   "label": "Synthetic 5-day series for hand-verifiable KPI math",
   "ticker": "TEST.SA",
-  "close_series": [100.0, 105.0, 102.0, 108.0, 110.0],
-  "trading_dates": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08"],
+  "close_series": [
+    100.0,
+    105.0,
+    102.0,
+    108.0,
+    110.0
+  ],
+  "trading_dates": [
+    "2024-01-02",
+    "2024-01-03",
+    "2024-01-04",
+    "2024-01-05",
+    "2024-01-08"
+  ],
   "ytd_start_close": 100.0,
-  "cdi_annual": 0.10,
+  "cdi_annual": 0.1,
   "expected": {
-    "log_returns_daily": [0.04879016, -0.02898754, 0.05715841, 0.01835412],
+    "log_returns_daily": [
+      0.04879016,
+      -0.02898754,
+      0.05715841,
+      0.01834914
+    ],
     "return_log_full": 0.09531018,
-    "mean_log_return_daily": 0.02382879,
-    "annualized_mean": 6.00485708,
-    "std_log_return_daily_ddof1": 0.03862996,
-    "vol_annual": 0.61322232,
+    "mean_log_return_daily": 0.02382754,
+    "annualized_mean": 6.00454133,
+    "std_log_return_daily_ddof1": 0.03895949,
+    "vol_annual": 0.61846269,
     "max_drawdown": -0.02857143,
-    "sharpe_vs_cdi": 9.62106
+    "sharpe_vs_cdi": 9.547126
   },
-  "tolerance_rel": 1e-6
+  "tolerance_rel": 1e-06
 }

@@ -1,36 +1,39 @@
-# Databricks notebook source
-"""SCD2 over bronze.b3_universe with sha1(canonical_root) surrogate key.
+import logging
 
-`canonical_root` is the oldest ticker the entity ever used: we walk the
-`prior_tickers` chain (sorted ascending so the head is the oldest symbol) and
-take the head, or fall back to the current ticker if the chain is empty.
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
+# Databricks notebook source
+"""SCD2 over bronze.b3_universe.
+
+Surrogate key: `ticker_key = sha1("b3:" + canonical_root)`.
+
+`canonical_root` = first element of `prior_tickers` (which is curated in the
+CSV in *chronological order, oldest first*) — falls back to the current ticker
+if the chain is empty. This is the explicit-contract version of the surrogate;
+lexicographic ordering would mis-root cases like `AAAA3 → BBBB3` where the
+visible chronology is `BBBB3 (oldest) → AAAA3 (current)`.
 """
 # COMMAND ----------
-import hashlib
-
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
 
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 
 
-def _canonical_root(ticker: str, priors: list[str] | None) -> str:
-    chain = list(priors or []) + [ticker]
-    return sorted(chain)[0]
-
-
-def _ticker_key(canonical_root: str) -> str:
-    return hashlib.sha1(f"b3:{canonical_root}".encode()).hexdigest()
-
-
-canonical_udf = F.udf(_canonical_root, StringType())
-ticker_key_udf = F.udf(_ticker_key, StringType())
-
 universe = spark.table(f"{catalog}.bronze.b3_universe")
+
+canonical_root = F.when(
+    F.size(F.coalesce(F.col("prior_tickers"), F.array())) > 0,
+    F.col("prior_tickers").getItem(0),
+).otherwise(F.col("ticker"))
+
+ticker_key = F.sha1(F.concat(F.lit("b3:"), canonical_root))
+
 dim = (
-    universe.withColumn("canonical_root", canonical_udf("ticker", "prior_tickers"))
-    .withColumn("ticker_key", ticker_key_udf("canonical_root"))
+    universe
+    .withColumn("canonical_root", canonical_root)
+    .withColumn("ticker_key", ticker_key)
     .selectExpr(
         "ticker_key",
         "ticker",
@@ -47,4 +50,5 @@ dim = (
 dim.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     f"{catalog}.silver.b3_ticker_dim"
 )
-print(f"silver.b3_ticker_dim → {dim.count()} rows")
+
+log.info(f"silver.b3_ticker_dim → {dim.count()} rows")

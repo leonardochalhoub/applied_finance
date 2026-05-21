@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Export Gold JSON artifacts to /Volumes/.../gold/artifacts/."""
 # COMMAND ----------
@@ -30,13 +35,17 @@ def _write_json(path: str, payload: dict) -> None:
 
 kpis = spark.table(f"{catalog}.gold.kpis_per_ticker").toPandas()
 kpis = kpis.replace({pd.NA: None, float("nan"): None})
+cdi_global_mean = float(kpis["cdi_global_mean"].iloc[0]) if "cdi_global_mean" in kpis.columns and len(kpis) else 0.0
 _write_json(
     f"{artifacts_dir}/kpis_per_ticker.json",
     {
         "as_of": as_of,
         "source_run_id": run_id,
         "bronze_max_trading_date": bronze_max_str,
-        "tickers": kpis.drop(columns=["source_run_id", "as_of"], errors="ignore").to_dict("records"),
+        "cdi_global_mean": cdi_global_mean,
+        "tickers": kpis.drop(
+            columns=["source_run_id", "as_of", "cdi_global_mean"], errors="ignore"
+        ).to_dict("records"),
     },
 )
 
@@ -59,4 +68,4 @@ _write_json(
 # correlation_heatmap.json and ibov_overview.json are already written by their
 # generating notebooks (avoids re-pivoting heavy tables); they live under the
 # same artifacts_dir already.
-print("JSON artifacts emitted to", artifacts_dir)
+log.info("JSON artifacts emitted to %s", artifacts_dir)

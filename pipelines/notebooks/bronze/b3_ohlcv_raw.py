@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """MERGE Parquet runs from /Volumes/.../bronze/raw/yf/** into bronze.b3_ohlcv_raw."""
 # COMMAND ----------
@@ -61,5 +66,5 @@ WHEN NOT MATCHED THEN INSERT *
 """)
 
 merged_rows = spark.table(f"{catalog}.bronze.b3_ohlcv_raw").count()
-print(f"bronze.b3_ohlcv_raw → {merged_rows:,} rows total")
+log.info(f"bronze.b3_ohlcv_raw → {merged_rows:,} rows total")
 dbutils.jobs.taskValues.set(key="bronze_rows", value=merged_rows)

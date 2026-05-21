@@ -10,6 +10,7 @@
     "as_of": { "type": "string", "format": "date" },
     "source_run_id": { "type": "string", "minLength": 1 },
     "bronze_max_trading_date": { "type": "string", "format": "date" },
+    "cdi_global_mean": { "type": "number", "minimum": 0 },
     "tickers": {
       "type": "array",
       "items": {
@@ -18,12 +19,14 @@
         "additionalProperties": false,
         "properties": {
           "ticker": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
-          "company_name": { "type": "string" },
-          "sector_b3": { "type": "string" },
-          "return_ytd": { "type": "number" },
-          "vol_annual": { "type": "number", "minimum": 0 },
-          "max_drawdown": { "type": "number", "maximum": 0 },
-          "sharpe_vs_cdi": { "type": "number" },
+          "company_name": { "type": ["string", "null"] },
+          "sector_b3": { "type": ["string", "null"] },
+          "return_ytd": { "type": ["number", "null"] },
+          "vol_annual": { "type": ["number", "null"], "minimum": 0 },
+          "max_drawdown": { "type": ["number", "null"], "maximum": 0 },
+          "sharpe_vs_cdi": { "type": ["number", "null"] },
+          "cdi_annual_used": { "type": ["number", "null"], "minimum": 0 },
+          "n_obs": { "type": ["integer", "null"], "minimum": 0 },
           "last_close": { "type": "number" },
           "last_close_date": { "type": "string", "format": "date" }
         }

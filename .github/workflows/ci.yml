@@ -23,6 +23,18 @@ jobs:
       - name: Test
         run: pytest yfr_py/tests -ra
 
+  pipeline_smoke:
+    name: Pipeline smoke (hash-compare on synthetic fixture)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: pip install pytest pandas numpy pyarrow
+      - name: Run smoke
+        run: pytest pipelines/tests -ra
+
   schemas:
     name: JSON Schema validation
     runs-on: ubuntu-latest
@@ -80,7 +92,7 @@ jobs:
         run: pnpm tsc --noEmit
       - name: Lint
         working-directory: app
-        run: pnpm lint || true
+        run: pnpm lint
       - name: Test
         working-directory: app
         run: pnpm test

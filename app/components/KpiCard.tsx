@@ -1,18 +1,24 @@
-import { fmtPct, signedClass } from "@/lib/format";
+import { fmtPctSigned, fmtNum2, signedClass } from "@/lib/format";
 
 type Props = {
   label: string;
   value: number | null | undefined;
   format?: "pct" | "num";
   hint?: string;
+  big?: boolean;
 };
 
-export function KpiCard({ label, value, format = "pct", hint }: Props) {
-  const formatted = format === "pct" ? fmtPct(value) : value == null ? "—" : value.toString();
+export function KpiCard({ label, value, format = "pct", hint, big = false }: Props) {
+  const formatted =
+    value == null || !Number.isFinite(value as number)
+      ? "—"
+      : format === "pct"
+      ? fmtPctSigned(value)
+      : fmtNum2(value);
   return (
-    <div className="rounded-md border border-border bg-subtle p-4">
-      <div className="text-xs uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-2 text-2xl font-semibold tabular ${signedClass(value)}`}>
+    <div className="card card-hover px-5 py-4">
+      <div className="eyebrow">{label}</div>
+      <div className={`mt-2 ${big ? "display-stat" : "text-2xl"} ${signedClass(value)}`}>
         {formatted}
       </div>
       {hint ? <div className="mt-1 text-xs text-muted">{hint}</div> : null}

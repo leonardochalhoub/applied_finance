@@ -1,0 +1,137 @@
+{
+  "as_of": "2026-05-21",
+  "source_run_id": "local",
+  "sectors": [
+    {
+      "sector_b3": "Consumo N\u00e3o C\u00edclico",
+      "member_count": 5,
+      "return_ytd_mean": -0.02077490744752044,
+      "return_ytd_median": -0.04364509786476853,
+      "vol_annual_mean": 0.1773639578939699,
+      "members": [
+        "ABEV3.SA",
+        "ALOS3.SA",
+        "ASAI3.SA",
+        "SLCE3.SA",
+        "SMTO3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Financeiro",
+      "member_count": 9,
+      "return_ytd_mean": -0.026910001704612822,
+      "return_ytd_median": -0.019048194970694474,
+      "vol_annual_mean": 0.15657859936559168,
+      "members": [
+        "B3SA3.SA",
+        "BBAS3.SA",
+        "BBDC4.SA",
+        "BBSE3.SA",
+        "BPAC11.SA",
+        "ITSA4.SA",
+        "ITUB4.SA",
+        "MULT3.SA",
+        "SANB11.SA"
+      ]
+    },
+    {
+      "sector_b3": "Utilidade P\u00fablica",
+      "member_count": 6,
+      "return_ytd_mean": -0.07028725520810783,
+      "return_ytd_median": -0.07577253421099807,
+      "vol_annual_mean": 0.16888492263456098,
+      "members": [
+        "CMIG4.SA",
+        "ENEV3.SA",
+        "ENGI11.SA",
+        "EQTL3.SA",
+        "SBSP3.SA",
+        "TAEE11.SA"
+      ]
+    },
+    {
+      "sector_b3": "Materiais B\u00e1sicos",
+      "member_count": 7,
+      "return_ytd_mean": 0.02431743110876722,
+      "return_ytd_median": -0.014489486413096416,
+      "vol_annual_mean": 0.2794337954946461,
+      "members": [
+        "BRKM5.SA",
+        "CSNA3.SA",
+        "GGBR4.SA",
+        "GOAU4.SA",
+        "KLBN11.SA",
+        "USIM5.SA",
+        "VALE3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Sa\u00fade",
+      "member_count": 5,
+      "return_ytd_mean": -0.029424013065887517,
+      "return_ytd_median": -0.04753457211334224,
+      "vol_annual_mean": 0.24322157946600234,
+      "members": [
+        "FLRY3.SA",
+        "HAPV3.SA",
+        "HYPE3.SA",
+        "RADL3.SA",
+        "RDOR3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Tecnologia da Informa\u00e7\u00e3o",
+      "member_count": 1,
+      "return_ytd_mean": -0.046122092024387405,
+      "return_ytd_median": -0.046122092024387405,
+      "vol_annual_mean": 0.22680944055825603,
+      "members": [
+        "TOTS3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Bens Industriais",
+      "member_count": 2,
+      "return_ytd_mean": -0.0677483428732443,
+      "return_ytd_median": -0.0917549126412057,
+      "vol_annual_mean": 0.19332632889027718,
+      "members": [
+        "VAMO3.SA",
+        "WEGE3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Consumo C\u00edclico",
+      "member_count": 8,
+      "return_ytd_mean": -0.028138751158051603,
+      "return_ytd_median": -0.03809988589298462,
+      "vol_annual_mean": 0.2720361402904231,
+      "members": [
+        "ALPA4.SA",
+        "CVCB3.SA",
+        "CYRE3.SA",
+        "EZTC3.SA",
+        "LREN3.SA",
+        "MGLU3.SA",
+        "MRVE3.SA",
+        "RENT3.SA"
+      ]
+    },
+    {
+      "sector_b3": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis",
+      "member_count": 7,
+      "return_ytd_mean": -0.010992098826109622,
+      "return_ytd_median": -0.020673149787473952,
+      "vol_annual_mean": 0.2330852626661883,
+      "members": [
+        "BRAV3.SA",
+        "CSAN3.SA",
+        "PETR3.SA",
+        "PETR4.SA",
+        "PRIO3.SA",
+        "RAIZ4.SA",
+        "UGPA3.SA"
+      ]
+    }
+  ]
+}

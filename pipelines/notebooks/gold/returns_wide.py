@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Build gold.returns_wide — wide log-returns matrix, one column per ticker."""
 # COMMAND ----------
@@ -26,6 +31,6 @@ sdf = spark.createDataFrame(log_returns)
 sdf.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     f"{catalog}.gold.returns_wide"
 )
-print(
+log.info(
     f"gold.returns_wide → {log_returns.shape[0]} dates × {log_returns.shape[1] - 1} tickers"
 )

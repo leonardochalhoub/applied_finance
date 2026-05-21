@@ -190,9 +190,17 @@ resources:
             base_parameters:
               catalog: "${var.catalog}"
 
-        - task_key: export_json_artifacts
+        - task_key: quality_apply_governance
           depends_on:
             - { task_key: quality_contracts_assert }
+          notebook_task:
+            notebook_path: ./notebooks/quality/apply_governance.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: export_json_artifacts
+          depends_on:
+            - { task_key: quality_apply_governance }
           notebook_task:
             notebook_path: ./notebooks/export/json_artifacts.py
             base_parameters:
@@ -201,7 +209,7 @@ resources:
 
         - task_key: export_parquet_artifacts
           depends_on:
-            - { task_key: quality_contracts_assert }
+            - { task_key: quality_apply_governance }
           notebook_task:
             notebook_path: ./notebooks/export/parquet_artifacts.py
             base_parameters:

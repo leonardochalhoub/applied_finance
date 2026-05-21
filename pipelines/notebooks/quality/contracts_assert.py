@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Data quality asserts. Block exports if any check fails."""
 # COMMAND ----------
@@ -70,4 +75,4 @@ _assert(bad_returns < 0.5, f"gold.returns_wide has an extreme daily log return: 
 if errors:
     raise RuntimeError("Quality gate failed:\n  - " + "\n  - ".join(errors))
 
-print(f"Quality gate OK · bronze rows={bronze_rows:,} · kpi tickers={kpi_rows}")
+log.info(f"Quality gate OK · bronze rows={bronze_rows:,} · kpi tickers={kpi_rows}")

@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """IBOV overview: current composition + per-component YTD + contribution."""
 # COMMAND ----------
@@ -73,4 +78,4 @@ artifacts_dir = f"/Volumes/{catalog}/gold/artifacts"
 dbutils.fs.mkdirs(artifacts_dir)
 with open(f"{artifacts_dir}/ibov_overview.json", "w") as f:
     json.dump(out, f, indent=2, default=str)
-print(f"ibov_overview → {len(rows)} members, index YTD = {index_return_ytd:.4f}")
+log.info(f"ibov_overview → {len(rows)} members, index YTD = {index_return_ytd:.4f}")

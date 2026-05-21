@@ -12,6 +12,16 @@
     "source_run_id": { "type": "string", "minLength": 1 },
     "window_start": { "type": "string", "format": "date" },
     "window_end": { "type": "string", "format": "date" },
+    "n_total": { "type": "integer", "minimum": 0 },
+    "n_valid": { "type": "integer", "minimum": 0 },
+    "n_excluded": { "type": "integer", "minimum": 0 },
+    "exclusions_by_reason": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "shrinkage_target": { "type": "string", "enum": ["none", "identity", "constant_correlation"] },
+    "shrinkage_intensity": { "type": "number", "minimum": 0, "maximum": 1 },
+    "min_eigenvalue": { "type": "number" },
     "valid_tickers": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" }
@@ -24,7 +34,8 @@
         "additionalProperties": false,
         "properties": {
           "ticker": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" },
-          "reason": { "type": "string", "enum": ["insufficient_history", "delisted", "low_liquidity"] }
+          "reason": { "type": "string", "enum": ["insufficient_history", "delisted", "low_liquidity"] },
+          "coverage": { "type": "number", "minimum": 0, "maximum": 1 }
         }
       }
     }

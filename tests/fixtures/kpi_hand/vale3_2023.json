@@ -1,0 +1,21 @@
+{
+  "label": "VALE3.SA \u2014 full year 2023 (Yahoo adjusted close)",
+  "ticker": "VALE3.SA",
+  "first_date": "2023-01-02",
+  "last_date": "2023-12-28",
+  "cdi_annual": 0.13278,
+  "cdi_source": "BCB SGS s\u00e9rie 12 \u2014 mean of 2023 daily annualized CDI",
+  "expected": {
+    "first_close": 66.61692,
+    "last_close": 62.431614,
+    "n_obs": 247,
+    "mean_log_return_daily": -0.0002627,
+    "std_log_return_daily_ddof1": 0.01669822,
+    "return_log_full": -0.06488683,
+    "vol_annual": 0.2650761,
+    "annualized_mean": -0.06620032,
+    "max_drawdown": -0.3441534,
+    "sharpe_vs_cdi": -0.750654
+  },
+  "tolerance_rel": 1e-06
+}

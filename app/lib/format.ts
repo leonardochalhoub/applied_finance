@@ -10,6 +10,18 @@ const PCT = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
+const PCT_SIGNED = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  signDisplay: "exceptZero",
+});
+
+const NUM2 = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const NUM = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
 
 const DATE = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" });
@@ -24,9 +36,19 @@ export function fmtPct(v: number | null | undefined): string {
   return PCT.format(v);
 }
 
+export function fmtPctSigned(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return PCT_SIGNED.format(v);
+}
+
 export function fmtNum(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return NUM.format(v);
+}
+
+export function fmtNum2(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return NUM2.format(v);
 }
 
 export function fmtDate(v: string | Date | null | undefined): string {
@@ -39,4 +61,22 @@ export function fmtDate(v: string | Date | null | undefined): string {
 export function signedClass(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "text-muted";
   return v >= 0 ? "kpi-positive" : "kpi-negative";
+}
+
+export function returnIntensity(v: number | null | undefined): number {
+  if (v == null || !Number.isFinite(v)) return 0;
+  // Saturate at ±15% (a strong YTD move on the B3). Square-root the magnitude
+  // so even small returns are visible.
+  const ratio = Math.min(1, Math.abs(v) / 0.15);
+  return Math.sqrt(ratio);
+}
+
+export function cellColor(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "var(--neutral-cell)";
+  const intensity = returnIntensity(v);
+  const pct = Math.round(intensity * 100);
+  if (v >= 0) {
+    return `color-mix(in srgb, var(--gain) ${pct}%, var(--bg-subtle))`;
+  }
+  return `color-mix(in srgb, var(--loss) ${pct}%, var(--bg-subtle))`;
 }

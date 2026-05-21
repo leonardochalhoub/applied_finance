@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Ingest OHLCV from Yahoo Finance via yfr_py and land Parquet to a UC Volume."""
 # COMMAND ----------
@@ -36,7 +41,7 @@ universe = pd.read_csv(universe_path)
 active = universe[universe["listed_to"].isna()]
 tickers = active["ticker"].tolist()
 
-print(f"Ingesting {len(tickers)} active tickers from {first_date} to {last_date}")
+log.info(f"Ingesting {len(tickers)} active tickers from {first_date} to {last_date}")
 
 df = yf_get(
     tickers=tickers,
@@ -57,7 +62,7 @@ out_dir = f"{volume_dir}/run_id={run_id}"
 dbutils.fs.mkdirs(out_dir)
 out_path = f"{out_dir}/ohlcv.parquet"
 df.to_parquet(out_path, index=False)
-print(f"Wrote {len(df):,} rows → {out_path}")
+log.info(f"Wrote {len(df):,} rows → {out_path}")
 
 dbutils.jobs.taskValues.set(key="ingest_run_id", value=run_id)
 dbutils.jobs.taskValues.set(key="ingest_rows", value=len(df))

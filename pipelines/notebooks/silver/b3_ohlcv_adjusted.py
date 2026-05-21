@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 # Databricks notebook source
 """Build silver.b3_ohlcv_adjusted from bronze.
 
@@ -32,4 +37,4 @@ WHERE price_close IS NOT NULL
 """)
 
 rows = spark.table(f"{catalog}.silver.b3_ohlcv_adjusted").count()
-print(f"silver.b3_ohlcv_adjusted → {rows:,} rows")
+log.info(f"silver.b3_ohlcv_adjusted → {rows:,} rows")
