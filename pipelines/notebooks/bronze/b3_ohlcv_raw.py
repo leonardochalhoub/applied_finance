@@ -9,6 +9,7 @@ spark.sql(f"""
 CREATE TABLE IF NOT EXISTS {catalog}.bronze.b3_ohlcv_raw (
     ticker          STRING NOT NULL,
     trading_date    DATE   NOT NULL,
+    trading_year    INT GENERATED ALWAYS AS (YEAR(trading_date)),
     price_open      DOUBLE,
     price_high      DOUBLE,
     price_low       DOUBLE,
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS {catalog}.bronze.b3_ohlcv_raw (
     ingested_at     TIMESTAMP NOT NULL
 )
 USING DELTA
-PARTITIONED BY (year(trading_date))
+PARTITIONED BY (trading_year)
 TBLPROPERTIES (
     delta.autoOptimize.optimizeWrite = true,
     delta.autoOptimize.autoCompact   = true

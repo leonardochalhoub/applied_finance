@@ -14,7 +14,6 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.silver")
 spark.sql(f"""
 CREATE OR REPLACE TABLE {catalog}.silver.b3_ohlcv_adjusted
 USING DELTA
-PARTITIONED BY (year(trading_date))
 AS
 SELECT
     ticker,
