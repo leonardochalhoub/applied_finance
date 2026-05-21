@@ -53,8 +53,9 @@ run_id = os.environ.get("DATABRICKS_RUN_ID", str(uuid.uuid4()))
 df["source_run_id"] = run_id
 df["ingested_at"] = pd.Timestamp.utcnow()
 
-dbutils.fs.mkdirs(volume_dir)
-out_path = f"{volume_dir}/run_id={run_id}/ohlcv.parquet"
+out_dir = f"{volume_dir}/run_id={run_id}"
+dbutils.fs.mkdirs(out_dir)
+out_path = f"{out_dir}/ohlcv.parquet"
 df.to_parquet(out_path, index=False)
 print(f"Wrote {len(df):,} rows → {out_path}")
 
