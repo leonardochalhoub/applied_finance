@@ -23,6 +23,25 @@ const NUM2 = new Intl.NumberFormat("pt-BR", {
 });
 
 const NUM = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
+const INT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+const NUMTICK = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const PCT_TICK = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+export const fmtAxisNum = (v: unknown): string =>
+  typeof v === "number" && Number.isFinite(v) ? NUMTICK.format(v) : String(v);
+
+export const fmtAxisBRL = (v: unknown): string =>
+  typeof v === "number" && Number.isFinite(v) ? `R$ ${NUMTICK.format(v)}` : String(v);
+
+export const fmtAxisPct = (v: unknown): string =>
+  typeof v === "number" && Number.isFinite(v) ? PCT_TICK.format(v) : String(v);
+
+export const fmtInt = (v: number | null | undefined): string =>
+  v == null || !Number.isFinite(v) ? "—" : INT.format(v);
 
 const DATE = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" });
 

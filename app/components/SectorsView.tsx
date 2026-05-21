@@ -113,58 +113,71 @@ export function SectorsView({
             clique no cabeçalho para ordenar
           </span>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted">
-              <Th label="Setor" k="name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <Th label="Tickers" k="members" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-              <Th label="Retorno médio" k="return" sortKey={sortKey} dir={sortDir} onClick={toggleSort} />
-              <th className="px-5 py-3 text-right">Mediana</th>
-              <Th label="Vol. anual média" k="vol" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map((s) => {
-              const pct = (Math.abs(s.return_ytd_mean) / maxAbs) * 100;
-              const direction = s.return_ytd_mean >= 0 ? "left" : "right";
-              return (
-                <tr key={s.sector_b3} className="hover:bg-[color:var(--bg-subtle)]">
-                  <td className="px-5 py-3 text-strong">{s.sector_b3}</td>
-                  <td className="px-5 py-3 text-right tabular text-body">{s.member_count}</td>
-                  <td className="px-5 py-3">
-                    <div className="relative">
-                      <div
-                        aria-hidden
-                        className={`absolute top-1/2 h-2 -translate-y-1/2 rounded-full opacity-60 ${
-                          s.return_ytd_mean >= 0
-                            ? "bg-[color:var(--gain)]"
-                            : "bg-[color:var(--loss)]"
-                        }`}
-                        style={{
-                          width: `${pct / 2}%`,
-                          [direction]: "50%",
-                        } as React.CSSProperties}
-                      />
-                      <span
-                        className={`relative inline-block w-24 text-right tabular font-semibold ${signedClass(
-                          s.return_ytd_mean,
-                        )}`}
-                      >
-                        {fmtPctSigned(s.return_ytd_mean)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-right tabular text-body">
-                    {fmtPctSigned(s.return_ytd_median)}
-                  </td>
-                  <td className="px-5 py-3 text-right tabular text-body">
-                    {fmtPctSigned(s.vol_annual_mean)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted">
+                <Th label="Setor" k="name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <Th label="Tickers" k="members" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <Th label="Retorno" k="return" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <th className="px-3 py-3">
+                  <span className="inline-flex items-center gap-1">
+                    <span>Visual</span>
+                  </span>
+                </th>
+                <th className="px-3 py-3 text-right">Mediana</th>
+                <Th label="Vol. anual" k="vol" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((s) => {
+                const pct = (Math.abs(s.return_ytd_mean) / maxAbs) * 100;
+                const positive = s.return_ytd_mean >= 0;
+                return (
+                  <tr key={s.sector_b3} className="hover:bg-[color:var(--bg-subtle)]">
+                    <td className="whitespace-nowrap px-5 py-3 text-strong">{s.sector_b3}</td>
+                    <td className="px-3 py-3 text-right tabular text-body">{s.member_count}</td>
+                    <td className={`px-3 py-3 text-right tabular font-semibold whitespace-nowrap ${signedClass(s.return_ytd_mean)}`}>
+                      {fmtPctSigned(s.return_ytd_mean)}
+                    </td>
+                    <td className="px-3 py-3" style={{ minWidth: 180 }}>
+                      <div className="relative grid h-2 w-full grid-cols-2 overflow-visible">
+                        <div className="relative flex h-2 items-center justify-end">
+                          {!positive ? (
+                            <div
+                              aria-hidden
+                              className="h-2 rounded-full bg-[color:var(--loss)]"
+                              style={{ width: `${pct}%`, opacity: 0.85 }}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="relative h-2">
+                          {positive ? (
+                            <div
+                              aria-hidden
+                              className="absolute left-0 top-0 h-2 rounded-full bg-[color:var(--gain)]"
+                              style={{ width: `${pct}%`, opacity: 0.85 }}
+                            />
+                          ) : null}
+                        </div>
+                        <div
+                          aria-hidden
+                          className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[color:var(--border-strong)]"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular text-body whitespace-nowrap">
+                      {fmtPctSigned(s.return_ytd_median)}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular text-body whitespace-nowrap">
+                      {fmtPctSigned(s.vol_annual_mean)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

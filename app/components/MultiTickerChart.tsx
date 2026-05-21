@@ -13,7 +13,8 @@ import {
   YAxis,
 } from "recharts";
 
-import type { PricesArtifact } from "@/lib/data";
+import type { PricesArtifact, PricesCloseArtifact } from "@/lib/data";
+import { fmtAxisBRL, fmtAxisNum, fmtNum2 } from "@/lib/format";
 import type { WindowLabel } from "@/lib/windowed";
 import { windowStartIndex } from "@/lib/windowed";
 
@@ -26,6 +27,7 @@ type DisplayMode = "rebase" | "absolute";
 
 type Props = {
   data: PricesArtifact;
+  closes?: PricesCloseArtifact | null;
   initialTickers: string[];
   allTickers: string[];
   window?: WindowLabel;
@@ -35,6 +37,7 @@ type Props = {
 
 export function MultiTickerChart({
   data,
+  closes,
   initialTickers,
   allTickers,
   window: windowProp,
@@ -70,13 +73,17 @@ export function MultiTickerChart({
     return slicedDates.map((d, i) => {
       const row: Record<string, number | string | null> = { date: d };
       for (const t of selected) {
-        const arr = data.series[t];
-        if (!arr) continue;
-        const raw = arr[startIdx + i];
-        if (raw == null) continue;
-        if (displayMode === "absolute") {
+        if (displayMode === "absolute" && closes) {
+          const arr = closes.series[t];
+          if (!arr) continue;
+          const raw = arr[startIdx + i];
+          if (raw == null) continue;
           row[t] = raw;
         } else {
+          const arr = data.series[t];
+          if (!arr) continue;
+          const raw = arr[startIdx + i];
+          if (raw == null) continue;
           const baseRaw = arr[startIdx];
           if (baseRaw == null || baseRaw <= 0) continue;
           row[t] = (raw / baseRaw) * 100;
@@ -84,7 +91,7 @@ export function MultiTickerChart({
       }
       return row;
     });
-  }, [slicedDates, selected, data, displayMode, startIdx]);
+  }, [slicedDates, selected, data, closes, displayMode, startIdx]);
 
   function toggle(t: string) {
     setSelected((prev) =>
@@ -111,7 +118,7 @@ export function MultiTickerChart({
     .filter((s) => s.last != null);
 
   const isAbsolute = displayMode === "absolute";
-  const tickFmt = (v: unknown) => (typeof v === "number" ? v.toFixed(isAbsolute ? 2 : 0) : String(v));
+  const tickFmt = isAbsolute ? fmtAxisBRL : fmtAxisNum;
 
   return (
     <div className="card overflow-hidden">
@@ -133,7 +140,8 @@ export function MultiTickerChart({
             <button
               type="button"
               onClick={() => setDisplayMode("absolute")}
-              className={`rounded-sm px-2 py-0.5 transition ${
+              disabled={!closes}
+              className={`rounded-sm px-2 py-0.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
                 displayMode === "absolute"
                   ? "bg-[color:var(--accent)] text-white"
                   : "text-muted hover:text-strong"
@@ -237,13 +245,8 @@ export function MultiTickerChart({
                   allowDataOverflow={logScale}
                   tick={{ fontSize: 10, fill: "var(--muted)" }}
                   stroke="var(--border)"
-                  width={isAbsolute ? 60 : 48}
+                  width={isAbsolute ? 70 : 48}
                   tickFormatter={tickFmt}
-                  label={
-                    isAbsolute
-                      ? { value: "R$", angle: -90, position: "insideLeft", fill: "var(--muted)", fontSize: 11 }
-                      : undefined
-                  }
                 />
                 {!isAbsolute ? (
                   <ReferenceLine
@@ -270,8 +273,8 @@ export function MultiTickerChart({
                   formatter={(value: unknown) =>
                     typeof value === "number"
                       ? isAbsolute
-                        ? `R$ ${value.toFixed(2)}`
-                        : value.toFixed(2)
+                        ? fmtAxisBRL(value)
+                        : fmtNum2(value)
                       : "—"
                   }
                 />
@@ -313,14 +316,14 @@ export function MultiTickerChart({
                     {s.ticker.replace(/\.SA$/, "")}
                   </a>
                   <span className="text-muted">
-                    {isAbsolute ? `R$ ${s.last?.toFixed(2)}` : s.last?.toFixed(1)}
+                    {isAbsolute ? fmtAxisBRL(s.last ?? 0) : fmtNum2(s.last ?? 0)}
                   </span>
                   <span
                     className={`tabular ${
                       (s.pct ?? 0) >= 0 ? "kpi-positive" : "kpi-negative"
                     }`}
                   >
-                    {((s.pct ?? 0) * 100).toFixed(2)}%
+                    {((s.pct ?? 0) * 100).toFixed(2).replace(".", ",")}%
                   </span>
                 </div>
               ))}

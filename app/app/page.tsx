@@ -1,14 +1,16 @@
 import { HomeShell } from "@/components/HomeShell";
-import { loadIbov, loadKpis, loadPrices, loadSectors } from "@/lib/data";
+import { loadCdi, loadIbov, loadKpis, loadPrices, loadPricesClose, loadSectors } from "@/lib/data";
 
 export const dynamic = "force-static";
 
 export default async function HomePage() {
-  const [kpis, sectors, ibov, prices] = await Promise.all([
+  const [kpis, sectors, ibov, prices, closes, cdi] = await Promise.all([
     loadKpis(),
     loadSectors(),
     loadIbov(),
     loadPrices(),
+    loadPricesClose(),
+    loadCdi(),
   ]);
 
   if (!kpis || !sectors || !ibov || !prices) {
@@ -23,5 +25,14 @@ export default async function HomePage() {
     );
   }
 
-  return <HomeShell kpis={kpis} sectors={sectors} ibov={ibov} prices={prices} />;
+  return (
+    <HomeShell
+      kpis={kpis}
+      sectors={sectors}
+      ibov={ibov}
+      prices={prices}
+      closes={closes}
+      cdi={cdi}
+    />
+  );
 }

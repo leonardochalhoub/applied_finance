@@ -82,6 +82,20 @@ export type PricesArtifact = {
   series: Record<string, (number | null)[]>;
 };
 
+export type PricesCloseArtifact = {
+  as_of: string;
+  currency: string;
+  dates: string[];
+  series: Record<string, (number | null)[]>;
+};
+
+export type CdiArtifact = {
+  source: string;
+  fetched_at: string;
+  global_mean_annual?: number;
+  rows: { date: string; rate_daily_pct: number; rate_annual_pct: number }[];
+};
+
 async function _load<T>(name: string): Promise<T | null> {
   try {
     const file = path.join(process.cwd(), "public", "data", `${name}.json`);
@@ -97,3 +111,5 @@ export const loadSectors = () => _load<SectorArtifact>("sector_aggregates");
 export const loadCorrelations = () => _load<CorrelationArtifact>("correlation_heatmap");
 export const loadIbov = () => _load<IbovArtifact>("ibov_overview");
 export const loadPrices = () => _load<PricesArtifact>("prices_normalized");
+export const loadPricesClose = () => _load<PricesCloseArtifact>("prices_close");
+export const loadCdi = () => _load<CdiArtifact>("cdi");

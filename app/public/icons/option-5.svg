@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Option 5: Markowitz efficient frontier — hyperbola arc + scatter -->
+  <rect width="64" height="64" rx="14" fill="#0a0f1e"/>
+  <!-- Scatter cloud -->
+  <circle cx="22" cy="40" r="1.5" fill="#60a5fa" opacity="0.4"/>
+  <circle cx="26" cy="42" r="1.5" fill="#60a5fa" opacity="0.5"/>
+  <circle cx="30" cy="38" r="1.5" fill="#60a5fa" opacity="0.4"/>
+  <circle cx="34" cy="34" r="1.5" fill="#60a5fa" opacity="0.5"/>
+  <circle cx="38" cy="30" r="1.5" fill="#60a5fa" opacity="0.6"/>
+  <circle cx="42" cy="28" r="1.5" fill="#60a5fa" opacity="0.5"/>
+  <circle cx="28" cy="34" r="1.5" fill="#60a5fa" opacity="0.5"/>
+  <circle cx="32" cy="44" r="1.5" fill="#60a5fa" opacity="0.4"/>
+  <circle cx="36" cy="40" r="1.5" fill="#60a5fa" opacity="0.5"/>
+  <!-- Efficient frontier curve -->
+  <path d="M 18 50 Q 20 36, 28 28 T 50 16" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round"/>
+  <!-- Star at max sharpe -->
+  <path d="M 42 22 L 43.6 26 L 48 26.2 L 44.5 28.8 L 45.8 33 L 42 30.6 L 38.2 33 L 39.5 28.8 L 36 26.2 L 40.4 26 Z" fill="#fbbf24"/>
+</svg>

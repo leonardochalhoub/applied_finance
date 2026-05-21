@@ -8,6 +8,7 @@ const nextConfig = {
   trailingSlash: true,
   images: { unoptimized: true },
   typedRoutes: true,
+  devIndicators: false,
 };
 
 export default nextConfig;

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Option 2: Greek Sigma (Σ) — summation / portfolio math -->
+  <rect width="64" height="64" rx="14" fill="#0a0f1e"/>
+  <path d="M 20 14 L 44 14 L 44 19 L 28 19 L 38 32 L 28 45 L 44 45 L 44 50 L 20 50 L 32 32 Z" fill="#60a5fa"/>
+</svg>

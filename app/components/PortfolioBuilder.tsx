@@ -3,36 +3,36 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
-  Legend,
-  Line,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 
-import type { KpiArtifact, PricesArtifact } from "@/lib/data";
+import { cdiMeanForWindow } from "@/lib/cdi";
+import type { CdiArtifact, KpiArtifact, PricesArtifact } from "@/lib/data";
 import { buildFrontier, evaluatePortfolio, type FrontierResult } from "@/lib/markowitz";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
-import { fmtNum2, fmtPctSigned } from "@/lib/format";
+import { fmtAxisPct, fmtNum2, fmtPctSigned } from "@/lib/format";
 
 type Props = {
   prices: PricesArtifact;
   kpis: KpiArtifact;
+  cdi?: CdiArtifact | null;
 };
 
 const DEFAULT_PICKS = ["PETR4.SA", "VALE3.SA", "ITUB4.SA", "BBAS3.SA", "WEGE3.SA"];
 
-export function PortfolioBuilder({ prices, kpis }: Props) {
+export function PortfolioBuilder({ prices, kpis, cdi }: Props) {
   const allTickers = useMemo(() => Object.keys(prices.series).sort(), [prices]);
 
   // ── State ───────────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<string[]>([]);
   const [weights, setWeights] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
-  const [showFrontier, setShowFrontier] = useState(true);
 
   // Initialize from URL ?p= or defaults
   useEffect(() => {
@@ -138,13 +138,21 @@ export function PortfolioBuilder({ prices, kpis }: Props) {
     return { mu, sigma, n, Tn };
   }, [selected, prices]);
 
-  const rf = kpis.cdi_global_mean ?? 0.1;
+  const rf = useMemo(() => {
+    const startDate = prices.dates[0];
+    const endDate = prices.dates[prices.dates.length - 1];
+    return cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
+  }, [cdi, prices, kpis]);
 
-  // ── Markowitz frontier ──────────────────────────────────────────────────
+  // ── Markowitz frontier (unconstrained closed-form + MC cloud) ──────────
   const frontierResult: FrontierResult | null = useMemo(() => {
     if (!stats) return null;
     try {
-      return buildFrontier(stats.mu, stats.sigma, rf, { steps: 35 });
+      return buildFrontier(stats.mu, stats.sigma, rf, {
+        longOnly: false,
+        frontierSteps: 80,
+        cloudSize: 1500,
+      });
     } catch (e) {
       console.warn("frontier failed", e);
       return null;
@@ -383,49 +391,62 @@ export function PortfolioBuilder({ prices, kpis }: Props) {
         </div>
       </div>
 
-      {/* ── Efficient frontier chart ──────────────────────────────────────── */}
+      {/* ── Efficient frontier chart (closed-form hyperbola + MC cloud) ──── */}
       {frontierResult ? (
         <div className="card overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
             <div>
               <span className="eyebrow">Fronteira eficiente</span>
               <span className="ml-3 text-[10px] uppercase tracking-wider text-muted">
-                σ × E[r], janela {stats?.Tn ?? 0} dias
+                σ × E[r] · {stats?.Tn ?? 0} dias úteis · {stats?.n ?? 0} ativos
               </span>
             </div>
-            <label className="flex items-center gap-2 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={showFrontier}
-                onChange={(e) => setShowFrontier(e.target.checked)}
-                className="accent-[color:var(--accent)]"
-              />
-              mostrar frontier
-            </label>
+            {/* Inline legend (no overlap with axis label) */}
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-body">
+              <LegendDot color="var(--muted)" /> nuvem aleatória
+              <LegendDot color="var(--accent)" line /> fronteira
+              <LegendDot color="var(--muted)" shape="circle-outline" /> mín. variância
+              <LegendDot color="var(--gain)" shape="star" /> máx. Sharpe
+              <LegendDot color="var(--loss)" shape="diamond" /> sua carteira
+            </div>
           </div>
           <div className="p-4">
-            <div style={{ width: "100%", height: 380 }}>
+            <div style={{ width: "100%", height: 420 }}>
               <ResponsiveContainer>
-                <ScatterChart margin={{ top: 8, right: 16, left: 8, bottom: 28 }}>
+                <ScatterChart margin={{ top: 12, right: 20, left: 12, bottom: 36 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
                   <XAxis
                     type="number"
                     dataKey="vol"
                     name="vol"
-                    label={{ value: "Volatilidade anualizada", position: "bottom", fill: "var(--muted)", fontSize: 11 }}
+                    label={{
+                      value: "Volatilidade anualizada (σ)",
+                      position: "insideBottom",
+                      offset: -10,
+                      fill: "var(--muted)",
+                      fontSize: 11,
+                    }}
                     tick={{ fontSize: 10, fill: "var(--muted)" }}
                     stroke="var(--border)"
-                    tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                    tickFormatter={fmtAxisPct}
                   />
                   <YAxis
                     type="number"
                     dataKey="ret"
                     name="ret"
-                    label={{ value: "Retorno esperado", angle: -90, position: "insideLeft", fill: "var(--muted)", fontSize: 11 }}
+                    label={{
+                      value: "Retorno esperado E[r]",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: "var(--muted)",
+                      fontSize: 11,
+                    }}
                     tick={{ fontSize: 10, fill: "var(--muted)" }}
                     stroke="var(--border)"
-                    tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                    tickFormatter={fmtAxisPct}
+                    width={60}
                   />
+                  <ZAxis range={[12, 12]} />
                   <Tooltip
                     cursor={{ strokeDasharray: "3 3" }}
                     contentStyle={{
@@ -437,21 +458,34 @@ export function PortfolioBuilder({ prices, kpis }: Props) {
                     }}
                     formatter={(value: unknown, name: string) =>
                       typeof value === "number"
-                        ? [`${(value * 100).toFixed(2)}%`, name === "vol" ? "Vol" : "Retorno"]
+                        ? [fmtAxisPct(value), name === "vol" ? "Vol" : "Retorno"]
                         : [value as string, name]
                     }
                   />
-                  <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                  {showFrontier ? (
-                    <Scatter
-                      name="frontier"
-                      data={frontierData}
-                      line={{ stroke: "var(--accent)", strokeWidth: 1.5 }}
-                      lineType="joint"
-                      shape={() => <></>}
-                    />
-                  ) : null}
-                  <Scatter name="min variance" data={mvPoint} fill="var(--muted)" shape="circle" />
+                  {/* Monte Carlo cloud — low opacity dots */}
+                  <Scatter
+                    name="cloud"
+                    data={frontierResult.cloud}
+                    fill="var(--muted)"
+                    fillOpacity={0.25}
+                    shape="circle"
+                  />
+                  {/* Frontier curve as a line via 'line' on a Scatter */}
+                  <Scatter
+                    name="frontier"
+                    data={frontierData}
+                    line={{ stroke: "var(--accent)", strokeWidth: 2 }}
+                    lineType="joint"
+                    shape={() => <g />}
+                  />
+                  <Scatter
+                    name="min variance"
+                    data={mvPoint}
+                    fill="transparent"
+                    stroke="var(--strong)"
+                    strokeWidth={2}
+                    shape="circle"
+                  />
                   <Scatter name="max Sharpe" data={msPoint} fill="var(--gain)" shape="star" />
                   <Scatter
                     name="sua carteira"
@@ -479,6 +513,59 @@ export function PortfolioBuilder({ prices, kpis }: Props) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+function LegendDot({
+  color,
+  line,
+  shape = "dot",
+}: {
+  color: string;
+  line?: boolean;
+  shape?: "dot" | "circle-outline" | "star" | "diamond";
+}) {
+  if (line) {
+    return (
+      <span aria-hidden className="inline-flex items-center gap-1">
+        <span
+          className="inline-block h-[2px] w-4 rounded-full"
+          style={{ background: color }}
+        />
+      </span>
+    );
+  }
+  if (shape === "circle-outline") {
+    return (
+      <span
+        aria-hidden
+        className="inline-block h-2.5 w-2.5 rounded-full border-2"
+        style={{ borderColor: color, background: "transparent" }}
+      />
+    );
+  }
+  if (shape === "star") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden style={{ display: "inline-block" }}>
+        <path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z" fill={color} />
+      </svg>
+    );
+  }
+  if (shape === "diamond") {
+    return (
+      <span
+        aria-hidden
+        className="inline-block h-2.5 w-2.5 rotate-45"
+        style={{ background: color }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-2 w-2 rounded-full"
+      style={{ background: color }}
+    />
   );
 }
 

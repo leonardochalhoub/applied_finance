@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 
-import type { IbovArtifact, KpiArtifact, PricesArtifact, SectorArtifact } from "@/lib/data";
+import { cdiMeanForWindow } from "@/lib/cdi";
+import type {
+  CdiArtifact,
+  IbovArtifact,
+  KpiArtifact,
+  PricesArtifact,
+  PricesCloseArtifact,
+  SectorArtifact,
+} from "@/lib/data";
 import { fmtDate, fmtPctSigned, signedClass } from "@/lib/format";
 import {
   aggregateSectorsForWindow,
@@ -21,13 +29,15 @@ type Props = {
   sectors: SectorArtifact;
   ibov: IbovArtifact;
   prices: PricesArtifact;
+  closes: PricesCloseArtifact | null;
+  cdi: CdiArtifact | null;
 };
 
 const WINDOWS: WindowLabel[] = ["1M", "3M", "6M", "YTD", "1Y", "MAX"];
 
 const DEFAULT_PICKS = ["PETR4.SA", "VALE3.SA", "ITUB4.SA", "BBAS3.SA", "WEGE3.SA"];
 
-export function HomeShell({ kpis, sectors, ibov, prices }: Props) {
+export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
   const [window, setWindow] = useState<WindowLabel>("6M");
   const [sectorFilter, setSectorFilter] = useState<string>("all");
 
@@ -108,6 +118,11 @@ export function HomeShell({ kpis, sectors, ibov, prices }: Props) {
   const startIdx = windowStartIndex(prices.dates, window);
   const startDate = prices.dates[startIdx];
   const endDate = prices.dates[prices.dates.length - 1];
+
+  const cdiWindow = useMemo(
+    () => cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13),
+    [cdi, startDate, endDate, kpis],
+  );
 
   // IBOV composition rows with window-recomputed returns and a sector filter
   const ibovRows = useMemo(() => {
@@ -190,6 +205,7 @@ export function HomeShell({ kpis, sectors, ibov, prices }: Props) {
         </div>
         <MultiTickerChart
           data={prices}
+          closes={closes}
           initialTickers={initialPicks}
           allTickers={
             sectorFilter === "all"
@@ -223,9 +239,9 @@ export function HomeShell({ kpis, sectors, ibov, prices }: Props) {
               <span className="mx-1 text-muted">/</span>
               <span className="kpi-negative">{decliners}↓</span>)
             </span>
-            {typeof kpis.cdi_global_mean === "number" && kpis.cdi_global_mean > 0 ? (
-              <span className="chip">CDI médio {fmtPctSigned(kpis.cdi_global_mean).replace("+", "")}</span>
-            ) : null}
+            <span className="chip">
+              CDI {windowLabelPt(window)} {fmtPctSigned(cdiWindow).replace("+", "")}
+            </span>
           </div>
         </div>
         {topSector && bottomSector ? (
