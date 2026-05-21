@@ -7,8 +7,10 @@ import { fmtDate, fmtPct } from "@/lib/format";
 export const dynamic = "force-static";
 
 export async function generateStaticParams() {
-  const kpis = await loadKpis().catch(() => null);
-  if (!kpis) return [];
+  const kpis = await loadKpis();
+  if (!kpis || kpis.tickers.length === 0) {
+    return [{ ticker: "PETR4.SA" }];
+  }
   return kpis.tickers.map((t) => ({ ticker: t.ticker }));
 }
 

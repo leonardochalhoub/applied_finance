@@ -1,11 +1,14 @@
 /**
- * Typed fetchers for artifacts published to /data/* on gh-pages.
+ * Typed loaders for Gold artifacts.
  *
- * In Next.js static export, fetch() at build time uses the basePath; at runtime
- * we use a relative path so the same code works locally and on Pages.
+ * At build time (Next.js static export), pages run in Node. We read the JSON
+ * from `app/public/data/*.json` via fs — no HTTP server exists during build, so
+ * `fetch()` would fail. The CI copies the Databricks artifacts there before
+ * `pnpm build`.
  */
 
-const DATA_BASE = process.env.NEXT_PUBLIC_DATA_BASE ?? "/data";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 export type KpiRow = {
   ticker: string;
@@ -74,11 +77,14 @@ export type IbovArtifact = {
   members: IbovMember[];
 };
 
-async function _load<T>(name: string): Promise<T> {
-  const url = `${DATA_BASE}/${name}.json`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
-  return res.json() as Promise<T>;
+async function _load<T>(name: string): Promise<T | null> {
+  try {
+    const file = path.join(process.cwd(), "public", "data", `${name}.json`);
+    const raw = await readFile(file, "utf-8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
 }
 
 export const loadKpis = () => _load<KpiArtifact>("kpis_per_ticker");

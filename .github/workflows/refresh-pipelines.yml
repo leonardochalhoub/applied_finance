@@ -57,6 +57,12 @@ jobs:
             fi
           done
 
+      - name: Seed app/public/data with artifacts for build-time fs reads
+        run: |
+          mkdir -p app/public/data
+          cp -r _artifacts/data/* app/public/data/ 2>/dev/null || true
+          ls -la app/public/data/ || true
+
       - name: Build frontend
         working-directory: app
         env:

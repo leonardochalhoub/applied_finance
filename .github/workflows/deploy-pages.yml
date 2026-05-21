@@ -27,14 +27,6 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: 9 }
 
-      - name: Build frontend
-        working-directory: app
-        env:
-          GH_PAGES_BASE: /applied_finance
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build
-
       - name: Pull existing data/ from gh-pages
         run: |
           git fetch origin gh-pages || true
@@ -42,6 +34,23 @@ jobs:
           if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
             git --work-tree=_existing checkout origin/gh-pages -- data || true
           fi
+
+      - name: Seed app/public/data so build-time fs reads find the artifacts
+        run: |
+          mkdir -p app/public/data
+          if [ -d _existing/data ]; then cp -r _existing/data/* app/public/data/ 2>/dev/null || true; fi
+
+      - name: Build frontend
+        working-directory: app
+        env:
+          GH_PAGES_BASE: /applied_finance
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
+          pnpm build
 
       - name: Assemble payload
         run: |
