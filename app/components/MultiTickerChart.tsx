@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -14,29 +14,48 @@ import {
 } from "recharts";
 
 import type { PricesArtifact } from "@/lib/data";
+import type { WindowLabel } from "@/lib/windowed";
+import { windowStartIndex } from "@/lib/windowed";
 
 const PALETTE = [
   "#60a5fa", "#34d399", "#f472b6", "#fbbf24", "#a78bfa",
   "#f87171", "#22d3ee", "#fb923c", "#84cc16", "#e879f9",
 ];
 
-type Range = "1M" | "3M" | "6M" | "YTD" | "1Y" | "MAX";
-
-const RANGE_DAYS: Record<Exclude<Range, "YTD" | "MAX">, number> = {
-  "1M": 22, "3M": 66, "6M": 132, "1Y": 252,
-};
+type DisplayMode = "rebase" | "absolute";
 
 type Props = {
   data: PricesArtifact;
   initialTickers: string[];
   allTickers: string[];
+  window?: WindowLabel;
+  onWindowChange?: (w: WindowLabel) => void;
+  showWindowControls?: boolean;
 };
 
-export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
+export function MultiTickerChart({
+  data,
+  initialTickers,
+  allTickers,
+  window: windowProp,
+  onWindowChange,
+  showWindowControls = true,
+}: Props) {
   const [selected, setSelected] = useState<string[]>(initialTickers.slice(0, 5));
-  const [range, setRange] = useState<Range>("6M");
+  const [internalWindow, setInternalWindow] = useState<WindowLabel>("6M");
+  const window = windowProp ?? internalWindow;
   const [logScale, setLogScale] = useState(false);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("rebase");
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (windowProp !== undefined) setInternalWindow(windowProp);
+  }, [windowProp]);
+
+  function setWindow(w: WindowLabel) {
+    setInternalWindow(w);
+    onWindowChange?.(w);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
@@ -44,19 +63,10 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
     return allTickers.filter((t) => t.includes(q));
   }, [query, allTickers]);
 
-  const slicedDates = useMemo(() => {
-    if (range === "MAX") return data.dates;
-    if (range === "YTD") {
-      const ytdStart = `${data.as_of.slice(0, 4)}-01-01`;
-      const startIdx = data.dates.findIndex((d) => d >= ytdStart);
-      return startIdx === -1 ? data.dates : data.dates.slice(startIdx);
-    }
-    const n = RANGE_DAYS[range];
-    return data.dates.slice(-n);
-  }, [range, data]);
+  const startIdx = useMemo(() => windowStartIndex(data.dates, window), [data.dates, window]);
+  const slicedDates = useMemo(() => data.dates.slice(startIdx), [data.dates, startIdx]);
 
   const chartRows = useMemo(() => {
-    const startIdx = data.dates.length - slicedDates.length;
     return slicedDates.map((d, i) => {
       const row: Record<string, number | string | null> = { date: d };
       for (const t of selected) {
@@ -64,55 +74,92 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
         if (!arr) continue;
         const raw = arr[startIdx + i];
         if (raw == null) continue;
-        // Rebase to 100 at the start of the selected window
-        const baseRaw = arr[startIdx];
-        if (baseRaw == null || baseRaw <= 0) continue;
-        row[t] = (raw / baseRaw) * 100;
+        if (displayMode === "absolute") {
+          row[t] = raw;
+        } else {
+          const baseRaw = arr[startIdx];
+          if (baseRaw == null || baseRaw <= 0) continue;
+          row[t] = (raw / baseRaw) * 100;
+        }
       }
       return row;
     });
-  }, [slicedDates, selected, data]);
+  }, [slicedDates, selected, data, displayMode, startIdx]);
 
   function toggle(t: string) {
     setSelected((prev) =>
-      prev.includes(t) ? prev.filter((p) => p !== t) : [...prev, t].slice(-10)
+      prev.includes(t) ? prev.filter((p) => p !== t) : [...prev, t].slice(-10),
     );
   }
 
   const lastRow = chartRows[chartRows.length - 1];
+  const firstRow = chartRows[0];
   const summary = selected
     .map((t) => {
       const v = lastRow?.[t];
+      const v0 = firstRow?.[t];
       const num = typeof v === "number" ? v : null;
-      const pct = num != null ? (num - 100) / 100 : null;
+      const num0 = typeof v0 === "number" ? v0 : null;
+      let pct: number | null = null;
+      if (displayMode === "rebase") {
+        pct = num != null ? (num - 100) / 100 : null;
+      } else if (num != null && num0 != null && num0 > 0) {
+        pct = (num - num0) / num0;
+      }
       return { ticker: t, last: num, pct };
     })
     .filter((s) => s.last != null);
+
+  const isAbsolute = displayMode === "absolute";
+  const tickFmt = (v: unknown) => (typeof v === "number" ? v.toFixed(isAbsolute ? 2 : 0) : String(v));
 
   return (
     <div className="card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="flex items-center gap-3">
           <span className="eyebrow">Comparação de preços</span>
-          <span className="text-[10px] text-muted">
-            rebaseado a 100 no início da janela
-          </span>
-        </div>
-        <div className="flex items-center gap-1 text-xs">
-          {(["1M", "3M", "6M", "YTD", "1Y", "MAX"] as Range[]).map((r) => (
+          <div className="inline-flex rounded-md border border-border p-0.5 text-[10px]">
             <button
-              key={r}
               type="button"
-              onClick={() => setRange(r)}
-              className={`rounded-md px-2.5 py-1 transition ${
-                range === r
+              onClick={() => setDisplayMode("rebase")}
+              className={`rounded-sm px-2 py-0.5 transition ${
+                displayMode === "rebase"
                   ? "bg-[color:var(--accent)] text-white"
-                  : "text-muted hover:bg-[color:var(--bg-subtle)] hover:text-strong"
+                  : "text-muted hover:text-strong"
               }`}
             >
-              {r}
+              rebase 100
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setDisplayMode("absolute")}
+              className={`rounded-sm px-2 py-0.5 transition ${
+                displayMode === "absolute"
+                  ? "bg-[color:var(--accent)] text-white"
+                  : "text-muted hover:text-strong"
+              }`}
+            >
+              R$ real
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs">
+          {showWindowControls
+            ? (["1M", "3M", "6M", "YTD", "1Y", "MAX"] as WindowLabel[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setWindow(r)}
+                  className={`rounded-md px-2.5 py-1 transition ${
+                    window === r
+                      ? "bg-[color:var(--accent)] text-white"
+                      : "text-muted hover:bg-[color:var(--bg-subtle)] hover:text-strong"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))
+            : null}
           <label className="ml-3 flex items-center gap-1.5 text-muted">
             <input
               type="checkbox"
@@ -190,20 +237,27 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
                   allowDataOverflow={logScale}
                   tick={{ fontSize: 10, fill: "var(--muted)" }}
                   stroke="var(--border)"
-                  width={48}
-                  tickFormatter={(v) => (typeof v === "number" ? v.toFixed(0) : v)}
+                  width={isAbsolute ? 60 : 48}
+                  tickFormatter={tickFmt}
+                  label={
+                    isAbsolute
+                      ? { value: "R$", angle: -90, position: "insideLeft", fill: "var(--muted)", fontSize: 11 }
+                      : undefined
+                  }
                 />
-                <ReferenceLine
-                  y={100}
-                  stroke="var(--border-strong)"
-                  strokeDasharray="2 3"
-                  label={{
-                    value: "rebase 100",
-                    position: "insideTopRight",
-                    fill: "var(--muted)",
-                    fontSize: 10,
-                  }}
-                />
+                {!isAbsolute ? (
+                  <ReferenceLine
+                    y={100}
+                    stroke="var(--border-strong)"
+                    strokeDasharray="2 3"
+                    label={{
+                      value: "rebase 100",
+                      position: "insideTopRight",
+                      fill: "var(--muted)",
+                      fontSize: 10,
+                    }}
+                  />
+                ) : null}
                 <Tooltip
                   contentStyle={{
                     background: "var(--bg-elevated)",
@@ -214,7 +268,11 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
                   }}
                   labelStyle={{ color: "var(--muted)", fontWeight: 600 }}
                   formatter={(value: unknown) =>
-                    typeof value === "number" ? value.toFixed(2) : "—"
+                    typeof value === "number"
+                      ? isAbsolute
+                        ? `R$ ${value.toFixed(2)}`
+                        : value.toFixed(2)
+                      : "—"
                   }
                 />
                 <Legend
@@ -239,7 +297,7 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
 
           {summary.length > 0 ? (
             <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 sm:grid-cols-3 lg:grid-cols-5">
-              {summary.map((s, idx) => (
+              {summary.map((s) => (
                 <div key={s.ticker} className="flex items-center gap-2 text-xs">
                   <span
                     aria-hidden
@@ -248,8 +306,15 @@ export function MultiTickerChart({ data, initialTickers, allTickers }: Props) {
                       background: PALETTE[selected.indexOf(s.ticker) % PALETTE.length],
                     }}
                   />
-                  <span className="mono text-strong">{s.ticker.replace(/\.SA$/, "")}</span>
-                  <span className="text-muted">{s.last?.toFixed(1)}</span>
+                  <a
+                    className="mono text-strong hover:underline"
+                    href={`/ticker/${encodeURIComponent(s.ticker)}/`}
+                  >
+                    {s.ticker.replace(/\.SA$/, "")}
+                  </a>
+                  <span className="text-muted">
+                    {isAbsolute ? `R$ ${s.last?.toFixed(2)}` : s.last?.toFixed(1)}
+                  </span>
                   <span
                     className={`tabular ${
                       (s.pct ?? 0) >= 0 ? "kpi-positive" : "kpi-negative"
