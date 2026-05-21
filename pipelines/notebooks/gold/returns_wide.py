@@ -15,6 +15,7 @@ silver = (
     .toPandas()
 )
 silver["trading_date"] = pd.to_datetime(silver["trading_date"])
+silver = silver.drop_duplicates(subset=["ticker", "trading_date"], keep="last")
 
 wide_close = silver.pivot(index="trading_date", columns="ticker", values="close").sort_index()
 log_returns = np.log(wide_close / wide_close.shift(1))
