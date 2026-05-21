@@ -41,6 +41,7 @@ _write_json(
 )
 
 sectors = spark.table(f"{catalog}.gold.sector_aggregates").toPandas()
+sectors = sectors.drop(columns=["as_of", "source_run_id"], errors="ignore")
 sectors = sectors.replace({pd.NA: None, float("nan"): None})
 _write_json(
     f"{artifacts_dir}/sector_aggregates.json",
