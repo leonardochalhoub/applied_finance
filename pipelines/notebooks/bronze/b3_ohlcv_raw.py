@@ -25,21 +25,27 @@ TBLPROPERTIES (
 )
 """)
 
-stage = spark.read.parquet(f"/Volumes/{catalog}/bronze/raw/yf/*/ohlcv.parquet")
+from pyspark.sql import Window
+from pyspark.sql import functions as F
+
+stage = spark.read.parquet(f"/Volumes/{catalog}/bronze/raw/yf/*/ohlcv.parquet").selectExpr(
+    "ticker",
+    "to_date(ref_date) AS trading_date",
+    "CAST(price_open AS DOUBLE) AS price_open",
+    "CAST(price_high AS DOUBLE) AS price_high",
+    "CAST(price_low AS DOUBLE) AS price_low",
+    "CAST(price_close AS DOUBLE) AS price_close",
+    "CAST(volume AS BIGINT) AS volume",
+    "CAST(price_adjusted AS DOUBLE) AS price_adjusted",
+    "source_run_id",
+    "ingested_at",
+)
+
+w = Window.partitionBy("ticker", "trading_date").orderBy(F.col("ingested_at").desc())
 stage = (
-    stage.selectExpr(
-        "ticker",
-        "to_date(ref_date) AS trading_date",
-        "CAST(price_open AS DOUBLE) AS price_open",
-        "CAST(price_high AS DOUBLE) AS price_high",
-        "CAST(price_low AS DOUBLE) AS price_low",
-        "CAST(price_close AS DOUBLE) AS price_close",
-        "CAST(volume AS BIGINT) AS volume",
-        "CAST(price_adjusted AS DOUBLE) AS price_adjusted",
-        "source_run_id",
-        "ingested_at",
-    )
-    .dropDuplicates(["ticker", "trading_date", "source_run_id"])
+    stage.withColumn("_rn", F.row_number().over(w))
+    .where("_rn = 1")
+    .drop("_rn")
 )
 stage.createOrReplaceTempView("stage_ohlcv")
 
