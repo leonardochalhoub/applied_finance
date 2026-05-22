@@ -328,6 +328,50 @@ resources:
               catalog:       "${var.catalog}"
               artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
 
+        # ─── FinOps cascade ────────────────────────────────────────────────
+        # Independent sub-DAG: lê system.billing.* (managed pelo Databricks)
+        # filtrado por custom_tags.team='applied-finance' → silver → gold →
+        # export do finops_summary.json para a aba /finops.
+        - task_key: silver_finops_daily_spend
+          notebook_task:
+            notebook_path: ./notebooks/silver/finops_daily_spend.py
+            base_parameters:
+              catalog:  "${var.catalog}"
+              team_tag: "applied-finance"
+
+        - task_key: silver_finops_run_costs
+          notebook_task:
+            notebook_path: ./notebooks/silver/finops_run_costs.py
+            base_parameters:
+              catalog:  "${var.catalog}"
+              team_tag: "applied-finance"
+
+        - task_key: gold_finops_daily_spend
+          depends_on:
+            - { task_key: silver_finops_daily_spend }
+          notebook_task:
+            notebook_path: ./notebooks/gold/finops_daily_spend.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_finops_run_costs
+          depends_on:
+            - { task_key: silver_finops_run_costs }
+          notebook_task:
+            notebook_path: ./notebooks/gold/finops_run_costs.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: export_finops_summary
+          depends_on:
+            - { task_key: gold_finops_daily_spend }
+            - { task_key: gold_finops_run_costs }
+          notebook_task:
+            notebook_path: ./notebooks/export/finops_summary.py
+            base_parameters:
+              catalog:       "${var.catalog}"
+              artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
+
       schedule:
         quartz_cron_expression: "0 0 1 ? * TUE,WED,THU,FRI,SAT *"
         timezone_id: UTC
