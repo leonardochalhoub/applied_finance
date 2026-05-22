@@ -130,6 +130,14 @@ if returning_tickers:
         do_cache=False,
         do_parallel=True,
         be_quiet=True,
+        # yfr_py defaults thresh_bad_data=0.75: it drops any ticker whose
+        # date coverage vs ^BVSP is below 75%. Over a 2000→today bench
+        # window (~6500 trading days), every B3 ticker that IPO'd after
+        # ~2010 (IRBR3, BPAC11, NTCO3, RAIZ4, …) fails the threshold and
+        # gets silently dropped. We want full history for newer listings,
+        # so disable the filter — quality control is downstream in
+        # gold.kpis_per_ticker via MIN_OBS_FOR_VOL.
+        thresh_bad_data=0.0,
     )
     _persist(df_old, "returning")
     total_rows += len(df_old) if df_old is not None else 0
@@ -153,6 +161,10 @@ if new_tickers:
             do_cache=False,
             do_parallel=True,
             be_quiet=True,
+            # Same thresh_bad_data=0.0 rationale as the returning_tickers
+            # call above — the bench-coverage filter would drop every
+            # post-2010 IPO from a 2000→today backfill window.
+            thresh_bad_data=0.0,
         )
         _persist(df_new_chunk, f"backfill_batch_{batch_idx:03d}")
         total_rows += len(df_new_chunk) if df_new_chunk is not None else 0
