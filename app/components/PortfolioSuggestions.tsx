@@ -133,6 +133,22 @@ export function PortfolioSuggestions({
     // ψ* ≈ 0.4–0.8 — the chart collapses from cartoon territory into the
     // realistic [rf, rf + σ_mkt] band where actual equity premia live.
     const js = jorionShrinkMu(muRaw, sigmaAnnual, Tn);
+    // Detect data-starved window: e.g. user picks 5Y/10Y/MAX but the
+    // deployed `prices_normalized.json` only spans ~1 year. In that case
+    // `start = max(0, dates.length - requested)` saturates at 0 and EVERY
+    // long window collapses to the same effective Tn, making the window
+    // selector visually inert (5Y == 10Y == 15Y == MAX). Flag it so the
+    // UI can warn the user and explain why selecting a longer window
+    // doesn't change the numbers.
+    const REQUIRED_DAYS: Partial<Record<WindowLabel, number>> = {
+      "1M": 22, "3M": 66, "6M": 126, "1Y": 252,
+      "5Y": 1260, "10Y": 2520, "15Y": 3780, "20Y": 5040,
+    };
+    const requestedDays = REQUIRED_DAYS[window] ?? 0;
+    const availableDays = prices.dates.length - 1; // returns = dates.length - 1
+    const windowClipped =
+      window !== "MAX" && requestedDays > 0 && availableDays < requestedDays;
+
     return {
       mu: js.mu,
       muRaw,
@@ -144,6 +160,9 @@ export function PortfolioSuggestions({
       shrinkDelta: lw.delta,
       shrinkPsi: js.psi,
       muGrand: js.muGrand,
+      windowClipped,
+      requestedDays,
+      availableDays,
     };
   }, [prices, candidates, window]);
 
@@ -358,6 +377,21 @@ export function PortfolioSuggestions({
           )}
         </div>
       </div>
+      {stats?.windowClipped ? (
+        <div
+          className="mt-3 rounded-md border border-[color:var(--loss)]/40 bg-[color:var(--loss)]/8 px-4 py-2 text-xs text-strong"
+          role="alert"
+        >
+          <strong className="text-[color:var(--loss)]">
+            Janela {window} solicitada · apenas {stats.availableDays} dias úteis disponíveis
+          </strong>{" "}
+          ({(stats.availableDays / 252).toFixed(1)} anos vs ~{(stats.requestedDays / 252).toFixed(0)} pedidos).
+          O seletor de janelas mais longas que isso retorna o mesmo dataset
+          e portanto a mesma carteira max-Sharpe. Aguarde o próximo refresh
+          do pipeline (full-history em <span className="mono">prices_normalized.json</span>)
+          para diferenciação real entre 5Y / 10Y / 15Y / 20Y / MAX.
+        </div>
+      ) : null}
 
       {!effectiveStats ? (
         <p className="text-sm text-muted">
