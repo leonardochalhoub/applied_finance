@@ -190,17 +190,22 @@ export function ledoitWolf(returns: Matrix): { sigma: Matrix; delta: number; F: 
 //
 // where:
 //     μ_g = (𝟙ᵀ Σ̂⁻¹ μ̂) / (𝟙ᵀ Σ̂⁻¹ 𝟙)
-//     λ  = (N + 2) / ( (μ̂ − μ_g𝟙)ᵀ Σ̂⁻¹ (μ̂ − μ_g𝟙) · T )
-//     ψ  = λ / (1 + λ)
+//     λ   = (N + 2) / ( (μ̂ − μ_g𝟙)ᵀ Σ̂⁻¹ (μ̂ − μ_g𝟙) · T )
+//     ψ   = λ / (1 + λ)
 //
-// This is independent of any frontier construction — it just gives a better
-// μ point estimate to feed downstream. All inputs are annualized.
+// Dimensional convention: μ and Σ are passed ANNUALIZED. T must therefore
+// be in YEARS (T_anos = tradingDays / 252) for λ to be dimensionally
+// correct. Earlier versions of this codebase passed T = tradingDays with
+// annualized μ/Σ, producing ψ ~ 1/252 of the textbook value and silently
+// rendering Stage 1 inert. To prevent that ambiguity from recurring, this
+// function now takes `tradingDays` explicitly and performs the conversion
+// internally — callers don't need to know.
 import { inv, matVec, dot } from "./matrix";
 
 export function jorionShrinkMu(
   mu: Vector,
   sigma: Matrix,
-  T: number,
+  tradingDays: number,
 ): { mu: Vector; psi: number; muGrand: number } {
   const n = mu.length;
   let sigInv: Matrix;
@@ -218,7 +223,10 @@ export function jorionShrinkMu(
   const diff = mu.map((m) => m - muGrand);
   const sInvDiff = matVec(sigInv, diff);
   const quad = Math.max(dot(diff, sInvDiff), 1e-18);
-  const lam = (n + 2) / (quad * Math.max(T, 1));
+  // Convert tradingDays → T_years. Floor at 1/252 (one day) to avoid
+  // division-by-zero for empty windows.
+  const T_years = Math.max(tradingDays / 252, 1 / 252);
+  const lam = (n + 2) / (quad * T_years);
   const psi = lam / (1 + lam);
   const muOut = mu.map((m) => (1 - psi) * m + psi * muGrand);
   return { mu: muOut, psi, muGrand };

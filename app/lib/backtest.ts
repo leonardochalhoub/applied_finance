@@ -4,7 +4,11 @@
  *
  * For each step:
  *   1. Estimate μ/Σ on a TRAINING window (e.g. last 5 years of daily returns
- *      ending at time t — strictly excluding the test period).
+ *      ending at time t — strictly excluding the test period). The full
+ *      three-stage μ pipeline is applied: Ledoit-Wolf Σ + Jensen + annualize
+ *      (Stage 0) → Jorion shrinkage (Stage 1) → macro-anchor + per-asset
+ *      ceiling via `applyMacroAnchor` (Stages 2 + 3). Same pipeline as the
+ *      displayed frontier and the bootstrap envelope.
  *   2. Solve the long-only max-Sharpe portfolio under that μ/Σ.
  *   3. Hold those weights through the next TEST window (e.g. next quarter).
  *   4. Roll forward by the test window length and repeat.
@@ -21,6 +25,7 @@
 
 import { buildFrontier } from "./markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "./mvEstimators";
+import { applyMacroAnchor } from "./shrinkage";
 
 export type BacktestPoint = {
   /** Date string (YYYY-MM-DD) at the END of this test window. */
@@ -70,8 +75,13 @@ function _solveMaxSharpe(X: number[][], rf: number): number[] {
   const muAnnual = meanSimple.map((m) => m * 252);
   const sigmaAnnual = lw.sigma.map((row) => row.map((v) => v * 252));
   const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
+  // Stage 2 (macro-anchor) + Stage 3 (per-asset ceiling). Same helper used by
+  // the displayed frontier and the bootstrap envelope — without it the walk-
+  // forward optimisation would re-introduce the very 60-100% in-sample μ that
+  // the rest of the pipeline is engineered to neutralise.
+  const { mu } = applyMacroAnchor(js.mu, rf, Tn);
   try {
-    const fr = buildFrontier(js.mu, sigmaAnnual, rf, {
+    const fr = buildFrontier(mu, sigmaAnnual, rf, {
       longOnly: true,
       cloudSize: 0,
       frontierSteps: 12,
@@ -111,6 +121,30 @@ function _summary(periodLogReturns: number[], periodsPerYear: number, rf: number
   return { retAnn, volAnn, sharpe, maxDD };
 }
 
+/**
+ * Run a walk-forward out-of-sample backtest of the long-only max-Sharpe
+ * Markowitz portfolio against the 1/N benchmark (and optionally a market
+ * index like IBOV).
+ *
+ * The function slides a `trainDays`-wide window through `X`, re-fits the
+ * full three-stage shrinkage pipeline (Ledoit-Wolf Σ + Jensen + Jorion +
+ * macro-anchor + per-asset ceiling) at every step, picks the resulting
+ * max-Sharpe weights, holds them through the next `testDays`-wide test
+ * window, then rolls forward. Mirrors the production frontier exactly so
+ * the displayed backtest result is comparable with the live recommendation.
+ *
+ * @param options.X            T × N matrix of daily log returns (rows = days, cols = tickers).
+ * @param options.dates        Aligned date strings (length T), used to stamp the output series.
+ * @param options.benchmark    Optional daily log-returns of a comparison index (length T). Pass `null` for any missing days.
+ * @param options.trainDays    Length of the training window. Default 1260 (5 years).
+ * @param options.testDays     Length of the test (holding) window. Default 63 (~1 quarter).
+ * @param options.rf           Annualised risk-free rate for the Sharpe in summaries.
+ *
+ * @returns A `BacktestResult` with the cumulative-return time series and
+ *          summary stats for Markowitz, 1/N, and the optional benchmark.
+ *          Returns `null` when `X.length < trainDays + testDays` (not
+ *          enough data for at least one walk-forward step).
+ */
 export function walkForwardBacktest(
   options: {
     /** T × N matrix of daily log returns (rows = days, cols = tickers). */

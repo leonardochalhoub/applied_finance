@@ -111,11 +111,12 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
     series: "Máximo Sharpe",
   }];
 
-  // ── Textbook-style enhancements ────────────────────────────────────────
-  // Compute data-aware axis domains using PERCENTILES (not strict min/max)
-  // so the chart focuses on where the data actually lives. Extreme single-
-  // asset outliers (e.g. one highly volatile ticker like UGPA3) won't drag
-  // the axes out and waste 70% of the canvas on empty space.
+  // ── Data-driven axis domains ──────────────────────────────────────────
+  // Both axes adapt to the actual data extent with a uniform margin —
+  // no fixed floors or ceilings. The chart re-frames itself across time
+  // windows so the data always fills the canvas. Cloud uses the 2nd/98th
+  // percentile (not strict min/max) so a handful of outlier draws can't
+  // drag the axes out and waste canvas on empty space.
   const cloudRets = frontierResult.cloud.map((p) => p.ret);
   const cloudVols = frontierResult.cloud.map((p) => p.vol);
   const sortedRets = [...cloudRets].sort((a, b) => a - b);
@@ -126,70 +127,52 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   const cloudRetHi = pct(sortedRets, 0.98);
   const cloudRetLo = pct(sortedRets, 0.02);
   const cloudVolHi = pct(sortedVols, 0.98);
+  const cloudVolLo = pct(sortedVols, 0.02);
 
-  // X axis: covers cloud (98th pct) and a generous margin past max-Sharpe,
-  // but does NOT chase the single-asset corner if it's much farther out.
-  // Lower bound adapts to the actual data: a well-diversified portfolio can
-  // sit below 20% vol (especially imported optimal portfolios like Sugestões'
-  // Agressiva), so we step the floor down to include min-var, max-Sharpe,
-  // and any imported user/compare marker. Otherwise the diamond falls off
-  // the left edge.
-  const candidateMinVols = [
-    0.20,
+  // Poupança — aproximação dinâmica: 70% do CDI (acompanha rf em vez de
+  // travar no piso legal de 6,17% a.a.). Mantém a mensagem visual: mesma
+  // vol nominal ≈ 0 que rf, mas retorno menor — dominada em média-variância.
+  const poupancaRate = 0.7 * rf;
+
+  // Y-axis members — every must-show point on the chart. Filter NaN/Infinity
+  // out so a bad user/compare marker can't poison Math.min/max and propagate
+  // into Recharts' domain prop (which would silently render an empty chart).
+  const yValues: number[] = [
+    frontierResult.minVariance.ret,
+    frontierResult.maxSharpe.ret,
+    ...frontierResult.frontier.map((p) => p.ret),
+    cloudRetLo,
+    cloudRetHi,
+    rf, // anchors the CAL — almost always relevant
+    poupancaRate, // mean-variance dominated by rf, but visually instructive
+  ];
+  if (userPoint && Number.isFinite(userPoint.ret)) yValues.push(userPoint.ret);
+  if (comparePoint && Number.isFinite(comparePoint.ret)) yValues.push(comparePoint.ret);
+
+  const dataMinY = Math.min(...yValues);
+  const dataMaxY = Math.max(...yValues);
+  const rangeY = Math.max(dataMaxY - dataMinY, 0.01);
+  const yMin = dataMinY - 0.10 * rangeY;
+  const yMax = dataMaxY + 0.10 * rangeY;
+  const rfInRange = rf >= yMin && rf <= yMax;
+  const poupancaInRange = poupancaRate >= yMin && poupancaRate <= yMax;
+
+  // X-axis members.
+  const xValues: number[] = [
     frontierResult.minVariance.vol,
     frontierResult.maxSharpe.vol,
-    userPoint?.vol ?? Infinity,
-    comparePoint?.vol ?? Infinity,
-  ];
-  const dataMinVol = Math.min(...candidateMinVols);
-  // Pad ~8% to the left so the leftmost marker isn't glued to the y-axis.
-  const xMin = Math.max(0, dataMinVol * 0.92);
-  const xMax = Math.max(
+    ...frontierResult.frontier.map((p) => p.vol),
+    cloudVolLo,
     cloudVolHi,
-    frontierResult.maxSharpe.vol * 1.6,
-    frontierResult.minVariance.vol * 2.5,
-  ) * 1.04;
+  ];
+  if (userPoint && Number.isFinite(userPoint.vol)) xValues.push(userPoint.vol);
+  if (comparePoint && Number.isFinite(comparePoint.vol)) xValues.push(comparePoint.vol);
 
-  // Y axis: zoom to where the data lives (cloud + frontier + min-var + max-
-  // Sharpe), NOT down to rf. The rf annotation will be drawn only if it
-  // falls inside this range; otherwise we display the CDI value in the
-  // caption instead of the chart. Saves ~30% of vertical canvas.
-  const dataMaxY = Math.max(
-    frontierResult.maxSharpe.ret,
-    frontierResult.minVariance.ret,
-    cloudRetHi,
-    userPoint?.ret ?? -Infinity,
-    comparePoint?.ret ?? -Infinity,
-  );
-  const dataMinY = Math.min(
-    frontierResult.minVariance.ret,
-    cloudRetLo,
-    userPoint?.ret ?? Infinity,
-    comparePoint?.ret ?? Infinity,
-  );
-  const rangeY = Math.max(dataMaxY - dataMinY, 1e-3);
-  const yMin = dataMinY - 0.10 * rangeY;
-  // Y-axis adapta-se aos dados (após a stack de shrinkage μ) com piso
-  // 20% (sempre mostra algum headroom acima do rf) e teto 35% (ativos
-  // individuais com retorno irrealisticamente alto saem da vista por
-  // design — não inflam o eixo). Para janelas curtas e alpha alto, dataMaxY
-  // ≈ rf + 5pp → yMax ≈ 0,20. Para janelas longas com mais sinal, o eixo
-  // expande naturalmente até o teto de 0,35.
-  const Y_AXIS_FLOOR = 0.20;
-  const Y_AXIS_CEILING = 0.35;
-  const yMax = Math.min(Y_AXIS_CEILING, Math.max(Y_AXIS_FLOOR, dataMaxY + 0.10 * rangeY));
-  const rfInRange = rf >= yMin && rf <= yMax;
-
-  // Poupança — renda fixa do varejo, regulada pela Lei 12.703/2012:
-  //   - se SELIC > 8,5% a.a.:  rendimento = 0,5%/mês + TR ≈ 6,17% a.a.
-  //   - caso contrário:        rendimento = 70% da SELIC + TR
-  // Aproximamos SELIC ≈ rf (CDI), TR ≈ 0. Renderizamos como segunda reta
-  // de referência abaixo do CDI: visualmente prova que a poupança é
-  // mean-variance dominada pelo CDI (mesma vol nominal ≈ 0, retorno menor).
-  const POUPANCA_THRESHOLD = 0.085;
-  const POUPANCA_FIXED_ANNUAL = (1 + 0.005) ** 12 - 1; // ≈ 6,17%
-  const poupancaRate = rf > POUPANCA_THRESHOLD ? POUPANCA_FIXED_ANNUAL : 0.7 * rf;
-  const poupancaInRange = poupancaRate >= yMin && poupancaRate <= yMax;
+  const dataMinX = Math.min(...xValues);
+  const dataMaxX = Math.max(...xValues);
+  const rangeX = Math.max(dataMaxX - dataMinX, 0.01);
+  const xMin = Math.max(0, dataMinX - 0.08 * rangeX);
+  const xMax = dataMaxX + 0.08 * rangeX;
 
   // Capital Allocation Line (CAL) — tangent to the frontier at max-Sharpe,
   // anchored at the risk-free rate. CAL is the correct name when the
@@ -197,14 +180,21 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   // which would make it the CML). Clipped to whichever edge (right OR top)
   // the line hits first inside the visible axes.
   const calSlope = (frontierResult.maxSharpe.ret - rf) / Math.max(frontierResult.maxSharpe.vol, 1e-9);
-  const calVolAtYMax = calSlope > 1e-9 ? (yMax - rf) / calSlope : xMax;
+  // Suppress the CAL entirely if the tangency portfolio's Sharpe is
+  // effectively zero or negative (can happen when heavy shrinkage flattens
+  // the frontier toward rf). Drawing it would overlap the rf reference
+  // line and read as a horizontal line at rf, which is misleading.
+  const showCal = calSlope > 1e-6;
+  const calVolAtYMax = showCal ? (yMax - rf) / calSlope : xMax;
   const calEndVol = Math.min(xMax, Math.max(xMin, calVolAtYMax));
   const calStartRet = rf + calSlope * xMin;
   const calEndRet = rf + calSlope * calEndVol;
-  const calData = [
-    { vol: xMin, ret: calStartRet, weights: [], series: "Capital Allocation Line" },
-    { vol: calEndVol, ret: calEndRet, weights: [], series: "Capital Allocation Line" },
-  ];
+  const calData = showCal
+    ? [
+        { vol: xMin, ret: calStartRet, weights: [], series: "Capital Allocation Line" },
+        { vol: calEndVol, ret: calEndRet, weights: [], series: "Capital Allocation Line" },
+      ]
+    : [];
 
   // Derivative triangles — geometric "rise over run" construction of ∂E[r]/∂σ
   // at two frontier points. By the first-order condition for max-Sharpe,
@@ -294,6 +284,21 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
 
   return (
     <div className="space-y-4">
+      {frontierResult.isEqualWeightFallback ? (
+        <div
+          className="rounded-md border border-[color:var(--loss)]/40 bg-[color:var(--loss)]/8 px-4 py-3 text-xs text-strong"
+          role="alert"
+        >
+          <strong className="block uppercase tracking-wider text-[10px] text-[color:var(--loss)]">
+            Aviso: fallback de pesos iguais (1/N)
+          </strong>
+          O solver long-only não conseguiu produzir uma carteira não-negativa
+          válida com esses parâmetros (caso comum: todos os μ abaixo do rf após
+          shrinkage). A &ldquo;máx. Sharpe&rdquo; e a &ldquo;mín. variância&rdquo;
+          exibidas são <em>equal-weight</em>, não os pontos analíticos. Considere
+          ajustar a janela, o universo, ou desabilitar o long-only.
+        </div>
+      ) : null}
       <div className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
           <div>
@@ -309,7 +314,7 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             <LegendDot color="var(--muted)" /> nuvem aleatória
             <LegendDot color="var(--muted)" shape="dot-small" /> ativo individual
             <LegendDot color="var(--accent)" line /> fronteira
-            <LegendDot color="var(--gain)" line dashed /> CAL · linha do mercado de capitais (CML)
+            <LegendDot color="var(--gain)" line dashed /> CAL (linha de alocação de capital)
             <LegendDot color="var(--muted)" line dashed /> poupança
             <LegendDot color="var(--gain)" shape="triangle" /> derivada ∂E[r]/∂σ
             <LegendDot color="var(--strong)" shape="circle-outline" /> mín. variância
@@ -449,14 +454,16 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
                   }}
                 />
                 {/* Capital Allocation Line: tangent at max-Sharpe, anchored at (0, rf) */}
-                <Scatter
-                  name="cal"
-                  data={calData}
-                  line={{ stroke: "var(--gain)", strokeWidth: 1.5, strokeDasharray: "5 4", strokeOpacity: 0.65 }}
-                  lineType="joint"
-                  shape={() => <g />}
-                  legendType="none"
-                />
+                {showCal ? (
+                  <Scatter
+                    name="cal"
+                    data={calData}
+                    line={{ stroke: "var(--gain)", strokeWidth: 1.5, strokeDasharray: "5 4", strokeOpacity: 0.65 }}
+                    lineType="joint"
+                    shape={() => <g />}
+                    legendType="none"
+                  />
+                ) : null}
                 <Scatter
                   name="cloud"
                   data={cloudData}

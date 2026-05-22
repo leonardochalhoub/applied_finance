@@ -188,8 +188,32 @@ export function analyze(input: AdvisorInput): AdvisorReport {
   // test that the recommended re-allocation isn't within the noise band of
   // the underlying Markowitz estimator. Below that bar we downgrade to
   // "considerar" — non-committal language matching the statistics.
+  //
+  // Edge case: when the bootstrap was requested but failed to produce any
+  // valid resamples (Beff=0 → every std is exactly 0), the naïve test
+  // |Δw| > 2·0 trivially fires for any non-zero Δw and would issue strong
+  // verbs on pure noise. We detect that all-zero state and downgrade to
+  // non-strong recommendations across the board, plus emit a warning.
   const grad = marginalSharpeContribution(userW, input.mu, input.sigma, input.rf);
   const bootStd = input.bootstrapStd;
+  const bootstrapAvailable = bootStd != null;
+  const bootstrapFailed =
+    bootstrapAvailable && bootStd!.every((s) => Math.abs(s) < 1e-9);
+  if (bootstrapFailed) {
+    recommendations.push({
+      level: "warn",
+      title: "Bootstrap sem cobertura",
+      detail:
+        "Não foi possível calibrar a incerteza dos pesos ótimos via bootstrap. " +
+        "Todas as recomendações abaixo estão suavizadas — trate como sugestões qualitativas, " +
+        "não ordens. Possíveis causas: janela curta demais ou Σ próxima de singular.",
+    });
+  }
+  const isSignificant = (i: number): boolean => {
+    if (!bootstrapAvailable) return true;
+    if (bootstrapFailed) return false;
+    return Math.abs(optW[i] - userW[i]) > 2 * (bootStd![i] ?? 0);
+  };
   const perTicker = tickers.map((t, i) => ({
     ticker: t,
     userW: userW[i],
@@ -197,7 +221,7 @@ export function analyze(input: AdvisorInput): AdvisorReport {
     delta: optW[i] - userW[i],
     grad: grad[i],
     sd: bootStd?.[i] ?? null,
-    significant: bootStd ? Math.abs(optW[i] - userW[i]) > 2 * (bootStd[i] ?? 0) : true,
+    significant: isSignificant(i),
   }));
 
   // Significant overweights (where user has too much vs optimal)

@@ -7,6 +7,7 @@ import { cdiMeanForWindow } from "@/lib/cdi";
 import type { CdiArtifact, KpiArtifact, PricesArtifact } from "@/lib/data";
 import { buildFrontier, evaluatePortfolio, type FrontierResult } from "@/lib/markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
+import { applyMacroAnchor } from "@/lib/shrinkage";
 import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 
 import { BacktestPanel } from "./BacktestPanel";
@@ -139,6 +140,8 @@ export function PortfolioBuilder({
           n: snapshot.tickers.length,
           Tn: 252,
           tickers: snapshot.tickers.slice(),
+          // Carry rf through for uniform stats shape across all branches.
+          rf: snapshot.rf,
         };
       }
       // selected drifted outside the snapshot universe → fall through to live
@@ -154,6 +157,8 @@ export function PortfolioBuilder({
           n: referenceStats.tickers.length,
           Tn: 252,
           tickers: referenceStats.tickers.slice(),
+          // Carry rf through for uniform stats shape across all branches.
+          rf: referenceStats.rf,
         };
       }
       // User picked a ticker outside the reference universe (e.g. non-IBOV
@@ -225,26 +230,14 @@ export function PortfolioBuilder({
     // the max-order-statistic upward bias.
     const js = jorionShrinkMu(muRaw, sigmaAnnual, Tn);
 
-    // ── Stage 2: macro-anchored prior toward rf + ERP ────────────────────
-    // Even after Jorion, the cross-sectional grand mean itself is biased
-    // upward when the in-sample winners drag the mean with them. Pulling
-    // toward (rf + ERP)·𝟙 with intensity α anchors the chart to a realistic
-    // equity premium (Damodaran ERP ≈ 6% for emerging Brazil) regardless of
-    // which sector rallied in the window. rf is computed inline so the
-    // shrinkage is self-contained (no useMemo cascade).
+    // ── Stages 2 + 3: macro-anchor blend (U-shape α(T)) + per-asset ceiling
+    // Same constants and formula as PortfolioSuggestions — both consume the
+    // shared `applyMacroAnchor` helper so the displayed frontier, the
+    // suggestion engine, and the bootstrap envelope cannot drift apart.
     const startDate = prices.dates[okRows[0] + 1] ?? prices.dates[0];
     const endDate = prices.dates[prices.dates.length - 1];
     const rfLocal = cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
-    const ERP_PRIOR = 0.06;
-    // α adaptive em T (mesma curva de PortfolioSuggestions): janelas curtas
-    // recebem mais ancoragem porque o viés do máximo decai devagar.
-    const yearsLocal = Math.max(0.05, Tn / 252);
-    const macroPriorAlphaLocal = Math.min(
-      0.95,
-      Math.max(0.30, 0.90 - 0.042 * (yearsLocal - 0.5)),
-    );
-    const anchor = rfLocal + ERP_PRIOR;
-    const muFinal = js.mu.map((m) => (1 - macroPriorAlphaLocal) * m + macroPriorAlphaLocal * anchor);
+    const { mu: muFinal } = applyMacroAnchor(js.mu, rfLocal, Tn);
 
     return {
       mu: muFinal,
@@ -254,6 +247,10 @@ export function PortfolioBuilder({
       tickers: selected.slice(),
       shrinkDelta: lw.delta,
       shrinkPsi: js.psi,
+      // Expose the rf used to anchor μ so downstream consumers (frontier,
+      // bootstrap, Sharpe) use the SAME rate. Without this they could
+      // diverge whenever leading NaN rows are dropped by `okRows`.
+      rf: rfLocal,
       X,
     };
   }, [selected, prices, snapshot, referenceStats, cdi, kpis]);
@@ -265,14 +262,19 @@ export function PortfolioBuilder({
     if (!allIn) setSnapshot(null);
   }, [selected, snapshot]);
 
-  // rf priority matches the stats priority: snapshot > referenceStats > local
+  // rf priority matches the stats priority: snapshot > referenceStats > live.
+  // For the live branch we read it back from `stats.rf` (set inside the stats
+  // memo to be the exact rate used to anchor μ via applyMacroAnchor) so the
+  // displayed frontier, the bootstrap envelope, and Sharpe ratios are all
+  // consistent across the cleaned-window date range.
   const rf = useMemo(() => {
     if (snapshot?.rf != null) return snapshot.rf;
     if (referenceStats?.rf != null) return referenceStats.rf;
+    if (stats?.rf != null) return stats.rf;
     const startDate = prices.dates[0];
     const endDate = prices.dates[prices.dates.length - 1];
     return cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
-  }, [cdi, prices, kpis, snapshot, referenceStats]);
+  }, [cdi, prices, kpis, snapshot, referenceStats, stats]);
 
   const frontierResult: FrontierResult | null = useMemo(() => {
     if (!stats) return null;
@@ -511,14 +513,29 @@ export function PortfolioBuilder({
         // adopt it so the imported portfolio's (vol, ret) on the rebuilt
         // frontier matches the original Sugestão exactly.
         const snap = obj?.meta?.snapshot;
-        if (
-          snap &&
-          Array.isArray(snap.tickers) &&
-          Array.isArray(snap.mu) &&
-          Array.isArray(snap.sigma) &&
-          snap.tickers.length === snap.mu.length &&
-          snap.tickers.length === snap.sigma.length
-        ) {
+        // Strict validation: outer arrays must be arrays of the right length,
+        // every μ entry must be a finite number, every Σ row must be an
+        // N-length array of finite numbers (catches jagged/garbage imports
+        // before they propagate NaN through inv() and silently corrupt the
+        // displayed frontier).
+        const N = Array.isArray(snap?.tickers) ? snap.tickers.length : 0;
+        const muOk =
+          Array.isArray(snap?.mu) &&
+          snap.mu.length === N &&
+          snap.mu.every((v: unknown) => typeof v === "number" && Number.isFinite(v));
+        const sigmaOk =
+          Array.isArray(snap?.sigma) &&
+          snap.sigma.length === N &&
+          snap.sigma.every(
+            (row: unknown) =>
+              Array.isArray(row) &&
+              row.length === N &&
+              row.every((v) => typeof v === "number" && Number.isFinite(v)),
+          );
+        const tickersOk =
+          Array.isArray(snap?.tickers) &&
+          snap.tickers.every((t: unknown) => typeof t === "string");
+        if (snap && tickersOk && muOk && sigmaOk) {
           // Validate snapshot tickers are a superset of the loaded weights
           const snapHasAll = tickersInUniverse.every((t: string) =>
             snap.tickers.includes(t),
@@ -528,13 +545,20 @@ export function PortfolioBuilder({
               tickers: snap.tickers as string[],
               mu: snap.mu as number[],
               sigma: snap.sigma as number[][],
-              rf: typeof snap.rf === "number" ? snap.rf : rf,
+              rf: typeof snap.rf === "number" && Number.isFinite(snap.rf) ? snap.rf : rf,
             });
           } else {
             setSnapshot(null);
           }
         } else {
           setSnapshot(null);
+          if (snap) {
+            // Surface to the user — a broken snapshot is a real failure, not
+            // a silent fallback.
+            setImportError(
+              "Snapshot do JSON inválido (μ/Σ com dimensões ou valores incorretos). Carteira importada mas estatísticas serão recalculadas.",
+            );
+          }
         }
       } catch (err) {
         setImportError(err instanceof Error ? err.message : "JSON inválido");

@@ -26,6 +26,7 @@
  */
 
 import { dot, inv, matVec, scale, type Matrix, type Vector } from "./matrix";
+import { defaultRng, type Rng } from "./prng";
 
 export type PortfolioPoint = {
   weights: number[];  // aligned with the input universe
@@ -40,6 +41,13 @@ export type FrontierResult = {
   frontier: { vol: number; ret: number; weights: number[] }[];
   cloud: { vol: number; ret: number; sharpe: number; weights: number[] }[];
   hasNegativeWeights: boolean;
+  /** True when the long-only greedy active-set exhausted every asset
+   *  without producing a valid non-negative portfolio and fell back to
+   *  equal-weight (1/N). Set when min-variance OR max-Sharpe weights
+   *  collapse to the equal-weight fallback. Downstream UI should surface
+   *  a warning banner — the "max-Sharpe" portfolio shown is not actually
+   *  the analytical tangency portfolio in this case. */
+  isEqualWeightFallback: boolean;
 };
 
 function _portfolio(weights: Vector, mu: Vector, sigma: Matrix, rf: number): PortfolioPoint {
@@ -129,25 +137,32 @@ function _longOnly(
   }
   for (let i = 0; i < n; i++) if (w[i] < 0) w[i] = 0;
   const sum = w.reduce((a, b) => a + b, 0);
-  if (sum > 0) for (let i = 0; i < n; i++) w[i] /= sum;
-  return w;
+  if (sum > 0) {
+    for (let i = 0; i < n; i++) w[i] /= sum;
+    return w;
+  }
+  // Greedy exhausted every asset without producing a valid non-negative
+  // portfolio (can happen when all unconstrained sub-solutions have negative
+  // weights). Equal-weight is a more honest "I don't know" than returning a
+  // zero vector that downstream code would silently treat as a real portfolio.
+  return new Array(n).fill(1 / n);
 }
 
 /** Box-Muller standard normal. */
-function _randn(): number {
+function _randn(rng: Rng): number {
   let u = 0;
   let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 /** Sample Gamma(α, 1) for α > 0 (Marsaglia–Tsang for α ≥ 1, boost for α < 1). */
-function _gamma(alpha: number): number {
+function _gamma(alpha: number, rng: Rng): number {
   if (alpha < 1) {
     // Boosted: Gamma(α) = Gamma(α + 1) * U^(1/α)
-    const u = Math.random();
-    return _gamma(alpha + 1) * Math.pow(u, 1 / alpha);
+    const u = rng();
+    return _gamma(alpha + 1, rng) * Math.pow(u, 1 / alpha);
   }
   const d = alpha - 1 / 3;
   const c = 1 / Math.sqrt(9 * d);
@@ -155,11 +170,11 @@ function _gamma(alpha: number): number {
     let x: number;
     let v: number;
     do {
-      x = _randn();
+      x = _randn(rng);
       v = 1 + c * x;
     } while (v <= 0);
     v = v * v * v;
-    const u = Math.random();
+    const u = rng();
     if (u < 1 - 0.0331 * x * x * x * x) return d * v;
     if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
   }
@@ -168,9 +183,9 @@ function _gamma(alpha: number): number {
 /** Sample a Dirichlet(alpha) on R^n. Low α concentrates samples near corners
  *  (single-asset portfolios); α = 1 is uniform on the simplex; high α
  *  concentrates near equal-weight. */
-function _dirichlet(n: number, alpha: number): Vector {
+function _dirichlet(n: number, alpha: number, rng: Rng): Vector {
   const x = new Array(n);
-  for (let i = 0; i < n; i++) x[i] = _gamma(alpha);
+  for (let i = 0; i < n; i++) x[i] = _gamma(alpha, rng);
   const s = x.reduce((a, b) => a + b, 0);
   return x.map((v) => v / s);
 }
@@ -180,20 +195,22 @@ function _dirichlet(n: number, alpha: number): Vector {
  *  center all the way to single-asset corners. Without the corner samples
  *  the cloud's upper boundary never touches the frontier (Dirichlet samples
  *  in high dimensions cluster around equal-weight). */
-function _randomLongOnly(n: number): Vector {
-  const r = Math.random();
+function _randomLongOnly(n: number, rng: Rng): Vector {
+  const r = rng();
   if (r < 0.10) {
     // 10% single-asset portfolios (one asset gets 100%)
     const w = new Array(n).fill(0);
-    w[Math.floor(Math.random() * n)] = 1;
+    w[Math.floor(rng() * n)] = 1;
     return w;
   }
   if (r < 0.25) {
-    // 15% small-k portfolios (2-4 assets, random weights)
-    const k = 2 + Math.floor(Math.random() * 3);
+    // 15% small-k portfolios (2-4 assets, random weights). Clamp k ≤ n
+    // otherwise the `while (idx.size < k)` loop never terminates for tiny
+    // universes (e.g. n = 3 with k = 4 would spin forever).
+    const k = Math.min(n, 2 + Math.floor(rng() * 3));
     const idx = new Set<number>();
-    while (idx.size < k) idx.add(Math.floor(Math.random() * n));
-    const subW = _dirichlet(k, 0.7);
+    while (idx.size < k) idx.add(Math.floor(rng() * n));
+    const subW = _dirichlet(k, 0.7, rng);
     const w = new Array(n).fill(0);
     let j = 0;
     for (const i of idx) w[i] = subW[j++];
@@ -201,16 +218,54 @@ function _randomLongOnly(n: number): Vector {
   }
   if (r < 0.55) {
     // 30% concentrated Dirichlet (lower α → more concentration)
-    return _dirichlet(n, 0.2);
+    return _dirichlet(n, 0.2, rng);
   }
   if (r < 0.80) {
     // 25% uniform on the simplex
-    return _dirichlet(n, 1.0);
+    return _dirichlet(n, 1.0, rng);
   }
   // 20% diversified (closer to equal-weight)
-  return _dirichlet(n, 3.0);
+  return _dirichlet(n, 3.0, rng);
 }
 
+/**
+ * Build the Markowitz mean-variance efficient frontier.
+ *
+ * Computes the analytical tangency (max-Sharpe) and minimum-variance
+ * portfolios in closed form (Merton 1972), plus an interpolated frontier
+ * curve from min-var to the highest achievable expected return and a
+ * Monte Carlo cloud of random feasible portfolios for visual reference.
+ *
+ * @param mu       Annualised expected-return vector (length N). Must already
+ *                 have passed through the displayed shrinkage stack —
+ *                 callers feed in `applyMacroAnchor` output, not raw μ̂.
+ * @param sigma    Annualised covariance matrix Σ (N×N, symmetric PD).
+ * @param rf       Annualised risk-free rate (e.g. CDI ≈ 0.13).
+ * @param options.longOnly        If true, projects unconstrained solutions
+ *                                onto the non-negative simplex via the
+ *                                greedy active-set heuristic in `_longOnly`.
+ *                                Default false (allows short positions).
+ * @param options.frontierSteps   Number of interpolated frontier points
+ *                                between min-var return and the upper
+ *                                bound (default 60).
+ * @param options.cloudSize       Number of Monte Carlo random-weight
+ *                                portfolios to sample for the scatter
+ *                                cloud (default 1500, pass 0 to skip).
+ * @param options.rng             Deterministic RNG for the cloud. Defaults
+ *                                to `defaultRng()` (seed `0xCAFEFEED`) so
+ *                                the chart is reproducible across reloads;
+ *                                pass `mulberry32(Date.now())` for fresh
+ *                                draws each call.
+ *
+ * @returns `FrontierResult` with `minVariance`, `maxSharpe`, the
+ *          interpolated `frontier` curve, the `cloud`, plus two
+ *          failure-mode flags: `hasNegativeWeights` (true if the
+ *          unconstrained optimum has shorts) and `isEqualWeightFallback`
+ *          (true if the long-only greedy collapsed to 1/N — the UI must
+ *          warn the user in this case).
+ *
+ * @throws  Error if `mu.length < 2` or if Σ dimensions don't match μ.
+ */
 export function buildFrontier(
   mu: Vector,
   sigma: Matrix,
@@ -219,6 +274,10 @@ export function buildFrontier(
     longOnly?: boolean;
     frontierSteps?: number;
     cloudSize?: number;
+    /** Optional RNG for the Monte Carlo cloud. Defaults to a fixed-seed PRNG
+     *  so the cloud is reproducible across page reloads. Pass a fresh
+     *  `mulberry32(Date.now())` if you intentionally want stochastic draws. */
+    rng?: Rng;
   } = {},
 ): FrontierResult {
   const n = mu.length;
@@ -230,6 +289,7 @@ export function buildFrontier(
   const longOnly = options.longOnly ?? false;
   const cloudSize = options.cloudSize ?? 1500;
   const steps = options.frontierSteps ?? 60;
+  const rng = options.rng ?? defaultRng();
 
   // Compute min-variance and max-Sharpe portfolios (full or long-only)
   let mv: PortfolioPoint;
@@ -311,7 +371,7 @@ export function buildFrontier(
 
   const cloud: { vol: number; ret: number; sharpe: number; weights: number[] }[] = [];
   for (let i = 0; i < cloudSize; i++) {
-    const w = _randomLongOnly(n);
+    const w = _randomLongOnly(n, rng);
     const p = _portfolio(w, mu, sigma, rf);
     cloud.push({ vol: p.vol, ret: p.ret, sharpe: p.sharpe, weights: w });
   }
@@ -319,7 +379,28 @@ export function buildFrontier(
   const hasNegativeWeights =
     mv.weights.some((w) => w < -1e-9) || ms.weights.some((w) => w < -1e-9);
 
-  return { minVariance: mv, maxSharpe: ms, frontier, cloud, hasNegativeWeights };
+  // Detect the equal-weight fallback from `_longOnly`: every weight is
+  // exactly 1/n. This is genuinely a failure-mode signal, not a feature.
+  // It only fires when the greedy active-set could not find any valid
+  // non-negative portfolio (e.g. all expected returns below rf), so we
+  // emit a flag so the UI can warn instead of presenting the equal-weight
+  // result as if it were the analytical tangency portfolio.
+  const looksEqualWeight = (w: Vector) => {
+    if (w.length === 0) return false;
+    const target = 1 / w.length;
+    return w.every((wi) => Math.abs(wi - target) < 1e-9);
+  };
+  const isEqualWeightFallback =
+    longOnly && (looksEqualWeight(mv.weights) || looksEqualWeight(ms.weights));
+
+  return {
+    minVariance: mv,
+    maxSharpe: ms,
+    frontier,
+    cloud,
+    hasNegativeWeights,
+    isEqualWeightFallback,
+  };
 }
 
 /** Long-only target-return projection: greedy KKT-style active-set.
@@ -371,8 +452,15 @@ function _longOnlyForTarget(
   }
   for (let i = 0; i < n; i++) if (w[i] < 0) w[i] = 0;
   const sum = w.reduce((a, b) => a + b, 0);
-  if (sum > 0) for (let i = 0; i < n; i++) w[i] /= sum;
-  return w;
+  if (sum > 0) {
+    for (let i = 0; i < n; i++) w[i] /= sum;
+    return w;
+  }
+  // Greedy exhausted every asset without producing a valid non-negative
+  // portfolio (can happen when all unconstrained sub-solutions have negative
+  // weights). Equal-weight is a more honest "I don't know" than returning a
+  // zero vector that downstream code would silently treat as a real portfolio.
+  return new Array(n).fill(1 / n);
 }
 
 export function evaluatePortfolio(

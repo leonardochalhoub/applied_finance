@@ -58,7 +58,7 @@ export default function MetodologiaPage() {
           Sem essa correção, com vol anualizada σ ≈ 30%, o viés é da ordem de{" "}
           <span className="mono">σ²/2 ≈ 4,5%</span> a.a. — magnitude maior que o equity premium
           brasileiro e maior que a intensidade de shrinkage de Σ. A correção é
-          aplicada em <span className="mono">lib/markowitz.ts</span> dentro de{" "}
+          aplicada em <span className="mono">lib/mvEstimators.ts</span> dentro de{" "}
           <span className="mono">jensenCorrectMu</span>.
         </p>
       </section>
@@ -131,17 +131,27 @@ export default function MetodologiaPage() {
           <span className="mono">F</span> é o alvo estruturado de correlação
           constante e <span className="mono">δ*</span> é a intensidade ótima{" "}
           <em>data-driven</em> (não hardcoded). Implementação em{" "}
-          <span className="mono">lib/markowitz.ts → ledoitWolf()</span>. A
+          <span className="mono">lib/mvEstimators.ts → ledoitWolf()</span>. A
           intensidade δ* estimada é exposta na UI.
         </p>
       </section>
 
       <section className="card px-6 py-5">
-        <div className="eyebrow">Long-only via QP convexo</div>
+        <div className="eyebrow">Long-only via projeção gradiente</div>
         <p className="mt-2 text-sm text-body">
-          Restrições <span className="mono">w_i ≥ 0</span> resolvidas via solver QP{" "}
-          puro-JS (active-set com KKT explícito). Substituiu uma heurística greedy
-          anterior que podia parar em soluções subótimas para Σ mal-condicionada.
+          Restrições <span className="mono">w_i ≥ 0</span> resolvidas por{" "}
+          <em>projeção iterativa</em>: a partir da solução analítica
+          unconstrained (Merton), zera-se o peso mais negativo, remove-se
+          o ativo do problema e re-resolve no sub-espaço — repete até que
+          todos os pesos remanescentes sejam não-negativos e somem 1.
+          Implementação em <span className="mono">lib/markowitz.ts</span>{" "}
+          (funções <span className="mono">_longOnly</span> e <span className="mono">_longOnlyForTarget</span>). Não é
+          um solver QP completo: a abordagem é uma heurística greedy
+          (active-set sem KKT explícito) — para o tamanho do nosso problema
+          (N ≈ 40 tickers, Σ Ledoit-Wolf bem-condicionada) ela coincide com
+          a solução QP exata em quase todos os casos práticos. Para Σ
+          singular ou pathologicamente mal-condicionada não há garantia
+          teórica de optimalidade.
         </p>
       </section>
 
@@ -232,27 +242,66 @@ export default function MetodologiaPage() {
           />
         </div>
         <p className="mt-2 text-sm text-body">
-          <strong>α é adaptativo em T</strong>: janelas curtas (alto erro de
-          estimação) recebem ancoragem mais forte, janelas longas confiam
-          mais nos dados. Rampa linear ancorada em{" "}
-          <span className="mono">(0,5 ano → α = 0,90)</span> e{" "}
-          <span className="mono">(10 anos → α = 0,50)</span>, com piso{" "}
-          <span className="mono">0,30</span> e teto <span className="mono">0,95</span>:
+          <strong>α(T) é em forma de U</strong> — dois problemas diferentes
+          tornam <span className="mono">μ̂</span> pouco confiável em extremos
+          opostos de <span className="mono">T</span>:
+        </p>
+        <ul className="mt-1 space-y-1 text-sm text-body">
+          <li>
+            • <strong>Janelas curtas (T ≲ 5 a)</strong>: <em>ruído de máximo
+            de N</em>. <span className="mono">SE(μ̂_anual) ∝ σ/√T</span> é
+            enorme, o ativo escolhido pelo max-Sharpe é simplesmente aquele
+            com mais sorte na amostra, μ̂ pode explodir para{" "}
+            <span className="mono">+60–100%</span> mesmo após Jorion.
+          </li>
+          <li>
+            • <strong>Janelas longas (T ≳ 10 a)</strong>: <em>universo
+            esparso e instável</em>. O filtro de cobertura 100% reduz o
+            número de tickers (de ~80 no IBOV recente para ~14 com cobertura
+            de 26 anos). Esse subconjunto não é necessariamente uma amostra
+            de &ldquo;vencedores&rdquo; — o Yahoo Finance preserva tickers
+            que ainda negociam, vencedores E perdedores (no nosso universo
+            com cobertura completa de 26 anos a média transversal de{" "}
+            <span className="mono">μ̂</span> está <em>abaixo</em> do CDI).
+            Mas com tão poucos pontos, μ̂ depende fortemente de qual mix
+            específico sobreviveu, não da distribuição estrutural do mercado.
+            O prior macro <span className="mono">rf + ERP</span> é um
+            estimador independente da realização amostral, e em janelas
+            longas com universo esparso é genuinamente mais informativo do
+            que a média da amostra.
+          </li>
+        </ul>
+        <p className="mt-2 text-[11px] text-muted">
+          NB: esta justificativa é deliberadamente diferente da intuição
+          clássica de &ldquo;survivorship bias = só sobrevivem vencedores&rdquo;
+          típica de bases tipo CRSP. Em B3 via Yahoo, o universo de cobertura
+          completa contém perdedores também — o problema é a <em>esparsidade
+          e instabilidade do universo</em>, não viés direcional de
+          sobreviventes. A correção (puxar para o prior macro) é a mesma; o
+          motivo é diferente.
+        </p>
+        <p className="mt-2 text-sm text-body">
+          Operacionalmente, tomamos o <strong>máximo</strong> de duas pernas
+          lineares (ruído + sobrevivência), com piso 0,55 e teto 0,95:
         </p>
         <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
           <BlockMath
-            ariaLabel="alfa de T igual a clip entre 0,30 e 0,95 de 0,90 menos 0,042 vezes T anos menos 0,5"
-            tex={String.raw`\alpha(T_{\text{anos}}) \;=\; \mathrm{clip}\!\left[\,0.90 - 0.042\,(T_{\text{anos}} - 0.5),\;\; 0.30,\;\; 0.95\,\right]`}
+            ariaLabel="alfa de T igual a clip entre 0,55 e 0,95 do máximo entre a perna de ruído e a perna de esparsidade"
+            tex={String.raw`\alpha(T_{\text{anos}}) \;=\; \mathrm{clip}\!\left[\,\max\!\big(\underbrace{0.95 - 0.04\,(T-0.5)_{+}}_{\text{ruído}},\;\; \underbrace{0.55 + 0.035\,(T-10)_{+}}_{\text{esparsidade}}\big),\;\; 0.55,\;\; 0.95\,\right]`}
           />
         </div>
         <p className="mt-2 text-sm text-body">
-          Comportamento indicativo: <span className="mono">α(6m) ≈ 0,90</span>,{" "}
-          <span className="mono">α(1y) ≈ 0,88</span>,{" "}
-          <span className="mono">α(3y) ≈ 0,80</span>,{" "}
-          <span className="mono">α(5y) ≈ 0,71</span>,{" "}
-          <span className="mono">α(10y) ≈ 0,50</span>. ERP fixo em{" "}
-          <InlineMath tex={String.raw`6\%`} /> — estimativa de Damodaran para
-          Brasil emergente (ver{" "}
+          Comportamento indicativo: <span className="mono">α(6m) ≈ 0,95</span>,{" "}
+          <span className="mono">α(1y) ≈ 0,93</span>,{" "}
+          <span className="mono">α(5y) ≈ 0,77</span>,{" "}
+          <span className="mono">α(10y) ≈ 0,57</span>,{" "}
+          <span className="mono">α(15y) ≈ 0,73</span>,{" "}
+          <span className="mono">α(20y) ≈ 0,90</span>,{" "}
+          <span className="mono">α(MAX) = 0,95</span> (teto).
+        </p>
+        <p className="mt-2 text-sm text-body">
+          ERP fixo em <InlineMath tex={String.raw`6\%`} /> — estimativa de
+          Damodaran 2026 para Brasil emergente (ver{" "}
           <a
             href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html"
             target="_blank"
@@ -265,6 +314,28 @@ export default function MetodologiaPage() {
           âncora fica em <span className="mono">18–21%</span> — o teto natural
           das expectativas de retorno realistas para uma carteira de ações
           brasileiras.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          Estágio 3 · Teto por ativo (sanity bound estilo Black-Litterman)
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Após os dois estágios anteriores, ainda capamos cada{" "}
+          <span className="mono">μ_i</span> individualmente em{" "}
+          <span className="mono">rf + 3·ERP</span> — nenhum ativo isolado pode{" "}
+          <em>esperar</em> mais que três equity-risk-premia de excesso. Com{" "}
+          <span className="mono">rf = 13%</span> e <span className="mono">ERP = 6%</span>,
+          o teto fica em <span className="mono">31%</span> — estritamente{" "}
+          <em>acima</em> do CAGR de longo prazo do Ibovespa em BRL nominal e
+          estritamente <em>abaixo</em> da cauda direita de janelas rolantes de
+          5 anos. Impede que um único sobrevivente outlier domine a esquina
+          max-Sharpe.
+        </p>
+        <p className="mt-2 text-[11px] text-muted">
+          Calibração dos constantes <span className="mono">K=3</span>,{" "}
+          <span className="mono">ERP=6%</span> e da curva α(T) é justificada
+          em <strong>Calibração empírica</strong> abaixo, com as fontes que
+          ancoram cada decisão.
         </p>
 
         <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
@@ -309,16 +380,356 @@ export default function MetodologiaPage() {
       </section>
 
       <section className="card px-6 py-5">
-        <div className="eyebrow">Visualização — teto do eixo Y</div>
+        <div className="eyebrow">Calibração empírica — benchmarks e decisões</div>
         <p className="mt-2 text-sm text-body">
-          O eixo de retorno esperado da fronteira é fixado em{" "}
-          <strong>0% até 35% a.a.</strong> Após a stack de shrinkage acima, o
-          máximo Sharpe realista para o universo B3 fica em{" "}
-          <span className="mono">rf + σ_mkt ≈ 18–25%</span>; qualquer ponto
-          tocando o teto de 35% já está na cauda direita e merece suspeita.
-          Ativos individuais com retorno esperado acima desse teto são{" "}
-          <em>visualmente descartados</em> (não removidos do cálculo) para
-          que o canvas se dedique à região onde a fronteira efetivamente vive.
+          Toda a stack de shrinkage acima introduz três constantes
+          (<span className="mono">α(T)</span>, <span className="mono">ERP=6%</span>,
+          <span className="mono">K=3</span>). Esta seção documenta as fontes
+          empíricas consultadas e a decisão de calibração derivada de cada
+          uma. O objetivo: produzir um <em>intervalo defensável</em> para o
+          retorno esperado de uma carteira max-Sharpe long-only de ações
+          brasileiras, ancorado em dados públicos, e demonstrar que a stack
+          rejeita números fora desse intervalo independentemente do tamanho da
+          janela <span className="mono">T</span>.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          1 · Retornos históricos do Ibovespa (BRL nominal)
+        </div>
+        <ul className="mt-1 space-y-1 text-sm text-body">
+          <li>
+            • <strong>50 anos (1968–2019)</strong>:{" "}
+            <span className="mono">≈ 11,7%/a nominal</span> em USD;{" "}
+            <span className="mono">≈ 6,9%/a real</span> em BRL após IGPDI. (
+            <a
+              href="https://insight.economatica.com/desempenho-do-ibovespa-50-anos-de-historia/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              Economatica — 50 anos do Ibovespa
+            </a>
+            )
+          </li>
+          <li>
+            • <strong>20 anos (1999–2009)</strong>:{" "}
+            <span className="mono">CAGR ≈ 10,0%/a nominal</span> e{" "}
+            <span className="mono">≈ 3,6%/a real</span>.
+          </li>
+          <li>
+            • <strong>25 anos (2000–2024)</strong>:{" "}
+            <span className="mono">CAGR ≈ 8,1%/a nominal</span> vs CDI{" "}
+            <span className="mono">≈ 13%/a</span> — equity premium realizado{" "}
+            <em>negativo</em> no Brasil pós-Plano Real, pelo regime de juros
+            altos. (
+            <a
+              href="https://clubedospoupadores.com/carteira-investimentos/tabela.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              Clube dos Poupadores — CDI, Bolsa e Dólar 2000–2024
+            </a>
+            )
+          </li>
+          <li>
+            • <strong>5 anos rolante</strong>: melhor{" "}
+            <span className="mono">≈ 40%/a</span>, pior{" "}
+            <span className="mono">≈ −9%/a</span> — caudas do índice em
+            janelas curtas, <em>realizadas</em>, não esperadas{" "}
+            <em>ex ante</em>.
+          </li>
+          <li>
+            • <strong>Média aritmética 1968–2019</strong>:{" "}
+            <span className="mono">21,3%/a</span> com{" "}
+            <span className="mono">σ ≈ 67%/a</span> — inflada pela
+            hiperinflação dos anos 80–90 e por ser aritmética (não geométrica).
+            Não usada como referência. (
+            <a
+              href="https://www.bcb.gov.br/pec/wps/ingl/wps525.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              BCB WP 525 — Long-term stock returns in Brazil
+            </a>
+            )
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          2 · Equity Risk Premium forward
+        </div>
+        <ul className="mt-1 space-y-1 text-sm text-body">
+          <li>
+            • <strong>Damodaran 2026 — ERP Brasil</strong>:{" "}
+            <span className="mono">≈ 6%/a</span> acima da rf (composição:
+            ERP maduro + spread de risco-país). (
+            <a
+              href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              Damodaran — Country Risk Premiums
+            </a>
+            ,{" "}
+            <a
+              href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6361419"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              ERP 2026 Edition
+            </a>
+            )
+          </li>
+          <li>
+            • <strong>Buffett-indicator forward Brasil</strong>:{" "}
+            <span className="mono">≈ 12,3%/a</span> nominal esperado
+            (decomposição: crescimento PIB local 6,0% + dividend yield 4,5% +
+            reversão do múltiplo 1,8%). Concordância de ordem com Damodaran
+            em <span className="mono">rf ≈ 6,3% + ERP ≈ 6%</span>.
+          </li>
+          <li>
+            • <strong>Fundos de ações brasileiros</strong>: a maioria
+            sub-performa o CDI no longo prazo; somente <span className="mono">~1%</span>{" "}
+            é consistente. Reforça que o forward realista de uma carteira{" "}
+            <em>curada</em> de ações dificilmente excede <span className="mono">rf + ERP</span>.
+            (
+            <a
+              href="https://neofeed.com.br/wealth-management/a-dura-vida-dos-fundos-de-acoes-so-1-tem-resultado-consistente-no-longo-prazo/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              NeoFeed — fundos de ações
+            </a>
+            )
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          3 · Banda defensável de E[r] para max-Sharpe long-only B3
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Sintetizando: para uma carteira <em>curada</em> long-only de ações
+          brasileiras com shrinkage adequado, o retorno esperado deve cair em
+        </p>
+        <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="E de r pertence a rf mais 4 por cento até rf mais 10 por cento"
+            tex={String.raw`\mathrm{E}[r_{\text{port}}] \;\in\; \big[\,r_f + 4\%,\;\; r_f + 10\%\,\big] \;\approx\; \big[17\%,\;23\%\big] \;\;\text{(regime CDI atual)}`}
+          />
+        </div>
+        <ul className="mt-2 space-y-1 text-sm text-body">
+          <li>
+            • <strong>≤ 17%</strong>: stack super-encolheu (provável quando T
+            curto e dispersão amostral baixa).
+          </li>
+          <li>
+            • <strong>17–23%</strong>: zona alvo — coerente com Damodaran ERP
+            forward e com a banda CAPM emergente padrão.
+          </li>
+          <li>
+            • <strong>23–27%</strong>: aceitável se o regime de juros estiver
+            elevado e a carteira inclinada a low-vol.
+          </li>
+          <li>
+            • <strong>27–31%</strong>: começa a cheirar a overfit ao período
+            in-sample. <strong>≥ 31%</strong>: cortado por construção
+            (Estágio 3, teto <span className="mono">K=3</span>).
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          4 · Decisões de calibração (e por quê)
+        </div>
+        <div className="mt-1 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-muted">
+                <th className="py-1 pr-3">Constante</th>
+                <th className="py-1 pr-3">Valor</th>
+                <th className="py-1">Fonte / racional</th>
+              </tr>
+            </thead>
+            <tbody className="text-body">
+              <tr className="border-t border-border align-top">
+                <td className="py-2 pr-3"><span className="mono">ERP</span></td>
+                <td className="py-2 pr-3"><span className="mono">6%/a</span></td>
+                <td className="py-2">Damodaran 2026 para Brasil emergente. Compatível com a
+                decomposição Buffett-indicator forward. Mantido fixo (não estimado
+                em-amostra) para impedir que regimes de juros recentes capturem o
+                prior estrutural.</td>
+              </tr>
+              <tr className="border-t border-border align-top">
+                <td className="py-2 pr-3"><span className="mono">α(T)</span></td>
+                <td className="py-2 pr-3">U-shape, piso 0,55, teto 0,95</td>
+                <td className="py-2">
+                  Forma em U porque dois problemas opostos tornam μ̂ pouco confiável
+                  em extremos de T: <strong>ruído de máximo</strong> (T curto, SE(μ̂)
+                  ∝ σ/√T enorme) e <strong>universo esparso/instável</strong> (T longo,
+                  cobertura completa filtra a maioria dos tickers — o prior macro
+                  é genuinamente mais informativo que a média de uma amostra de ~14
+                  sobreviventes mistos vencedores/perdedores). Curva calibrada para
+                  que <em>nenhuma janela</em> entregue μ_g fora da banda{" "}
+                  <span className="mono">[17%, 27%]</span> nas séries
+                  Yahoo Finance 1999–presente do IBOV.
+                </td>
+              </tr>
+              <tr className="border-t border-border align-top">
+                <td className="py-2 pr-3"><span className="mono">K</span></td>
+                <td className="py-2 pr-3">3</td>
+                <td className="py-2">
+                  Teto por ativo em <span className="mono">rf + K·ERP</span>. K=3 ⇒ 31% no
+                  regime atual — estritamente <em>acima</em> do CAGR de longo prazo do
+                  Ibov (11,7%) e <em>abaixo</em> da cauda direita 5y rolante (40%).
+                  Inspirado em Black-Litterman: views &ldquo;razoáveis&rdquo; ficam
+                  dentro de 3 desvios do prior estrutural. K=2 cortaria sinais
+                  legítimos de momentum em janelas médias; K=4 deixa passar
+                  artefatos de sobrevivência.
+                </td>
+              </tr>
+              <tr className="border-t border-border align-top">
+                <td className="py-2 pr-3">Filtro de tickers</td>
+                <td className="py-2 pr-3">cobertura 100% na janela</td>
+                <td className="py-2">
+                  Decisão consciente: <strong>introduz viés de sobrevivência</strong>{" "}
+                  em janelas longas. Mantido porque o alternativo (imputar preços
+                  faltantes) é pior — corromperia Σ. O Estágio 2 com α(T) crescente
+                  para T grande é exatamente a compensação principled.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          5 · Caso forense — como o bug se manifestava
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Antes da U-shape de α(T) e do teto K=3 (commit anterior),
+          janelas longas produziam:
+        </p>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-muted">
+                <th className="py-1 pr-3">Janela</th>
+                <th className="py-1 pr-3">α antigo</th>
+                <th className="py-1 pr-3">E[r] antigo</th>
+                <th className="py-1 pr-3">α novo</th>
+                <th className="py-1">E[r] esperado</th>
+              </tr>
+            </thead>
+            <tbody className="text-body">
+              <tr className="border-t border-border"><td className="py-1 pr-3">6M</td><td className="py-1 pr-3">0,90</td><td className="py-1 pr-3">+27,1%</td><td className="py-1 pr-3">0,95</td><td className="py-1">~25–27%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">1Y</td><td className="py-1 pr-3">0,88</td><td className="py-1 pr-3">+24,1%</td><td className="py-1 pr-3">0,93</td><td className="py-1">~22–23%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">5Y</td><td className="py-1 pr-3">0,71</td><td className="py-1 pr-3">+22,2%</td><td className="py-1 pr-3">0,77</td><td className="py-1">~21–22%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">10Y</td><td className="py-1 pr-3">0,50</td><td className="py-1 pr-3">+26,7%</td><td className="py-1 pr-3">0,57</td><td className="py-1">~25%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">15Y</td><td className="py-1 pr-3">0,30 (piso)</td><td className="py-1 pr-3">+23,3%</td><td className="py-1 pr-3">0,73</td><td className="py-1">~21%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">20Y</td><td className="py-1 pr-3">0,30 (piso)</td><td className="py-1 pr-3 text-[color:var(--loss)]">+73,6% ⚠</td><td className="py-1 pr-3">0,90</td><td className="py-1">~26–28%</td></tr>
+              <tr className="border-t border-border"><td className="py-1 pr-3">MAX</td><td className="py-1 pr-3">0,30 (piso)</td><td className="py-1 pr-3 text-[color:var(--loss)]">+109,6% ⚠</td><td className="py-1 pr-3">0,95 (teto)</td><td className="py-1">~25–27%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-sm text-body">
+          A álgebra do bug: em 20Y com α piso=0,30, o universo de
+          sobreviventes entregava <span className="mono">μ_BS ≈ 97%</span>
+          (Jorion não consegue ajustar porque <em>todos</em> os sobreviventes
+          estão na cauda direita). Então{" "}
+          <span className="mono">μ_final = 0,70·97 + 0,30·19 = 73,6%</span>{" "}
+          — exatamente o número observado. O novo α(20Y) ≈ 0,90 produz{" "}
+          <span className="mono">0,10·97 + 0,90·19 ≈ 27%</span>, e o teto K=3
+          em 31% garante que qualquer ativo individual viesado também é
+          cortado.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          6 · O que esta calibração <em>não</em> faz
+        </div>
+        <ul className="mt-1 space-y-1 text-sm text-body">
+          <li>
+            • Não substitui dados ajustados por inflação — todas as séries
+            são nominais em BRL. Para análise real, usar IGPDI ou IPCA por fora.
+          </li>
+          <li>
+            • Não corrige o viés de sobrevivência <em>do universo</em>{" "}
+            (apenas seu impacto no μ). Tickers que faliram ou foram
+            descontinuados nunca entram no IBOV histórico via Yahoo Finance.
+          </li>
+          <li>
+            • Não é uma previsão. O âncora <span className="mono">rf + ERP</span>{" "}
+            é um <em>prior estrutural</em>, não um forecast — a fronteira
+            sempre vai variar com a janela mesmo após shrinkage.
+          </li>
+        </ul>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Visualização — eixos dinâmicos</div>
+        <p className="mt-2 text-sm text-body">
+          Os eixos da fronteira eficiente são <strong>totalmente data-driven</strong>:
+          não há piso nem teto fixo. Cada eixo é ajustado ao envelope dos
+          pontos efetivamente desenhados (curva da fronteira, mín. variância,
+          máx. Sharpe, marcadores de carteira, P2–P98 da nuvem, rf e poupança)
+          com margem uniforme (10% no Y, 8% no X). O resultado é um canvas que
+          se re-enquadra de forma estética sob qualquer janela temporal. Ativos
+          individuais cujas coordenadas caem fora desse enquadramento são{" "}
+          <em>visualmente omitidos</em> (não removidos do cálculo) para manter
+          o foco onde a fronteira efetivamente vive.
+        </p>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Reprodutibilidade — PRNG seeded</div>
+        <p className="mt-2 text-sm text-body">
+          A nuvem Monte Carlo da fronteira e os reamostradores do bootstrap
+          usam <strong>mulberry32</strong> com semente fixa{" "}
+          <span className="mono">0xCAFEFEED</span> (ver{" "}
+          <span className="mono">lib/prng.ts</span>). Isso garante que dois
+          carregamentos da mesma página com os mesmos parâmetros produzem
+          exatamente a mesma nuvem e o mesmo intervalo de confiança do
+          bootstrap — um screenshot é reproduzível, e a gating do advisor em{" "}
+          <span className="mono">|Δw| &gt; 2·σ_bootstrap</span> não pode mudar
+          entre <em>reloads</em> sem dados novos. Para forçar reamostragem
+          estocástica (testes A/B de robustez), passe{" "}
+          <span className="mono">rng: mulberry32(Date.now())</span> nas funções{" "}
+          <span className="mono">buildFrontier</span> e{" "}
+          <span className="mono">bootstrapMaxSharpe</span>.
+        </p>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Bootstrap — cobertura efetiva (Beff)</div>
+        <p className="mt-2 text-sm text-body">
+          O bootstrap em <span className="mono">bootstrapMaxSharpe</span>{" "}
+          executa B resamples e <strong>pula</strong> iterações em que a
+          optimização não converge (sem substituir por 1/N, que enviesaria a
+          σ_bootstrap para baixo e relaxaria a gate de significância do
+          advisor). O retorno expõe <span className="mono">B = Beff</span>{" "}
+          (contagem efetiva); o advisor detecta o caso degenerado{" "}
+          <span className="mono">Beff = 0</span> (todos os σ exatamente zero)
+          e suprime verbos fortes (vender / comprar / reduzir) com um aviso
+          dedicado de &ldquo;Bootstrap sem cobertura&rdquo;. Isso impede
+          recomendações fortes em ruído quando o bootstrap não consegue
+          calibrar.
+        </p>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Fallback de pesos iguais — sinal visível</div>
+        <p className="mt-2 text-sm text-body">
+          Se o solver long-only greedy esgota todos os ativos sem produzir
+          uma carteira não-negativa válida (caso típico: todos os μ acabam
+          abaixo do rf após a stack de shrinkage em uma janela degenerada),
+          <span className="mono">buildFrontier</span> retorna{" "}
+          <span className="mono">isEqualWeightFallback: true</span> e a UI
+          exibe um banner vermelho em cima do gráfico avisando que a
+          &ldquo;máx. Sharpe&rdquo; mostrada é equal-weight, não o ponto
+          analítico de tangência. Esse fallback substitui o antigo
+          comportamento silencioso de retornar um vetor zero.
         </p>
       </section>
 

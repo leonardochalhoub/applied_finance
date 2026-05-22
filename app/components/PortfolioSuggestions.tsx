@@ -11,35 +11,12 @@ import type {
 } from "@/lib/data";
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
+import { applyMacroAnchor, ERP_PRIOR } from "@/lib/shrinkage";
 import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 import { withBase } from "@/lib/links";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
 type Universe = "ibov" | "all";
-
-/** Equity risk premium prior for the macro-anchor shrinkage step.
- *  6% ≈ Damodaran's long-run ERP estimate for emerging Brazil — i.e. the
- *  market portfolio's expected return above the risk-free rate, NOT a
- *  forecast for any single stock. Combined with rf this gives a realistic
- *  anchor (rf + ERP ≈ 18% in current CDI regime) that pulls the chart out
- *  of "max-order-statistic" cartoon territory. */
-const ERP_PRIOR = 0.06;
-
-/** Macro-prior intensity α(T): how hard to shrink μ̂_BS toward
- *  (rf + ERP)·𝟙. Adaptive in T_anos because the max-of-N order-statistic
- *  bias in the max-Sharpe portfolio's μ persists even with large T, just
- *  decaying slowly. Linear ramp anchored at (0,5y → 0,90) and (10y → 0,50),
- *  with floor 0,30 (long windows) and cap 0,95 (very short windows).
- *
- *  Indicative behaviour:
- *    6 m : α ≈ 0,90    1 y : α ≈ 0,88    3 y : α ≈ 0,80
- *    5 y : α ≈ 0,71   10 y : α ≈ 0,50   15 y : α = 0,30 (floor)
- */
-function macroPriorAlpha(tradingDays: number): number {
-  const years = Math.max(0.05, tradingDays / 252);
-  const alpha = 0.90 - 0.042 * (years - 0.5);
-  return Math.min(0.95, Math.max(0.30, alpha));
-}
 
 /** Snapshot emitted to the parent so the FrontierChart can use Sugestões'
  *  μ/Σ as a stable reference frame even before any JSON is imported. */
@@ -185,17 +162,28 @@ export function PortfolioSuggestions({
   // luckiest in-sample). Stage 2 shrinks each component of μ_BS toward the
   // *macro prior* (rf + ERP)·𝟙 — independent of the realized cross-section:
   //
-  //     μ_final = (1 − α) μ_BS + α (rf + ERP) · 𝟙
+  //     μ_after = (1 − α) μ_BS + α (rf + ERP) · 𝟙
   //
   // This is a hierarchical-Bayes step: the prior on μ_g is "the market
   // portfolio's expected return is rf + ERP, period." Lets the chart land
   // in the realistic [rf, rf + σ_mkt] band at every window length, not just
   // long ones.
+  //
+  // Stage 3 — per-asset CEILING (Black-Litterman-style sanity bound).
+  // After two shrinkage stages, individual μ_i can still land above what
+  // is empirically realistic for Brazilian equities:
+  //   • Ibovespa long-run CAGR in BRL: ~8–11% nominal (Economatica 50y,
+  //     Clube dos Poupadores 2000–2024).
+  //   • Damodaran 2026 Brazil ERP: ~6% forward.
+  //   • Best 5y rolling Ibovespa annualised: ~40% (and that's the *index*
+  //     after the fact, not a forward expectation).
+  // We therefore cap each μ_i (post-anchor) at rf + MU_CEILING_K · ERP,
+  // i.e. no single asset is allowed to *expect* more than 3 equity-risk-
+  // premia of excess return. With rf=13%, ERP=6%, ceiling = 31% — strictly
+  // above the empirical Ibov long-run but strictly below cartoon territory.
   const effectiveStats = useMemo(() => {
     if (!stats) return null;
-    const anchor = rf + ERP_PRIOR;
-    const alpha = macroPriorAlpha(stats.Tn);
-    const muFinal = stats.mu.map((m) => (1 - alpha) * m + alpha * anchor);
+    const { mu: muFinal, alpha } = applyMacroAnchor(stats.mu, rf, stats.Tn);
     return { ...stats, mu: muFinal, shrinkAlpha: alpha };
   }, [stats, rf]);
 
@@ -281,7 +269,7 @@ export function PortfolioSuggestions({
       console.warn("frontier build failed", e);
       return null;
     }
-  }, [stats, rf, longOnly]);
+  }, [effectiveStats, rf, longOnly]);
 
   const recommended = useMemo(() => {
     if (!suggestions) return null;
@@ -679,9 +667,18 @@ function SuggestionCard({
       </div>
       <div className="grid grid-cols-3 gap-3 border-b border-border px-5 py-4">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted">Retorno esp.</div>
+          <div
+            className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted"
+            title="Estimativa in-sample após a stack de shrinkage (Ledoit-Wolf Σ, Jensen, Jorion, macro-anchor). Não é uma previsão de retorno futuro."
+          >
+            Retorno esp.
+            <span aria-hidden className="cursor-help opacity-70">ⓘ</span>
+          </div>
           <div className={`mt-1 text-sm font-semibold tabular ${signedClass(point.ret)}`}>
             {fmtPctSigned(point.ret)}
+          </div>
+          <div className="mt-0.5 text-[9px] uppercase tracking-wider text-muted opacity-70">
+            in-sample · não é previsão
           </div>
         </div>
         <div>
