@@ -33,7 +33,7 @@ type Props = {
   cdi: CdiArtifact | null;
 };
 
-const WINDOWS: WindowLabel[] = ["1M", "3M", "6M", "YTD", "1Y", "MAX"];
+const WINDOWS: WindowLabel[] = ["1M", "3M", "6M", "YTD", "1Y", "5Y", "10Y", "15Y", "20Y", "MAX"];
 
 const DEFAULT_PICKS = ["PETR4.SA", "VALE3.SA", "ITUB4.SA", "BBAS3.SA", "WEGE3.SA"];
 
@@ -201,7 +201,6 @@ export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
               Multi-ticker · rebase a 100 ou R$ real · até 10 séries
             </p>
           </div>
-          <a href="/comparar/" className="nav-link">tela cheia →</a>
         </div>
         <MultiTickerChart
           data={prices}

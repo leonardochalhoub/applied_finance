@@ -36,7 +36,14 @@ catalog = dbutils.widgets.get("catalog")
 window = dbutils.widgets.get("window")
 shrinkage_target = dbutils.widgets.get("shrinkage_target")
 
-window_days = {"1y": 252, "5y": 1260, "full": None}[window]
+window_days = {
+    "1y": 252,
+    "5y": 1260,
+    "10y": 2520,
+    "15y": 3780,
+    "20y": 5040,
+    "full": None,
+}[window]
 
 returns = spark.table(f"{catalog}.gold.returns_wide").toPandas()
 returns = returns.sort_values("trading_date").reset_index(drop=True)

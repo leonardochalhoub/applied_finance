@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Export Gold Parquet artifacts to /Volumes/.../gold/artifacts/."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Export Gold Parquet artifacts to /Volumes/.../gold/artifacts/."""
-# COMMAND ----------
 import pandas as pd
 
 dbutils.widgets.text("catalog", "finance_prd")

@@ -1,5 +1,4 @@
-import { PortfolioBuilder } from "@/components/PortfolioBuilder";
-import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
+import { PortfolioShell } from "@/components/PortfolioShell";
 import { loadCdi, loadIbov, loadKpis, loadPrices, loadPricesClose } from "@/lib/data";
 
 export const dynamic = "force-static";
@@ -19,7 +18,6 @@ export default async function PortfolioPage() {
       </p>
     );
   }
-  const ibovTickers = (ibov?.members ?? []).map((m) => m.ticker);
 
   return (
     <div className="space-y-12">
@@ -34,36 +32,31 @@ export default async function PortfolioPage() {
           com sliders de peso. O link da URL guarda a sua carteira — copie e
           compartilhe.
         </p>
+        <p className="mt-2 max-w-3xl text-xs text-muted">
+          Baseado em{" "}
+          <a
+            href="https://www.jstor.org/stable/2975974"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-strong underline decoration-dotted underline-offset-2 hover:decoration-solid"
+          >
+            Markowitz (1952), &ldquo;Portfolio Selection&rdquo;, Journal of Finance
+          </a>{" "}
+          · ver também a{" "}
+          <a
+            href="https://www.nobelprize.org/prizes/economic-sciences/1990/markowitz/facts/"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-strong underline decoration-dotted underline-offset-2 hover:decoration-solid"
+          >
+            página oficial do Prêmio Nobel de Economia (1990)
+          </a>
+          {" "}— Harry M. Markowitz, William F. Sharpe e Merton H. Miller, pelo
+          trabalho pioneiro na teoria da economia financeira.
+        </p>
       </header>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Sugestões</h2>
-          <p className="text-xs text-muted">
-            Otimizadas sobre todo o universo (ou apenas IBOV) usando uma janela
-            de estimação configurável. Define quanto investir e gere a ordem de
-            compra com um clique.
-          </p>
-        </div>
-        <PortfolioSuggestions
-          prices={prices}
-          closes={closes}
-          kpis={kpis}
-          cdi={cdi}
-          ibovTickers={ibovTickers}
-        />
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Construtor manual</h2>
-          <p className="text-xs text-muted">
-            Escolha tickers e pesos. Compare contra as carteiras de mínima
-            variância e máximo Sharpe na fronteira eficiente.
-          </p>
-        </div>
-        <PortfolioBuilder prices={prices} kpis={kpis} cdi={cdi} />
-      </section>
+      <PortfolioShell prices={prices} closes={closes} kpis={kpis} cdi={cdi} ibov={ibov} />
 
       <section className="card px-6 py-5 text-sm text-body">
         <div className="eyebrow">Notas metodológicas</div>

@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Build gold.returns_wide — wide log-returns matrix, one column per ticker."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Build gold.returns_wide — wide log-returns matrix, one column per ticker."""
-# COMMAND ----------
 import numpy as np
 import pandas as pd
 

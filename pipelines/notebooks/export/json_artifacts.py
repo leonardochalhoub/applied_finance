@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Export Gold JSON artifacts to /Volumes/.../gold/artifacts/."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Export Gold JSON artifacts to /Volumes/.../gold/artifacts/."""
-# COMMAND ----------
 import datetime as dt
 import json
 import os

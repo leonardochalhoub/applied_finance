@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Ingest OHLCV from Yahoo Finance via yfr_py and land Parquet to a UC Volume."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Ingest OHLCV from Yahoo Finance via yfr_py and land Parquet to a UC Volume."""
-# COMMAND ----------
 # MAGIC %pip install -q "yfr_py @ git+https://github.com/leonardochalhoub/applied_finance.git#subdirectory=yfr_py"
 # COMMAND ----------
 dbutils.library.restartPython()
@@ -22,14 +22,24 @@ from yfr_py import yf_get
 dbutils.widgets.text("catalog", "finance_prd")
 dbutils.widgets.text("volume_dir", "/Volumes/finance_prd/bronze/raw/yf")
 dbutils.widgets.text("lookback_days", "10")
+dbutils.widgets.text("first_date", "")  # Optional override (YYYY-MM-DD). If set, takes precedence over lookback_days.
 
 catalog = dbutils.widgets.get("catalog")
 volume_dir = dbutils.widgets.get("volume_dir")
 lookback_days = int(dbutils.widgets.get("lookback_days"))
+first_date_override = dbutils.widgets.get("first_date").strip()
 
 today = dt.date.today()
-first_date = today - dt.timedelta(days=lookback_days)
+if first_date_override:
+    first_date = dt.date.fromisoformat(first_date_override)
+else:
+    first_date = today - dt.timedelta(days=lookback_days)
 last_date = today
+log.info(
+    "Date range: %s → %s (%s)",
+    first_date, last_date,
+    "backfill override" if first_date_override else f"lookback={lookback_days}d",
+)
 
 universe_path = Path(f"/Volumes/{catalog}/bronze/reference/ticker_universe.csv")
 if not universe_path.exists():

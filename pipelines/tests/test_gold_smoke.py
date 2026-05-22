@@ -26,7 +26,7 @@ def _synthetic_silver(n_tickers: int = 5, n_days: int = 60, seed: int = 42) -> p
     for i, t in enumerate(tickers):
         log_ret = rng.normal(loc=0.0005 + 0.0001 * i, scale=0.015 + 0.001 * i, size=n_days)
         price = 100 * np.exp(np.cumsum(log_ret))
-        for d, p in zip(dates, price):
+        for d, p in zip(dates, price, strict=True):
             rows.append({"ticker": t, "trading_date": d, "close": float(p)})
     return pd.DataFrame(rows)
 

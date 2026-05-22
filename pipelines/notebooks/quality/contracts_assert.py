@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Data quality asserts. Block exports if any check fails."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Data quality asserts. Block exports if any check fails."""
-# COMMAND ----------
 import numpy as np
 import pandas as pd
 
@@ -44,7 +44,7 @@ dim_dupe = spark.sql(f"""
 """).count()
 _assert(dim_dupe == 0, f"silver.b3_ticker_dim has {dim_dupe} duplicate current rows")
 
-for w in ("1y", "5y", "full"):
+for w in ("1y", "5y", "10y", "15y", "20y", "full"):
     df = spark.table(f"{catalog}.gold.cov_matrix_{w}").toPandas()
     if df.empty:
         errors.append(f"gold.cov_matrix_{w} is empty")

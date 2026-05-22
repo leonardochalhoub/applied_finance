@@ -9,13 +9,20 @@
 
 import type { KpiArtifact, KpiRow, PricesArtifact, SectorRow } from "./data";
 
-export type WindowLabel = "1M" | "3M" | "6M" | "YTD" | "1Y" | "MAX";
+export type WindowLabel =
+  | "1M" | "3M" | "6M" | "YTD"
+  | "1Y" | "5Y" | "10Y" | "15Y" | "20Y"
+  | "MAX";
 
 const RANGE_DAYS: Record<Exclude<WindowLabel, "YTD" | "MAX">, number> = {
   "1M": 22,
   "3M": 66,
   "6M": 132,
   "1Y": 252,
+  "5Y": 1260,
+  "10Y": 2520,
+  "15Y": 3780,
+  "20Y": 5040,
 };
 
 export function windowStartIndex(dates: readonly string[], window: WindowLabel): number {
@@ -51,7 +58,6 @@ export function recomputeStatsForWindow(
 ): WindowedTickerStats[] {
   const dates = prices.dates;
   const start = windowStartIndex(dates, window);
-  const slice = dates.slice(start);
   const cdi = kpis.cdi_global_mean ?? 0.1;
   const kpiByTicker = new Map(kpis.tickers.map((r) => [r.ticker, r]));
 
@@ -67,14 +73,24 @@ export function recomputeStatsForWindow(
     const lastIdx = cleanIdx[cleanIdx.length - 1];
     const first = segment[firstIdx]!;
     const last = segment[lastIdx]!;
-    const retWindow = first > 0 ? Math.log(last / first) : null;
+    // Compute window log return; guard against extreme outliers caused by
+    // dirty upstream prices (e.g. UGPA3 has spurious 3.3M close in 2007).
+    // |log return| > 3 implies >20x change over the window — almost always
+    // a data error rather than legitimate performance; treat as null.
+    let retWindow: number | null = first > 0 ? Math.log(last / first) : null;
+    if (retWindow != null && Math.abs(retWindow) > 3) retWindow = null;
 
-    // Daily log returns over the window
+    // Daily log returns over the window. Drop |daily log ret| > 0.5
+    // (~65% one-day change) as data artifacts: real splits/dividends are
+    // adjusted upstream and any remaining spike is corruption.
     const logRet: number[] = [];
     for (let i = 1; i < segment.length; i++) {
       const p = segment[i];
       const q = segment[i - 1];
-      if (p != null && q != null && p > 0 && q > 0) logRet.push(Math.log(p / q));
+      if (p != null && q != null && p > 0 && q > 0) {
+        const r = Math.log(p / q);
+        if (Math.abs(r) <= 0.5) logRet.push(r);
+      }
     }
     const n = logRet.length;
     let vol: number | null = null;
@@ -127,7 +143,7 @@ export function recomputeStatsForWindow(
  */
 export function aggregateSectorsForWindow(
   rows: WindowedTickerStats[],
-  sectorsArtifact: SectorRow[],
+  _sectorsArtifact: SectorRow[],
 ): SectorRow[] {
   const bySector = new Map<string, WindowedTickerStats[]>();
   for (const r of rows) {
@@ -171,6 +187,10 @@ export function windowLabelPt(window: WindowLabel): string {
       "6M": "últimos 6 meses",
       "YTD": "no ano",
       "1Y": "últimos 12 meses",
+      "5Y": "últimos 5 anos",
+      "10Y": "últimos 10 anos",
+      "15Y": "últimos 15 anos",
+      "20Y": "últimos 20 anos",
       "MAX": "histórico completo",
     } as const
   )[window];

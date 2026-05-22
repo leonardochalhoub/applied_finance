@@ -2,12 +2,17 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 
 export const metadata: Metadata = {
   title: "Applied Finance — Análise do Mercado Acionário Brasileiro",
   description:
     "Plataforma aberta e gratuita de análise do mercado acionário brasileiro. KPIs, comparação setorial, correlações, Markowitz e visão IBOV.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: "/apple-touch-icon.svg",
+  },
 };
 
 const THEME_BOOTSTRAP = `
@@ -38,22 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Nav />
         </header>
         <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
-        <footer className="mt-24 border-t border-border">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Dados via <span className="mono">yfr_py</span> · Lakehouse no
-              Databricks Free · Estático no GitHub Pages
-            </p>
-            <p className="mono">
-              <a
-                className="hover:text-strong"
-                href="https://github.com/leonardochalhoub/applied_finance"
-              >
-                github.com/leonardochalhoub/applied_finance
-              </a>
-            </p>
-          </div>
-        </footer>
+        <Footer />
       </body>
     </html>
   );

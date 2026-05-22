@@ -37,8 +37,8 @@ export type PortfolioPoint = {
 export type FrontierResult = {
   minVariance: PortfolioPoint;
   maxSharpe: PortfolioPoint;
-  frontier: { vol: number; ret: number }[];        // smooth upper-branch hyperbola
-  cloud: { vol: number; ret: number; sharpe: number }[]; // Monte Carlo points
+  frontier: { vol: number; ret: number; weights: number[] }[];
+  cloud: { vol: number; ret: number; sharpe: number; weights: number[] }[];
   hasNegativeWeights: boolean;
 };
 
@@ -131,11 +131,82 @@ function _longOnly(
   return w;
 }
 
-/** A random positive-weights portfolio summing to 1 (Dirichlet-flat). */
+/** Box-Muller standard normal. */
+function _randn(): number {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/** Sample Gamma(α, 1) for α > 0 (Marsaglia–Tsang for α ≥ 1, boost for α < 1). */
+function _gamma(alpha: number): number {
+  if (alpha < 1) {
+    // Boosted: Gamma(α) = Gamma(α + 1) * U^(1/α)
+    const u = Math.random();
+    return _gamma(alpha + 1) * Math.pow(u, 1 / alpha);
+  }
+  const d = alpha - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+  while (true) {
+    let x: number;
+    let v: number;
+    do {
+      x = _randn();
+      v = 1 + c * x;
+    } while (v <= 0);
+    v = v * v * v;
+    const u = Math.random();
+    if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+    if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+
+/** Sample a Dirichlet(alpha) on R^n. Low α concentrates samples near corners
+ *  (single-asset portfolios); α = 1 is uniform on the simplex; high α
+ *  concentrates near equal-weight. */
+function _dirichlet(n: number, alpha: number): Vector {
+  const x = new Array(n);
+  for (let i = 0; i < n; i++) x[i] = _gamma(alpha);
+  const s = x.reduce((a, b) => a + b, 0);
+  return x.map((v) => v / s);
+}
+
+/** Cloud sampler mixing concentration levels AND explicit small-k portfolios
+ *  so the cloud densely covers the achievable region — from equal-weight
+ *  center all the way to single-asset corners. Without the corner samples
+ *  the cloud's upper boundary never touches the frontier (Dirichlet samples
+ *  in high dimensions cluster around equal-weight). */
 function _randomLongOnly(n: number): Vector {
-  const r = Array.from({ length: n }, () => -Math.log(1 - Math.random()));
-  const s = r.reduce((a, b) => a + b, 0);
-  return r.map((x) => x / s);
+  const r = Math.random();
+  if (r < 0.10) {
+    // 10% single-asset portfolios (one asset gets 100%)
+    const w = new Array(n).fill(0);
+    w[Math.floor(Math.random() * n)] = 1;
+    return w;
+  }
+  if (r < 0.25) {
+    // 15% small-k portfolios (2-4 assets, random weights)
+    const k = 2 + Math.floor(Math.random() * 3);
+    const idx = new Set<number>();
+    while (idx.size < k) idx.add(Math.floor(Math.random() * n));
+    const subW = _dirichlet(k, 0.7);
+    const w = new Array(n).fill(0);
+    let j = 0;
+    for (const i of idx) w[i] = subW[j++];
+    return w;
+  }
+  if (r < 0.55) {
+    // 30% concentrated Dirichlet (lower α → more concentration)
+    return _dirichlet(n, 0.2);
+  }
+  if (r < 0.80) {
+    // 25% uniform on the simplex
+    return _dirichlet(n, 1.0);
+  }
+  // 20% diversified (closer to equal-weight)
+  return _dirichlet(n, 3.0);
 }
 
 export function buildFrontier(
@@ -184,26 +255,35 @@ export function buildFrontier(
   }
 
   // ── Build the smooth efficient upper-branch frontier ────────────────────
-  // Walk return targets from r_mv up to (and a bit past) r_ms
+  // The efficient frontier should extend ALL the way from min-variance up to
+  // the highest achievable expected return — NOT stop at the max-Sharpe
+  // tangency point. Max-Sharpe is the optimal *risk-adjusted* point, but
+  // investors who want more return (at more risk) should still see the curve
+  // continuing past it. Otherwise the chart looks visually truncated relative
+  // to the random Dirichlet cloud.
   const rMin = mv.ret;
-  const rMax = Math.max(ms.ret, rMin + 1e-6);
-  const span = rMax - rMin;
-  const rTop = rMax + span * 0.25; // extend slightly past max-Sharpe
+  // For long-only: max achievable return = put 100% in the single highest-μ asset.
+  // For unconstrained: theoretically unbounded, so extend at least 1.5× the
+  // mv→ms span past ms.ret to give the curve room to breathe.
+  const muMax = Math.max(...mu);
+  const span = Math.max(ms.ret - rMin, 1e-6);
+  const rTop = longOnly
+    ? Math.max(muMax, ms.ret + span * 0.25)
+    : ms.ret + span * 1.5;
 
-  const frontier: { vol: number; ret: number }[] = [];
+  const frontier: { vol: number; ret: number; weights: number[] }[] = [];
   if (longOnly) {
-    // For long-only, sweep targets and project; this is approximate but
-    // produces a clean monotone curve in the relevant region
     for (let i = 0; i < steps; i++) {
       const target = rMin + (i / (steps - 1)) * (rTop - rMin);
       const w = _longOnlyForTarget(mu, sigma, rf, target);
       const p = _portfolio(w, mu, sigma, rf);
-      frontier.push({ vol: p.vol, ret: p.ret });
+      // Drop degenerate/infeasible iterations (active-set didn't converge)
+      if (Number.isFinite(p.vol) && Number.isFinite(p.ret) && p.vol > 0) {
+        frontier.push({ vol: p.vol, ret: p.ret, weights: w });
+      }
     }
-    // sort by vol and clip non-monotone points (rare numerical artifacts)
     frontier.sort((a, b) => a.vol - b.vol);
   } else {
-    // Unconstrained closed-form hyperbola via target-return formula
     const sigInv = inv(sigma);
     const e = _ones(n);
     const z = matVec(sigInv, e);
@@ -216,17 +296,22 @@ export function buildFrontier(
       for (let i = 0; i < steps; i++) {
         const r = rMin + (i / (steps - 1)) * (rTop - rMin);
         const variance = (A * r * r - 2 * B * r + C) / D;
-        if (variance > 0) frontier.push({ vol: Math.sqrt(variance), ret: r });
+        if (variance > 0) {
+          const lambda = (C - r * B) / D;
+          const gamma = (r * A - B) / D;
+          const w: number[] = new Array(n);
+          for (let k = 0; k < n; k++) w[k] = lambda * z[k] + gamma * y[k];
+          frontier.push({ vol: Math.sqrt(variance), ret: r, weights: w });
+        }
       }
     }
   }
 
-  // ── Monte Carlo cloud of random LONG-ONLY portfolios ───────────────────
-  const cloud: { vol: number; ret: number; sharpe: number }[] = [];
+  const cloud: { vol: number; ret: number; sharpe: number; weights: number[] }[] = [];
   for (let i = 0; i < cloudSize; i++) {
     const w = _randomLongOnly(n);
     const p = _portfolio(w, mu, sigma, rf);
-    cloud.push({ vol: p.vol, ret: p.ret, sharpe: p.sharpe });
+    cloud.push({ vol: p.vol, ret: p.ret, sharpe: p.sharpe, weights: w });
   }
 
   const hasNegativeWeights =

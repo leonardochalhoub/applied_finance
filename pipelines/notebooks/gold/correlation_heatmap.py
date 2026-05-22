@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Top-N most-correlated and least-correlated pairs over the 1y window."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Top-N most-correlated and least-correlated pairs over the 1y window."""
-# COMMAND ----------
 import datetime as dt
 import os
 

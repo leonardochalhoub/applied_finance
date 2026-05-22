@@ -1,8 +1,3 @@
-import logging
-
-log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
-
 # Databricks notebook source
 """Build silver.b3_ohlcv_adjusted from bronze.
 
@@ -11,6 +6,11 @@ preserve both raw and adjusted, compute the adjustment factor, and gap-fill
 flag (currently false; reserved for future intraday/halt handling).
 """
 # COMMAND ----------
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 

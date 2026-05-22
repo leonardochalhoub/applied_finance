@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Overwrite bronze.b3_index_members from the committed CSV."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Overwrite bronze.b3_index_members from the committed CSV."""
-# COMMAND ----------
 from pathlib import Path
 
 import pandas as pd

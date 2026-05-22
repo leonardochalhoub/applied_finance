@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import datetime as _dt
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
-
-from yfr_py._chunker import fetch_many, FetchResult
+from yfr_py._chunker import fetch_many
 from yfr_py._http import BrapiBackend, HttpBackend, YFinanceBackend, resolve_backend
-
 
 # ─── resolve_backend ─────────────────────────────────────────────────────
 

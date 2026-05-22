@@ -198,7 +198,14 @@ _apply(
                                "(NULL = ticker did not trade).",
 )
 
-for w, label in (("1y", "252 trading days"), ("5y", "1260 trading days"), ("full", "complete history")):
+for w, label in (
+    ("1y", "252 trading days"),
+    ("5y", "1260 trading days"),
+    ("10y", "2520 trading days"),
+    ("15y", "3780 trading days"),
+    ("20y", "5040 trading days"),
+    ("full", "complete history"),
+):
     _apply(
         f"gold.cov_matrix_{w}",
         f"Annualized covariance matrix of daily log-returns over the {label} "

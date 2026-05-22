@@ -133,6 +133,33 @@ resources:
               catalog: "${var.catalog}"
               window: "5y"
 
+        - task_key: gold_cov_matrix_10y
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "10y"
+
+        - task_key: gold_cov_matrix_15y
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "15y"
+
+        - task_key: gold_cov_matrix_20y
+          depends_on:
+            - { task_key: gold_returns_wide }
+          notebook_task:
+            notebook_path: ./notebooks/gold/cov_matrix.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              window: "20y"
+
         - task_key: gold_cov_matrix_full
           depends_on:
             - { task_key: gold_returns_wide }
@@ -184,6 +211,9 @@ resources:
             - { task_key: gold_ibov_overview }
             - { task_key: gold_cov_matrix_1y }
             - { task_key: gold_cov_matrix_5y }
+            - { task_key: gold_cov_matrix_10y }
+            - { task_key: gold_cov_matrix_15y }
+            - { task_key: gold_cov_matrix_20y }
             - { task_key: gold_cov_matrix_full }
           notebook_task:
             notebook_path: ./notebooks/quality/contracts_assert.py

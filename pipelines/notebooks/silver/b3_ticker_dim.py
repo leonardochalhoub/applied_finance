@@ -1,8 +1,3 @@
-import logging
-
-log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
-
 # Databricks notebook source
 """SCD2 over bronze.b3_universe.
 
@@ -15,6 +10,11 @@ lexicographic ordering would mis-root cases like `AAAA3 → BBBB3` where the
 visible chronology is `BBBB3 (oldest) → AAAA3 (current)`.
 """
 # COMMAND ----------
+import logging
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
+
 from pyspark.sql import functions as F
 
 dbutils.widgets.text("catalog", "finance_prd")

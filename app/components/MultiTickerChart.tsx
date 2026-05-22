@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { downloadSvgChart } from "@/lib/chartDownload";
 import type { PricesArtifact, PricesCloseArtifact } from "@/lib/data";
 import { fmtAxisBRL, fmtAxisNum, fmtNum2 } from "@/lib/format";
 import type { WindowLabel } from "@/lib/windowed";
@@ -50,6 +51,7 @@ export function MultiTickerChart({
   const [logScale, setLogScale] = useState(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("rebase");
   const [query, setQuery] = useState("");
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (windowProp !== undefined) setInternalWindow(windowProp);
@@ -69,6 +71,25 @@ export function MultiTickerChart({
   const startIdx = useMemo(() => windowStartIndex(data.dates, window), [data.dates, window]);
   const slicedDates = useMemo(() => data.dates.slice(startIdx), [data.dates, startIdx]);
 
+  // First non-null base per ticker within the window — tickers that started
+  // trading mid-window (ABEV3 pre-2013, ALOS3 pre-2018, etc.) still render
+  // from their listing date instead of being skipped entirely.
+  const basePerTicker = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const t of selected) {
+      const arr = data.series[t];
+      if (!arr) continue;
+      for (let i = startIdx; i < data.dates.length; i++) {
+        const v = arr[i];
+        if (v != null && v > 0) {
+          map[t] = v;
+          break;
+        }
+      }
+    }
+    return map;
+  }, [selected, data, startIdx]);
+
   const chartRows = useMemo(() => {
     return slicedDates.map((d, i) => {
       const row: Record<string, number | string | null> = { date: d };
@@ -84,14 +105,14 @@ export function MultiTickerChart({
           if (!arr) continue;
           const raw = arr[startIdx + i];
           if (raw == null) continue;
-          const baseRaw = arr[startIdx];
+          const baseRaw = basePerTicker[t];
           if (baseRaw == null || baseRaw <= 0) continue;
           row[t] = (raw / baseRaw) * 100;
         }
       }
       return row;
     });
-  }, [slicedDates, selected, data, closes, displayMode, startIdx]);
+  }, [slicedDates, selected, data, closes, displayMode, startIdx, basePerTicker]);
 
   function toggle(t: string) {
     setSelected((prev) =>
@@ -153,7 +174,7 @@ export function MultiTickerChart({
         </div>
         <div className="flex items-center gap-1 text-xs">
           {showWindowControls
-            ? (["1M", "3M", "6M", "YTD", "1Y", "MAX"] as WindowLabel[]).map((r) => (
+            ? (["1M", "3M", "6M", "YTD", "1Y", "5Y", "10Y", "15Y", "20Y", "MAX"] as WindowLabel[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -177,6 +198,20 @@ export function MultiTickerChart({
             />
             log
           </label>
+          <button
+            type="button"
+            onClick={() => {
+              void downloadSvgChart(
+                chartRef.current,
+                `applied-finance-comparacao-${new Date().toISOString().slice(0, 10)}.png`,
+                "png",
+              ).catch((e) => console.warn("download failed", e));
+            }}
+            className="ml-2 rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-wider text-muted hover:text-strong"
+            title="Baixar PNG do gráfico"
+          >
+            ↓ baixar
+          </button>
         </div>
       </div>
 
@@ -229,7 +264,7 @@ export function MultiTickerChart({
         </aside>
 
         <div className="min-h-[420px] p-4">
-          <div style={{ width: "100%", height: 380 }}>
+          <div ref={chartRef} style={{ width: "100%", height: 380 }}>
             <ResponsiveContainer>
               <LineChart data={chartRows} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />

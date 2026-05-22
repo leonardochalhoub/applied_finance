@@ -13,7 +13,7 @@ import {
 
 import { SectorPanels } from "./SectorPanels";
 
-const WINDOWS: WindowLabel[] = ["1M", "3M", "6M", "YTD", "1Y", "MAX"];
+const WINDOWS: WindowLabel[] = ["1M", "3M", "6M", "YTD", "1Y", "5Y", "10Y", "15Y", "20Y", "MAX"];
 
 export function SectorsView({
   kpis,
@@ -29,10 +29,15 @@ export function SectorsView({
   const [sortKey, setSortKey] = useState<"return" | "members" | "vol" | "name">("return");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const sectors = useMemo(() => {
-    const stats = recomputeStatsForWindow(prices, kpis, window);
-    return aggregateSectorsForWindow(stats, sectorsSnapshot.sectors);
-  }, [prices, kpis, sectorsSnapshot, window]);
+  const stats = useMemo(
+    () => recomputeStatsForWindow(prices, kpis, window),
+    [prices, kpis, window],
+  );
+
+  const sectors = useMemo(
+    () => aggregateSectorsForWindow(stats, sectorsSnapshot.sectors),
+    [stats, sectorsSnapshot],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -103,7 +108,7 @@ export function SectorsView({
       </div>
 
       <section>
-        <SectorPanels sectors={filtered} prices={prices} />
+        <SectorPanels sectors={filtered} prices={prices} tickerStats={stats} />
       </section>
 
       <section className="card overflow-hidden">
@@ -137,12 +142,12 @@ export function SectorsView({
                   <tr key={s.sector_b3} className="hover:bg-[color:var(--bg-subtle)]">
                     <td className="whitespace-nowrap px-5 py-3 text-strong">{s.sector_b3}</td>
                     <td className="px-3 py-3 text-right tabular text-body">{s.member_count}</td>
-                    <td className={`px-3 py-3 text-right tabular font-semibold whitespace-nowrap ${signedClass(s.return_ytd_mean)}`}>
+                    <td className={`px-4 py-3 text-right tabular font-semibold whitespace-nowrap ${signedClass(s.return_ytd_mean)}`}>
                       {fmtPctSigned(s.return_ytd_mean)}
                     </td>
-                    <td className="px-3 py-3" style={{ minWidth: 180 }}>
-                      <div className="relative grid h-2 w-full grid-cols-2 overflow-visible">
-                        <div className="relative flex h-2 items-center justify-end">
+                    <td className="py-3 pl-8 pr-4" style={{ minWidth: 220 }}>
+                      <div className="relative grid h-2 w-full grid-cols-2">
+                        <div className="relative flex h-2 items-center justify-end pr-1">
                           {!positive ? (
                             <div
                               aria-hidden
@@ -151,11 +156,11 @@ export function SectorsView({
                             />
                           ) : null}
                         </div>
-                        <div className="relative h-2">
+                        <div className="relative h-2 pl-1">
                           {positive ? (
                             <div
                               aria-hidden
-                              className="absolute left-0 top-0 h-2 rounded-full bg-[color:var(--gain)]"
+                              className="absolute left-1 top-0 h-2 rounded-full bg-[color:var(--gain)]"
                               style={{ width: `${pct}%`, opacity: 0.85 }}
                             />
                           ) : null}

@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""IBOV overview: current composition + per-component YTD + contribution."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""IBOV overview: current composition + per-component YTD + contribution."""
-# COMMAND ----------
 import datetime as dt
 import json
 import os

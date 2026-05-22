@@ -6,7 +6,6 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const ITEMS = [
   { href: "/", label: "Visão geral" },
-  { href: "/comparar/", label: "Comparar" },
   { href: "/portfolio/", label: "Carteira" },
   { href: "/triagem/", label: "Triagem" },
   { href: "/setores/", label: "Setores" },
@@ -28,10 +27,12 @@ export function Nav() {
 
   return (
     <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-      <a href="/" className="flex items-center gap-2">
+      <a href="/" className="flex items-center gap-2 text-strong">
         <Logo />
-        <span className="text-base font-semibold tracking-tight">Applied Finance</span>
-        <span className="chip ml-2 hidden sm:inline-flex">B3 · pt-BR · MIT</span>
+        <span className="text-base font-semibold tracking-tight whitespace-nowrap text-strong">
+          Applied Finance
+        </span>
+        <span className="chip ml-2 hidden md:inline-flex">B3 · pt-BR · MIT</span>
       </a>
       <div className="flex items-center gap-3">
         {/* Desktop / wide tablet links */}
@@ -80,24 +81,28 @@ export function Nav() {
 }
 
 function Logo() {
+  // Mirrors public/icon.svg (option-1 — trajectory line + max-Sharpe node)
   return (
     <svg
-      width="22"
-      height="22"
-      viewBox="0 0 32 32"
+      width="24"
+      height="24"
+      viewBox="0 0 64 64"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <rect width="32" height="32" rx="7" fill="var(--accent)" opacity="0.95" />
+      <rect width="64" height="64" rx="14" fill="#0a0f1e" />
       <path
-        d="M 6 23 L 12 14 L 17 19 L 26 9"
-        stroke="white"
-        strokeWidth="2.4"
+        d="M 12 46 L 24 28 L 34 38 L 52 18"
+        fill="none"
+        stroke="#60a5fa"
+        strokeWidth="4.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
       />
-      <circle cx="26" cy="9" r="2" fill="white" />
+      <circle cx="12" cy="46" r="3" fill="#60a5fa" />
+      <circle cx="24" cy="28" r="3" fill="#60a5fa" />
+      <circle cx="34" cy="38" r="3" fill="#60a5fa" />
+      <circle cx="52" cy="18" r="4" fill="#34d399" />
     </svg>
   );
 }

@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Per-sector aggregates over gold.kpis_per_ticker."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Per-sector aggregates over gold.kpis_per_ticker."""
-# COMMAND ----------
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 

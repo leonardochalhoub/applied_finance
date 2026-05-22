@@ -3,17 +3,27 @@
 import { useMemo, useState } from "react";
 
 import type { PricesArtifact, SectorRow } from "@/lib/data";
-import { cellColor, fmtPctSigned, signedClass } from "@/lib/format";
+import { cellColor, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import type { WindowedTickerStats } from "@/lib/windowed";
 
 type SortKey = "return" | "members" | "vol";
 
 export function SectorPanels({
   sectors,
   prices,
+  tickerStats,
 }: {
   sectors: SectorRow[];
   prices: PricesArtifact | null;
+  /** Optional per-ticker windowed stats — enables click-to-expand member detail. */
+  tickerStats?: WindowedTickerStats[];
 }) {
+  const [openSector, setOpenSector] = useState<string | null>(null);
+  const statsByTicker = useMemo(() => {
+    const m = new Map<string, WindowedTickerStats>();
+    for (const s of tickerStats ?? []) m.set(s.ticker, s);
+    return m;
+  }, [tickerStats]);
   const [sortKey, setSortKey] = useState<SortKey>("return");
 
   const sorted = useMemo(() => {
@@ -91,9 +101,25 @@ export function SectorPanels({
             key={s.sector_b3}
             sector={s}
             path={sectorPaths.get(s.sector_b3)}
+            open={openSector === s.sector_b3}
+            onClick={() =>
+              setOpenSector((cur) => (cur === s.sector_b3 ? null : s.sector_b3))
+            }
           />
         ))}
       </div>
+
+      {(() => {
+        const openS = openSector ? sorted.find((s) => s.sector_b3 === openSector) : null;
+        if (!openS) return null;
+        return (
+          <SectorDetail
+            sector={openS}
+            statsByTicker={statsByTicker}
+            onClose={() => setOpenSector(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -101,15 +127,23 @@ export function SectorPanels({
 function SectorCard({
   sector,
   path,
+  open,
+  onClick,
 }: {
   sector: SectorRow;
   path: number[] | undefined;
+  open: boolean;
+  onClick: () => void;
 }) {
   const memberPreview = (sector.members ?? []).slice(0, 4);
   return (
-    <a
-      href="/setores/"
-      className="card card-hover group relative block overflow-hidden p-5"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`card card-hover group relative block w-full overflow-hidden p-5 text-left ${
+        open ? "ring-2 ring-[color:var(--accent)]/60" : ""
+      }`}
       style={{
         background: `linear-gradient(135deg, ${cellColor(sector.return_ytd_mean)} 0%, var(--bg-elevated) 100%)`,
       }}
@@ -119,6 +153,13 @@ function SectorCard({
           <h3 className="text-sm font-semibold leading-tight text-strong">
             {sector.sector_b3}
           </h3>
+          <span
+            aria-hidden
+            className={`text-xs transition ${open ? "rotate-180" : ""}`}
+            style={{ color: "var(--muted)" }}
+          >
+            ▾
+          </span>
         </div>
 
         <div className={`mt-3 text-2xl font-semibold tabular ${signedClass(sector.return_ytd_mean)}`}>
@@ -160,7 +201,100 @@ function SectorCard({
           </div>
         ) : null}
       </div>
-    </a>
+    </button>
+  );
+}
+
+function SectorDetail({
+  sector,
+  statsByTicker,
+  onClose,
+}: {
+  sector: SectorRow;
+  statsByTicker: Map<string, WindowedTickerStats>;
+  onClose: () => void;
+}) {
+  const members = sector.members ?? [];
+  const rows = members
+    .map((t) => {
+      const s = statsByTicker.get(t);
+      return {
+        ticker: t,
+        return_window: s?.return_window ?? null,
+        vol_window: s?.vol_window ?? null,
+        sharpe_window: s?.sharpe_window ?? null,
+        drawdown_window: s?.drawdown_window ?? null,
+      };
+    })
+    .sort((a, b) => (b.return_window ?? -Infinity) - (a.return_window ?? -Infinity));
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <div>
+          <span className="eyebrow">{sector.sector_b3}</span>
+          <span className="ml-3 text-[10px] uppercase tracking-wider text-muted">
+            {members.length} {members.length === 1 ? "ticker" : "tickers"} ·
+            retorno médio {fmtPctSigned(sector.return_ytd_mean)} ·
+            vol. média {fmtPctSigned(sector.vol_annual_mean).replace("+", "")}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[10px] uppercase tracking-wider text-muted hover:text-strong"
+        >
+          fechar ×
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted">
+              <th className="px-5 py-3">Ticker</th>
+              <th className="px-3 py-3 text-right">Retorno</th>
+              <th className="px-3 py-3 text-right">Vol. anual</th>
+              <th className="px-3 py-3 text-right">Sharpe</th>
+              <th className="px-3 py-3 text-right">Max DD</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r) => (
+              <tr key={r.ticker} className="hover:bg-[color:var(--bg-subtle)]">
+                <td className="whitespace-nowrap px-5 py-2.5">
+                  <a
+                    href={`/ticker/${encodeURIComponent(r.ticker)}/`}
+                    className="mono text-sm font-semibold text-strong hover:underline"
+                  >
+                    {r.ticker.replace(/\.SA$/, "")}
+                  </a>
+                </td>
+                <td
+                  className={`px-3 py-2.5 text-right tabular font-semibold ${
+                    r.return_window != null ? signedClass(r.return_window) : "text-muted"
+                  }`}
+                >
+                  {r.return_window != null ? fmtPctSigned(r.return_window) : "—"}
+                </td>
+                <td className="px-3 py-2.5 text-right tabular text-body">
+                  {r.vol_window != null ? fmtPctSigned(r.vol_window).replace("+", "") : "—"}
+                </td>
+                <td
+                  className={`px-3 py-2.5 text-right tabular ${
+                    r.sharpe_window != null ? signedClass(r.sharpe_window) : "text-muted"
+                  }`}
+                >
+                  {r.sharpe_window != null ? fmtNum2(r.sharpe_window) : "—"}
+                </td>
+                <td className="px-3 py-2.5 text-right tabular text-body">
+                  {r.drawdown_window != null ? fmtPctSigned(r.drawdown_window) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

@@ -1,11 +1,11 @@
+# Databricks notebook source
+"""Pivot index membership snapshots into a long-format Delta table."""
+# COMMAND ----------
 import logging
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
-# Databricks notebook source
-"""Pivot index membership snapshots into a long-format Delta table."""
-# COMMAND ----------
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 

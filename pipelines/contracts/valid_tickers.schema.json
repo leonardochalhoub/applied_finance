@@ -7,7 +7,7 @@
   "required": ["window_label", "as_of", "source_run_id", "valid_tickers", "excluded_tickers"],
   "additionalProperties": false,
   "properties": {
-    "window_label": { "type": "string", "enum": ["1y", "5y", "full"] },
+    "window_label": { "type": "string", "enum": ["1y", "5y", "10y", "15y", "20y", "full"] },
     "as_of": { "type": "string", "format": "date" },
     "source_run_id": { "type": "string", "minLength": 1 },
     "window_start": { "type": "string", "format": "date" },

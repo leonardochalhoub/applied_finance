@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { cdiMeanForWindow } from "@/lib/cdi";
 import type {
@@ -23,7 +23,7 @@ type Props = {
   ibovTickers: string[];
 };
 
-const WINDOWS: WindowLabel[] = ["3M", "6M", "1Y", "MAX"];
+const WINDOWS: WindowLabel[] = ["6M", "1Y", "5Y", "10Y", "15Y", "20Y", "MAX"];
 
 type Suggestion = {
   label: string;
@@ -31,7 +31,13 @@ type Suggestion = {
   point: PortfolioPoint;
 };
 
-export function PortfolioSuggestions({ prices, closes, kpis, cdi, ibovTickers }: Props) {
+export function PortfolioSuggestions({
+  prices,
+  closes,
+  kpis,
+  cdi,
+  ibovTickers,
+}: Props) {
   const [amount, setAmount] = useState<number>(10000);
   const [window, setWindow] = useState<WindowLabel>("1Y");
   const [universe, setUniverse] = useState<Universe>("ibov");
@@ -184,14 +190,7 @@ export function PortfolioSuggestions({ prices, closes, kpis, cdi, ibovTickers }:
           <label className="block text-[10px] uppercase tracking-wider text-muted">Valor a investir</label>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-sm text-muted">R$</span>
-            <input
-              type="number"
-              min={100}
-              step={100}
-              value={amount}
-              onChange={(e) => setAmount(Math.max(100, Number(e.target.value) || 0))}
-              className="w-32 rounded-md border border-border bg-[color:var(--bg-base)] px-3 py-1.5 text-sm focus:border-[color:var(--accent)] focus:outline-none"
-            />
+            <BrlAmountInput value={amount} onChange={(v) => setAmount(Math.max(100, v))} />
           </div>
         </div>
         <div>
@@ -264,6 +263,8 @@ export function PortfolioSuggestions({ prices, closes, kpis, cdi, ibovTickers }:
                 blurb={s.blurb}
                 point={s.point}
                 tickers={stats.tickers}
+                mu={stats.mu}
+                sigma={stats.sigma}
                 amount={amount}
                 prices={prices}
                 closes={closes}
@@ -273,6 +274,8 @@ export function PortfolioSuggestions({ prices, closes, kpis, cdi, ibovTickers }:
               />
             ))}
           </div>
+
+          {/* Fronteira eficiente é renderizada uma única vez, dentro do construtor manual abaixo */}
 
           {/* Recommendation explanation */}
           {recommended ? (
@@ -321,11 +324,78 @@ export function PortfolioSuggestions({ prices, closes, kpis, cdi, ibovTickers }:
   );
 }
 
+/**
+ * Money-masked input that displays values in pt-BR format (10.000,00) and
+ * accepts any combination of digits/comma/dot the user types. Internal state
+ * is the raw string so the cursor doesn't jump on every keystroke.
+ */
+function BrlAmountInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const fmt = useMemo(
+    () =>
+      new Intl.NumberFormat("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [],
+  );
+
+  const [text, setText] = useState<string>(() => fmt.format(value));
+  const [focused, setFocused] = useState(false);
+
+  // Sync display when external value changes and the input isn't being edited.
+  useEffect(() => {
+    if (!focused) setText(fmt.format(value));
+  }, [value, fmt, focused]);
+
+  function parseBrl(s: string): number {
+    // Strip thousands separators (.), convert decimal comma → dot.
+    const cleaned = s.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      onFocus={(e) => {
+        setFocused(true);
+        // Show raw number on focus so user can type cleanly
+        setText(value > 0 ? String(value).replace(".", ",") : "");
+        // Select all to make replacement easy
+        requestAnimationFrame(() => e.target.select());
+      }}
+      onChange={(e) => {
+        // Allow digits, commas, dots only
+        const raw = e.target.value.replace(/[^\d,.]/g, "");
+        setText(raw);
+        const n = parseBrl(raw);
+        onChange(n);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        setText(fmt.format(Math.max(100, value)));
+      }}
+      className="w-36 rounded-md border border-border bg-[color:var(--bg-base)] px-3 py-1.5 text-right tabular text-sm focus:border-[color:var(--accent)] focus:outline-none"
+      placeholder="10.000,00"
+    />
+  );
+}
+
 function SuggestionCard({
   label,
   blurb,
   point,
   tickers,
+  mu,
+  sigma,
   amount,
   prices,
   closes,
@@ -337,6 +407,8 @@ function SuggestionCard({
   blurb: string;
   point: PortfolioPoint;
   tickers: string[];
+  mu: number[];
+  sigma: number[][];
   amount: number;
   prices: PricesArtifact;
   closes: PricesCloseArtifact | null;
@@ -404,6 +476,67 @@ function SuggestionCard({
     if (typeof window !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(text);
     }
+  }
+
+  function downloadJSON() {
+    if (typeof window === "undefined") return;
+    // Build a {ticker: weight} map aligned with the suggestion's allocations.
+    // Schema matches PortfolioBuilder's "Importar JSON" exactly so the file
+    // can be re-imported with no edits.
+    const weightsMap: Record<string, number> = {};
+    const nonZeroIdx: number[] = [];
+    for (let i = 0; i < tickers.length; i++) {
+      const w = point.weights[i];
+      if (w == null || Math.abs(w) < 0.0001) continue;
+      weightsMap[tickers[i]] = w;
+      nonZeroIdx.push(i);
+    }
+    // Renormalize to sum to 1 in case rounding/filtering shifted it
+    const sum = Object.values(weightsMap).reduce((a, b) => a + b, 0);
+    if (sum > 0) {
+      Object.keys(weightsMap).forEach((k) => (weightsMap[k] = +(weightsMap[k] / sum).toFixed(6)));
+    }
+
+    // Snapshot the μ/Σ sub-matrix for the non-zero tickers. This lets
+    // PortfolioBuilder reproduce the EXACT coordinate system (vol, ret) where
+    // this portfolio was optimised — so the imported diamond lands precisely
+    // on the green star of the rebuilt frontier.
+    const snapshotTickers = nonZeroIdx.map((i) => tickers[i]);
+    const snapshotMu = nonZeroIdx.map((i) => mu[i]);
+    const snapshotSigma = nonZeroIdx.map((i) =>
+      nonZeroIdx.map((j) => sigma[i][j]),
+    );
+
+    const payload = {
+      schema: "applied-finance.portfolio.v1",
+      name: `Sugestão · ${label}`,
+      exportedAt: new Date().toISOString(),
+      weights: weightsMap,
+      meta: {
+        source: "PortfolioSuggestions",
+        window,
+        amount_brl: amount,
+        ret_annual: point.ret,
+        vol_annual: point.vol,
+        sharpe: point.sharpe,
+        cdi: rf,
+        snapshot: {
+          tickers: snapshotTickers,
+          mu: snapshotMu,
+          sigma: snapshotSigma,
+          rf,
+        },
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `applied-finance-sugestao-${label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   const visible = showAll ? allocations : allocations.slice(0, 10);
@@ -493,13 +626,23 @@ function SuggestionCard({
             <span>{allocations.length} ativos</span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={copyOrder}
-          className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
-        >
-          Gerar ordem
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={downloadJSON}
+            title="Baixar carteira em JSON — pronta para reimportar no construtor manual"
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-strong hover:bg-[color:var(--bg-subtle)]"
+          >
+            Gerar JSON
+          </button>
+          <button
+            type="button"
+            onClick={copyOrder}
+            className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Gerar ordem
+          </button>
+        </div>
       </div>
 
       {orderText ? (
