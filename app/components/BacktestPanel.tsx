@@ -14,7 +14,7 @@ import {
 
 import { walkForwardBacktest, type BacktestSummary } from "@/lib/backtest";
 import type { PricesArtifact } from "@/lib/data";
-import { fmtAxisPct, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtAxisPct, fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
 
 type Props = {
   tickers: string[];
@@ -219,12 +219,12 @@ function SummaryCard({
     >
       <div className="eyebrow">{label}</div>
       <div className="mt-1 grid grid-cols-2 gap-1 text-xs">
-        <span className="text-muted">retorno a.a.</span>
+        <span className="text-muted">retorno</span>
         <span className={`text-right tabular font-semibold ${signedClass(data.retAnn)}`}>
-          {fmtPctSigned(data.retAnn)}
+          {fmtPctAA(data.retAnn)}
         </span>
-        <span className="text-muted">vol a.a.</span>
-        <span className="text-right tabular text-body">{fmtPctSigned(data.volAnn).replace("+", "")}</span>
+        <span className="text-muted">vol</span>
+        <span className="text-right tabular text-body">{fmtPctAA(data.volAnn).replace("+", "")}</span>
         <span className="text-muted">Sharpe</span>
         <span className={`text-right tabular font-semibold ${signedClass(data.sharpe)}`}>
           {fmtNum2(data.sharpe)}

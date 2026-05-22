@@ -16,7 +16,7 @@ import {
 
 import { downloadSvgChart } from "@/lib/chartDownload";
 import { withBase } from "@/lib/links";
-import { fmtAxisPct, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtAxisPct, fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
 import { buildFrontier, type FrontierResult } from "@/lib/markowitz";
 
 const PCT2_BR = new Intl.NumberFormat("pt-BR", {
@@ -313,9 +313,9 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
               className="ml-2 text-[10px] uppercase tracking-wider text-muted"
               title="rf = CDI médio sobre a janela · poupança ≈ 70% do CDI (Lei 12.703/2012)"
             >
-              · rf (CDI) = {(rf * 100).toFixed(2).replace(".", ",")}%
+              · rf (CDI) = {(rf * 100).toFixed(2).replace(".", ",")}% a.a.
               {" · "}
-              poupança ≈ {(poupancaRate * 100).toFixed(2).replace(".", ",")}%
+              poupança ≈ {(poupancaRate * 100).toFixed(2).replace(".", ",")}% a.a.
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-body">
@@ -706,11 +706,11 @@ function FrontierTooltip({ active, payload }: { active?: boolean; payload?: { pa
       ) : null}
       <div className="flex items-center justify-between gap-4">
         <span style={{ color: "var(--muted)" }}>Retorno</span>
-        <span className="tabular font-semibold">{PCT2_BR.format(p.ret)}</span>
+        <span className="tabular font-semibold">{PCT2_BR.format(p.ret)} a.a.</span>
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-4">
         <span style={{ color: "var(--muted)" }}>Volatilidade</span>
-        <span className="tabular font-semibold">{PCT2_BR.format(p.vol)}</span>
+        <span className="tabular font-semibold">{PCT2_BR.format(p.vol)} a.a.</span>
       </div>
       {typeof p.sharpe === "number" ? (
         <div className="mt-0.5 flex items-center justify-between gap-4">
@@ -779,13 +779,13 @@ function ClickedPortfolioCard({
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted">Retorno esp.</div>
           <div className={`mt-1 text-sm font-semibold tabular ${signedClass(point.ret)}`}>
-            {fmtPctSigned(point.ret)}
+            {fmtPctAA(point.ret)}
           </div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted">Vol. anual</div>
           <div className="mt-1 text-sm font-semibold tabular">
-            {fmtPctSigned(point.vol).replace("+", "")}
+            {fmtPctAA(point.vol).replace("+", "")}
           </div>
         </div>
         <div>

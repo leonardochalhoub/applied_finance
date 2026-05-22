@@ -12,7 +12,7 @@ import type {
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
 import { applyMacroAnchor, ERP_PRIOR } from "@/lib/shrinkage";
-import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtBRL, fmtNum2, fmtPctAA, signedClass } from "@/lib/format";
 import { withBase } from "@/lib/links";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
@@ -401,6 +401,38 @@ export function PortfolioSuggestions({
         <p className="text-sm text-muted">Não foi possível resolver a fronteira eficiente.</p>
       ) : (
         <>
+          <details className="card px-5 py-3 text-xs text-body">
+            <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wider text-muted">
+              Como ler estes cartões
+            </summary>
+            <div className="mt-3 space-y-2">
+              <p>
+                Os três números em cada cartão são <strong>anualizados</strong> —
+                quando vê <span className="mono">+28% a.a.</span>, <span className="mono">vol 14% a.a.</span>,{" "}
+                <span className="mono">Sharpe 1.0</span>, leia como:
+              </p>
+              <p className="rounded-md bg-[color:var(--bg-base)] px-4 py-2 italic">
+                &ldquo;Estimo que esta carteira componha a{" "}
+                <strong className="not-italic">28% ao ano</strong>, com{" "}
+                <strong className="not-italic">14% ao ano</strong> de desvio padrão (escala
+                de risco), entregando <strong className="not-italic">1.0 unidade de
+                retorno em excesso por unidade de risco por ano</strong>.&rdquo;
+              </p>
+              <p className="text-muted">
+                Sufixo <span className="mono">a.a.</span> = <em>ao ano</em>. Se uma vez você
+                ver <span className="mono">a.m.</span> é <em>ao mês</em>;{" "}
+                <span className="mono">a.d.</span> é <em>ao dia</em>. Sharpe é um número
+                puro (razão), sem unidade de tempo.
+              </p>
+              <p className="text-muted">
+                Tudo aqui é <strong>in-sample</strong> — calculado sobre o passado
+                após a stack de shrinkage (Ledoit-Wolf Σ + Jensen + Jorion + macro-
+                anchor + teto por ativo). Não é previsão de retorno futuro; é a
+                melhor estimativa hoje, dada a janela selecionada.
+              </p>
+            </div>
+          </details>
+
           <div className="grid gap-4 lg:grid-cols-3">
             {suggestions.map((s) => (
               <SuggestionCard
@@ -445,11 +477,11 @@ export function PortfolioSuggestions({
                   <span className="tabular">{fmtNum2(recommended.point.sharpe)}</span>,
                   retorno esperado{" "}
                   <span className={`tabular ${signedClass(recommended.point.ret)}`}>
-                    {fmtPctSigned(recommended.point.ret)}
+                    {fmtPctAA(recommended.point.ret)}
                   </span>
                   , vol{" "}
                   <span className="tabular">
-                    {fmtPctSigned(recommended.point.vol).replace("+", "")}
+                    {fmtPctAA(recommended.point.vol).replace("+", "")}
                   </span>
                   ).
                 </p>
@@ -595,8 +627,8 @@ function SuggestionCard({
     lines.push(`ORDEM DE COMPRA — Carteira ${label}`);
     lines.push(`Data: ${date}`);
     lines.push(`Valor total: R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
-    lines.push(`Janela de estimação: ${window} · Taxa livre (CDI): ${(rf * 100).toFixed(2).replace(".", ",")}%`);
-    lines.push(`Retorno esperado: ${fmtPctSigned(point.ret)} · Vol. anual: ${fmtPctSigned(point.vol).replace("+", "")} · Sharpe: ${fmtNum2(point.sharpe)}`);
+    lines.push(`Janela de estimação: ${window} · Taxa livre (CDI): ${(rf * 100).toFixed(2).replace(".", ",")}% a.a.`);
+    lines.push(`Retorno esperado: ${fmtPctAA(point.ret)} · Vol. anual: ${fmtPctAA(point.vol).replace("+", "")} · Sharpe: ${fmtNum2(point.sharpe)}`);
     lines.push("");
     lines.push("ATIVO     QTD   PREÇO        TOTAL          PESO");
     lines.push("-".repeat(60));
@@ -709,7 +741,7 @@ function SuggestionCard({
             <span aria-hidden className="cursor-help opacity-70">ⓘ</span>
           </div>
           <div className={`mt-1 text-sm font-semibold tabular ${signedClass(point.ret)}`}>
-            {fmtPctSigned(point.ret)}
+            {fmtPctAA(point.ret)}
           </div>
           <div className="mt-0.5 text-[9px] uppercase tracking-wider text-muted opacity-70">
             in-sample · não é previsão
@@ -718,7 +750,7 @@ function SuggestionCard({
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted">Vol. anual</div>
           <div className="mt-1 text-sm font-semibold tabular">
-            {fmtPctSigned(point.vol).replace("+", "")}
+            {fmtPctAA(point.vol).replace("+", "")}
           </div>
         </div>
         <div>

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { KpiCard } from "@/components/KpiCard";
 import { TickerSparkChart } from "@/components/TickerSparkChart";
 import { loadIbov, loadKpis, loadPrices } from "@/lib/data";
-import { fmtBRL, fmtDate, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtBRL, fmtDate, fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
 import { withBase } from "@/lib/links";
 
 export const dynamic = "force-static";
@@ -116,7 +116,7 @@ export default async function TickerPage({
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Retorno YTD" value={row.return_ytd} big />
-        <KpiCard label="Volatilidade anual" value={row.vol_annual} big />
+        <KpiCard label="Volatilidade" value={row.vol_annual} format="pct-aa" big />
         <KpiCard label="Drawdown máx." value={row.max_drawdown} big />
         <KpiCard label="Sharpe vs CDI" value={row.sharpe_vs_cdi} format="num" big />
       </section>
@@ -129,7 +129,7 @@ export default async function TickerPage({
             {row.cdi_annual_used != null ? (
               <li>
                 Taxa livre de risco usada: <span className="tabular font-semibold">
-                  {(row.cdi_annual_used * 100).toFixed(2)}%
+                  {(row.cdi_annual_used * 100).toFixed(2)}% a.a.
                 </span> (média CDI sobre a janela deste ticker)
               </li>
             ) : null}
@@ -175,7 +175,7 @@ export default async function TickerPage({
                       {fmtPctSigned(p.return_ytd)}
                     </td>
                     <td className="px-5 py-2.5 text-right tabular text-body">
-                      {fmtPctSigned(p.vol_annual).replace("+", "")}
+                      {fmtPctAA(p.vol_annual).replace("+", "")}
                     </td>
                     <td className={`px-5 py-2.5 text-right tabular ${signedClass(p.sharpe_vs_cdi)}`}>
                       {fmtNum2(p.sharpe_vs_cdi)}

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { KpiArtifact, PricesArtifact, SectorArtifact } from "@/lib/data";
-import { fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
 import {
   aggregateSectorsForWindow,
   recomputeStatsForWindow,
@@ -175,7 +175,7 @@ export function SectorsView({
                       {fmtPctSigned(s.return_ytd_median)}
                     </td>
                     <td className="px-3 py-3 text-right tabular text-body whitespace-nowrap">
-                      {fmtPctSigned(s.vol_annual_mean)}
+                      {fmtPctAA(s.vol_annual_mean)}
                     </td>
                   </tr>
                 );

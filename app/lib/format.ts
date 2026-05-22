@@ -60,6 +60,28 @@ export function fmtPctSigned(v: number | null | undefined): string {
   return PCT_SIGNED.format(v);
 }
 
+/** Annualized return / vol / rate. Convention used everywhere in this app:
+ *  μ is multiplied by ×252 and σ by ×√252 before display, so any percentage
+ *  produced from those is per-year. Suffix "a.a." (ao ano) makes it explicit. */
+export function fmtPctAA(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${PCT_SIGNED.format(v)} a.a.`;
+}
+
+/** Monthly rate — "a.m." (ao mês). Not currently used in any panel but
+ *  exported for symmetry so any future monthly metric carries the right
+ *  unit. */
+export function fmtPctAM(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${PCT_SIGNED.format(v)} a.m.`;
+}
+
+/** Daily rate — "a.d." (ao dia). Same rationale as fmtPctAM. */
+export function fmtPctAD(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${PCT_SIGNED.format(v)} a.d.`;
+}
+
 export function fmtNum(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return NUM.format(v);

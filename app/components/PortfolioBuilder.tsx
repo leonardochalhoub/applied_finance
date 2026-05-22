@@ -13,7 +13,7 @@ import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 import { BacktestPanel } from "./BacktestPanel";
 import { RiskDecompositionPanel } from "./RiskDecompositionPanel";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
-import { fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
 import { withBase } from "@/lib/links";
 import type { ReferenceStats } from "./PortfolioSuggestions";
 
@@ -833,13 +833,13 @@ export function PortfolioBuilder({
           {userPoint && frontierResult ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <SummaryCard
-                label="Retorno esp. (anual)"
-                value={fmtPctSigned(userPoint.ret)}
+                label="Retorno esp."
+                value={fmtPctAA(userPoint.ret)}
                 positive={userPoint.ret >= 0}
               />
               <SummaryCard
-                label="Volatilidade (anual)"
-                value={fmtPctSigned(userPoint.vol).replace("+", "")}
+                label="Volatilidade"
+                value={fmtPctAA(userPoint.vol).replace("+", "")}
                 muted
               />
               <SummaryCard
