@@ -21,12 +21,28 @@ import type {
 } from "@/lib/data";
 import { fmtNum2 } from "@/lib/format";
 
+import { BlockMath, InlineMath } from "./Math";
+
 type SampleKey = "full" | "unconstrained" | "constrained";
+type WindowKey = "full" | "original";
 
 const SAMPLE_LABELS: Record<SampleKey, string> = {
   full:          "Amostra completa",
   unconstrained: "Não restritas",
   constrained:   "Restritas",
+};
+
+const WINDOW_LABELS: Record<WindowKey, { short: string; long: string; tooltip: string }> = {
+  full: {
+    short:   "Máxima",
+    long:    "2010–2024",
+    tooltip: "Resultados na janela máxima disponível na CVM (15 anos).",
+  },
+  original: {
+    short:   "Original",
+    long:    "2010–2013",
+    tooltip: "Janela equivalente ao paper original (2010–2013, sobreposição com a amostra 1995–2013).",
+  },
 };
 
 const VAR_LABELS: Record<string, string> = {
@@ -58,11 +74,13 @@ function sigClass(sig: string): string {
 }
 
 export function McLeanView({ data }: { data: McLeanArtifact }) {
-  const [sample, setSample] = useState<SampleKey>("full");
+  const [windowKey, setWindowKey] = useState<WindowKey>("full");
+  const [sample, setSample]       = useState<SampleKey>("full");
 
-  const desc      = data.desc[sample];
-  const pooled    = data.pooled[sample];
-  const annual    = data.annual[sample];
+  const win       = data.windows[windowKey];
+  const desc      = win.desc[sample];
+  const pooled    = win.pooled[sample];
+  const annual    = win.annual[sample];
   const paperDesc = data.paper_ref.desc_full;
   const paperPool = data.paper_ref.pooled_model1_full as Record<string, McLeanCoef | number>;
 
@@ -85,35 +103,79 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
         <div className="border-b border-border px-5 py-3">
           <div className="eyebrow">McLean (2011) — replicação</div>
         </div>
-        <div className="space-y-3 px-5 py-4 text-sm">
+        <div className="space-y-4 px-5 py-4 text-sm">
           <p className="text-body">
-            Réplica do modelo de fontes de caixa proposto por <strong>McLean (2011)</strong> e
-            aplicado às firmas brasileiras por{" "}
-            <strong>Chalhoub, Kirch & Terra (2015)</strong> na{" "}
-            <em>Revista Brasileira de Finanças</em>, vol. 13, nº 3.
+            Réplica do modelo de fontes de caixa proposto por{" "}
+            <a
+              href="https://doi.org/10.1016/j.jfineco.2010.09.005"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              <strong>McLean (2011)</strong>
+            </a>{" "}
+            e aplicado às firmas brasileiras por{" "}
+            <a
+              href="https://periodicos.fgv.br/rbfin/article/view/57475"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-strong"
+            >
+              <strong>Chalhoub, Kirch & Terra (2015)</strong>
+            </a>{" "}
+            na <em>Revista Brasileira de Finanças</em>, vol. 13, nº 3.
           </p>
-          <p className="text-muted">
-            A equação testada é a (1) do paper original:
-          </p>
-          <pre className="mono whitespace-pre-wrap rounded-md bg-[color:var(--bg-subtle)] px-3 py-2 text-[11px] text-strong">
-{`ΔCash_i = α + β1·ΔIssue_i + β2·ΔDebt_i + β3·CashFlow_i + β4·Other_i + β5·Assets_i + ε_i
-
-(todas as variáveis de fluxo normalizadas por Ativo Total_{t-1})`}
-          </pre>
+          <div>
+            <p className="text-muted">A equação testada é a (1) do paper original:</p>
+            <div className="mt-2 rounded-md border border-border bg-[color:var(--bg-subtle)] px-5 py-4">
+              <BlockMath
+                ariaLabel="Delta Cash igual a alpha mais beta um Delta Issue mais beta dois Delta Debt mais beta três Cash Flow mais beta quatro Other mais beta cinco Assets mais epsilon"
+                tex={String.raw`\Delta\mathrm{Cash}_{i,t} \;=\; \alpha \;+\; \beta_{1}\,\Delta\mathrm{Issue}_{i,t} \;+\; \beta_{2}\,\Delta\mathrm{Debt}_{i,t} \;+\; \beta_{3}\,\mathrm{CashFlow}_{i,t} \;+\; \beta_{4}\,\mathrm{Other}_{i,t} \;+\; \beta_{5}\,\mathrm{Assets}_{i,t} \;+\; \varepsilon_{i,t}`}
+              />
+              <p className="mt-2 text-center text-[11px] text-muted">
+                Variáveis de fluxo normalizadas por{" "}
+                <InlineMath tex={String.raw`\text{Ativo Total}_{i,\,t-1}`} />.
+              </p>
+            </div>
+          </div>
           <p className="text-muted">
             Os dados originais usavam Economática (paga). Esta replicação usa o portal aberto da{" "}
             <strong>CVM (Dados Abertos / DFP)</strong>, disponível somente a partir de 2010 após a
-            adoção das normas CPC. Janela: <strong>{data.meta.window[0]}–{data.meta.window[1]}</strong>{" "}
-            (paper: {data.meta.paper_window[0]}–{data.meta.paper_window[1]}).
+            adoção das normas CPC.
           </p>
+        </div>
+
+        {/* Window toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+          <div>
+            <div className="eyebrow">Janela</div>
+            <div className="mt-0.5 text-[10px] text-muted">{WINDOW_LABELS[windowKey].tooltip}</div>
+          </div>
+          <div className="flex gap-1 rounded-md border border-border bg-[color:var(--bg-subtle)] p-0.5">
+            {(Object.keys(WINDOW_LABELS) as WindowKey[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setWindowKey(k)}
+                className={`rounded px-3 py-1 text-xs ${
+                  windowKey === k
+                    ? "bg-[color:var(--bg-elevated)] text-strong shadow-sm"
+                    : "text-muted hover:text-body"
+                }`}
+                title={WINDOW_LABELS[k].tooltip}
+              >
+                {WINDOW_LABELS[k].short}{" "}
+                <span className="ml-1 text-[10px] text-muted">{WINDOW_LABELS[k].long}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Sample summary stats */}
         <div className="grid grid-cols-2 gap-3 border-t border-border px-5 py-4 md:grid-cols-4">
-          <Stat label="Firmas"            value={data.meta.n_firms.toLocaleString("pt-BR")}      sub={`paper: ${data.meta.paper_n_firms.toLocaleString("pt-BR")}`} />
-          <Stat label="Firma-anos"        value={data.meta.n_obs.toLocaleString("pt-BR")}        sub={`paper: ${data.meta.paper_n_obs.toLocaleString("pt-BR")}`} />
-          <Stat label="Janela"            value={`${data.meta.window[0]}–${data.meta.window[1]}`} sub={`paper: ${data.meta.paper_window[0]}–${data.meta.paper_window[1]}`} />
-          <Stat label="Fonte"             value="CVM / DFP"                                       sub="Economática (paper)" />
+          <Stat label="Firmas"      value={win.n_firms.toLocaleString("pt-BR")} sub={`paper: ${data.meta.paper_n_firms.toLocaleString("pt-BR")}`} />
+          <Stat label="Firma-anos"  value={win.n_obs.toLocaleString("pt-BR")}   sub={`paper: ${data.meta.paper_n_obs.toLocaleString("pt-BR")}`} />
+          <Stat label="Janela"      value={`${win.window[0]}–${win.window[1]}`} sub={`paper: ${data.meta.paper_window[0]}–${data.meta.paper_window[1]}`} />
+          <Stat label="Fonte"       value="CVM / DFP"                            sub="Economática (paper)" />
         </div>
       </section>
 
@@ -334,25 +396,46 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
         <div className="grid grid-cols-1 gap-0 md:grid-cols-2">
           <SubsamplePooledCard
             label="Não restritas (top 3 decis)"
-            pooled={data.pooled.unconstrained}
+            pooled={win.pooled.unconstrained}
             paperNote="Paper: todas as 3 fontes significantes"
           />
           <div className="border-t border-border md:border-l md:border-t-0">
             <SubsamplePooledCard
               label="Restritas (bottom 3 decis)"
-              pooled={data.pooled.constrained}
+              pooled={win.pooled.constrained}
               paperNote="Paper: ΔIssue NÃO significativo"
             />
           </div>
         </div>
       </section>
 
-      <p className="text-[11px] text-muted">
-        Fonte original: Chalhoub, L., Kirch, G., & Terra, P. R. S. (2015). Fontes de caixa e
-        restrições financeiras: evidências das firmas listadas na BM&FBovespa.{" "}
-        <em>Revista Brasileira de Finanças</em>, 13(3), 470–503. McLean (2011): Share issuance and
-        cash savings, <em>JFE</em> 99(3).
-      </p>
+      <div className="space-y-1 text-[11px] text-muted">
+        <p>
+          ⊳{" "}
+          <a
+            href="https://periodicos.fgv.br/rbfin/article/view/57475"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-body"
+          >
+            Chalhoub, L., Kirch, G., & Terra, P. R. S. (2015). Fontes de caixa e restrições
+            financeiras: evidências das firmas listadas na BM&FBovespa.{" "}
+            <em>Revista Brasileira de Finanças</em>, 13(3), 470–503.
+          </a>
+        </p>
+        <p>
+          ⊳{" "}
+          <a
+            href="https://doi.org/10.1016/j.jfineco.2010.09.005"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-body"
+          >
+            McLean, R. D. (2011). Share issuance and cash savings.{" "}
+            <em>Journal of Financial Economics</em>, 99(3), 693–715.
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

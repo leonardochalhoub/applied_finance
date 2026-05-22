@@ -6,7 +6,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const ITEMS = [
   { href: "/", label: "Visão geral" },
-  { href: "/portfolio/", label: "Carteira" },
+  { href: "/portfolio/", label: "Markowitz" },
   { href: "/triagem/", label: "Triagem" },
   { href: "/setores/", label: "Setores" },
   { href: "/correlacoes/", label: "Correlações" },

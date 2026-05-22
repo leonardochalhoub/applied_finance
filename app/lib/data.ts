@@ -120,17 +120,10 @@ export type McLeanAnnualRow = {
   Other: { coef: number; tstat: number; sig: string };
   Assets: { coef: number; tstat: number; sig: string };
 };
-export type McLeanArtifact = {
-  meta: {
-    window: [number, number];
-    n_firms: number;
-    n_obs: number;
-    paper: string;
-    paper_window: [number, number];
-    paper_n_firms: number;
-    paper_n_obs: number;
-    data_source: string;
-  };
+export type McLeanWindowBlock = {
+  window: [number, number];
+  n_firms: number;
+  n_obs: number;
   desc: {
     full: Record<string, McLeanStat>;
     unconstrained: Record<string, McLeanStat>;
@@ -145,6 +138,20 @@ export type McLeanArtifact = {
     full: McLeanAnnualRow[];
     unconstrained: McLeanAnnualRow[];
     constrained: McLeanAnnualRow[];
+  };
+};
+
+export type McLeanArtifact = {
+  meta: {
+    paper: string;
+    paper_window: [number, number];
+    paper_n_firms: number;
+    paper_n_obs: number;
+    data_source: string;
+  };
+  windows: {
+    full:     McLeanWindowBlock;  // 2010–2024 (max range)
+    original: McLeanWindowBlock;  // 2010–2013 (overlap with paper's 1995–2013)
   };
   paper_ref: {
     desc_full: Record<string, McLeanStat>;

@@ -246,6 +246,88 @@ resources:
               catalog: "${var.catalog}"
               artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
 
+        # ─── McLean (2011) replication cascade ─────────────────────────────
+        # Independent sub-DAG: ingest CVM open data → bronze → silver →
+        # gold regression tables → export JSON artifact for the /mclean tab.
+        - task_key: ingest_cvm_dfp
+          notebook_task:
+            notebook_path: ./notebooks/ingest/cvm_dfp.py
+            base_parameters:
+              catalog:    "${var.catalog}"
+              volume_dir: "/Volumes/${var.catalog}/bronze/raw/cvm_dfp"
+              from_year:  "2010"
+              to_year:    "2024"
+
+        - task_key: bronze_cvm_dfp_lines
+          depends_on:
+            - { task_key: ingest_cvm_dfp }
+          notebook_task:
+            notebook_path: ./notebooks/bronze/cvm_dfp_lines.py
+            base_parameters:
+              catalog:    "${var.catalog}"
+              volume_dir: "/Volumes/${var.catalog}/bronze/raw/cvm_dfp"
+
+        - task_key: bronze_cvm_cad_cia
+          depends_on:
+            - { task_key: ingest_cvm_dfp }
+          notebook_task:
+            notebook_path: ./notebooks/bronze/cvm_cad_cia.py
+            base_parameters:
+              catalog:    "${var.catalog}"
+              volume_dir: "/Volumes/${var.catalog}/bronze/raw/cvm_dfp"
+
+        - task_key: silver_mclean_firm_year
+          depends_on:
+            - { task_key: bronze_cvm_dfp_lines }
+            - { task_key: bronze_cvm_cad_cia }
+          notebook_task:
+            notebook_path: ./notebooks/silver/mclean_firm_year.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: silver_mclean_clean
+          depends_on:
+            - { task_key: silver_mclean_firm_year }
+          notebook_task:
+            notebook_path: ./notebooks/silver/mclean_clean.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_mclean_descriptives
+          depends_on:
+            - { task_key: silver_mclean_clean }
+          notebook_task:
+            notebook_path: ./notebooks/gold/mclean_descriptives.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_mclean_pooled
+          depends_on:
+            - { task_key: silver_mclean_clean }
+          notebook_task:
+            notebook_path: ./notebooks/gold/mclean_pooled.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: gold_mclean_annual
+          depends_on:
+            - { task_key: silver_mclean_clean }
+          notebook_task:
+            notebook_path: ./notebooks/gold/mclean_annual.py
+            base_parameters:
+              catalog: "${var.catalog}"
+
+        - task_key: export_mclean_artifacts
+          depends_on:
+            - { task_key: gold_mclean_descriptives }
+            - { task_key: gold_mclean_pooled }
+            - { task_key: gold_mclean_annual }
+          notebook_task:
+            notebook_path: ./notebooks/export/mclean_artifacts.py
+            base_parameters:
+              catalog:       "${var.catalog}"
+              artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
+
       schedule:
         quartz_cron_expression: "0 0 1 ? * TUE,WED,THU,FRI,SAT *"
         timezone_id: UTC
