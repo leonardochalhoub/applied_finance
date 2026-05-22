@@ -12,6 +12,7 @@ import type {
   SectorArtifact,
 } from "@/lib/data";
 import { fmtDate, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 import {
   aggregateSectorsForWindow,
   recomputeStatsForWindow,
@@ -269,7 +270,7 @@ export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
               Retorno médio {windowLabelPt(window)} · sparkline 60d · clique para abrir a tabela
             </p>
           </div>
-          <a href="/setores/" className="nav-link">ver tabela →</a>
+          <a href={withBase("/setores/")} className="nav-link">ver tabela →</a>
         </div>
         <SectorPanels sectors={filteredSectors} prices={prices} />
       </section>
@@ -334,7 +335,7 @@ function IbovContribution({
               <div className="relative grid grid-cols-[120px_1fr_120px_100px] items-center gap-3">
                 <a
                   className="mono text-sm font-semibold hover:underline"
-                  href={`/ticker/${encodeURIComponent(m.ticker)}/`}
+                  href={withBase(`/ticker/${encodeURIComponent(m.ticker)}/`)}
                 >
                   {m.ticker.replace(/\.SA$/, "")}
                 </a>

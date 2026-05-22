@@ -13,6 +13,7 @@ import { BacktestPanel } from "./BacktestPanel";
 import { RiskDecompositionPanel } from "./RiskDecompositionPanel";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
 import { fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 import type { ReferenceStats } from "./PortfolioSuggestions";
 
 type Preset = "equal" | "minvar" | "maxsharpe" | null;
@@ -1026,7 +1027,7 @@ function SectorSummaryPanel({
               {s.tickers.map((t) => (
                 <a
                   key={t}
-                  href={`/ticker/${encodeURIComponent(t)}/`}
+                  href={withBase(`/ticker/${encodeURIComponent(t)}/`)}
                   className="mono text-[10px] rounded-md border border-border bg-[color:var(--bg-base)] px-1.5 py-0.5 text-muted hover:text-strong"
                 >
                   {t.replace(/\.SA$/, "")}
@@ -1103,7 +1104,7 @@ function AdvisorPanel({ report }: { report: AdvisorReport }) {
                 <span className="text-sm font-semibold text-strong">{r.title}</span>
                 {r.ticker ? (
                   <a
-                    href={`/ticker/${encodeURIComponent(r.ticker)}/`}
+                    href={withBase(`/ticker/${encodeURIComponent(r.ticker)}/`)}
                     className="text-[10px] uppercase tracking-wider text-muted hover:text-strong"
                   >
                     abrir {r.ticker.replace(/\.SA$/, "")} →

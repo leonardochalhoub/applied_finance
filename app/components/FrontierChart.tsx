@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import { downloadSvgChart } from "@/lib/chartDownload";
+import { withBase } from "@/lib/links";
 import { fmtAxisPct, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 import { buildFrontier, type FrontierResult } from "@/lib/markowitz";
 
@@ -785,7 +786,7 @@ function ClickedPortfolioCard({
             style={{ gridTemplateColumns: "80px 1fr 80px" }}
           >
             <a
-              href={`/ticker/${encodeURIComponent(a.ticker)}/`}
+              href={withBase(`/ticker/${encodeURIComponent(a.ticker)}/`)}
               className="mono text-sm font-semibold hover:underline"
             >
               {a.ticker.replace(/\.SA$/, "")}

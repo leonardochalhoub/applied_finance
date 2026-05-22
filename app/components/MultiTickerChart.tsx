@@ -16,6 +16,7 @@ import {
 import { downloadSvgChart } from "@/lib/chartDownload";
 import type { PricesArtifact, PricesCloseArtifact } from "@/lib/data";
 import { fmtAxisBRL, fmtAxisNum, fmtNum2 } from "@/lib/format";
+import { withBase } from "@/lib/links";
 import type { WindowLabel } from "@/lib/windowed";
 import { windowStartIndex } from "@/lib/windowed";
 
@@ -346,7 +347,7 @@ export function MultiTickerChart({
                   />
                   <a
                     className="mono text-strong hover:underline"
-                    href={`/ticker/${encodeURIComponent(s.ticker)}/`}
+                    href={withBase(`/ticker/${encodeURIComponent(s.ticker)}/`)}
                   >
                     {s.ticker.replace(/\.SA$/, "")}
                   </a>

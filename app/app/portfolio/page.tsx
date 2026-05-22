@@ -1,6 +1,7 @@
 import { MarkowitzEquationCard } from "@/components/MarkowitzEquationCard";
 import { PortfolioShell } from "@/components/PortfolioShell";
 import { loadCdi, loadIbov, loadKpis, loadPrices, loadPricesClose } from "@/lib/data";
+import { withBase } from "@/lib/links";
 
 export const dynamic = "force-static";
 
@@ -80,7 +81,7 @@ export default async function PortfolioPage() {
             data-driven; (2) macro-anchor toward rf + ERP (Damodaran ≈ 6%)
             com α = 0,5. Sem isso, a fronteira mostra retornos esperados
             irrealisticamente altos (viés de máxima ordem). Detalhes em{" "}
-            <a href="/metodologia" className="underline decoration-dotted underline-offset-2 hover:text-strong">
+            <a href={withBase("/metodologia/")} className="underline decoration-dotted underline-offset-2 hover:text-strong">
               /metodologia
             </a>.
           </li>

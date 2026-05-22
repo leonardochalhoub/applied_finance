@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { withBase } from "@/lib/links";
+
 type Props = {
   tickers: string[];
   weights: number[];
@@ -185,7 +187,7 @@ export function RiskDecompositionPanel({ tickers, weights, sigma }: Props) {
                 style={{ gridTemplateColumns: "84px 1fr 64px" }}
               >
                 <a
-                  href={`/ticker/${encodeURIComponent(r.ticker)}/`}
+                  href={withBase(`/ticker/${encodeURIComponent(r.ticker)}/`)}
                   className="mono text-sm hover:underline"
                 >
                   {r.ticker.replace(/\.SA$/, "")}
@@ -244,14 +246,14 @@ export function RiskDecompositionPanel({ tickers, weights, sigma }: Props) {
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <a
-                      href={`/ticker/${encodeURIComponent(p.i)}/`}
+                      href={withBase(`/ticker/${encodeURIComponent(p.i)}/`)}
                       className="mono text-sm hover:underline"
                     >
                       {p.i.replace(/\.SA$/, "")}
                     </a>
                     <span className="text-muted">×</span>
                     <a
-                      href={`/ticker/${encodeURIComponent(p.j)}/`}
+                      href={withBase(`/ticker/${encodeURIComponent(p.j)}/`)}
                       className="mono text-sm hover:underline"
                     >
                       {p.j.replace(/\.SA$/, "")}

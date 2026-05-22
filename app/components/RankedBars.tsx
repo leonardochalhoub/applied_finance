@@ -1,4 +1,5 @@
 import { fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 
 type Row = {
   ticker: string;
@@ -36,7 +37,7 @@ export function RankedBars({
               <div className="min-w-0">
                 <a
                   className="mono text-sm font-semibold hover:underline"
-                  href={`/ticker/${encodeURIComponent(r.ticker)}/`}
+                  href={withBase(`/ticker/${encodeURIComponent(r.ticker)}/`)}
                 >
                   {r.ticker.replace(/\.SA$/, "")}
                 </a>

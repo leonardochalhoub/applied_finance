@@ -1,3 +1,4 @@
+import { withBase } from "@/lib/links";
 import { VERSION } from "@/lib/version";
 
 export function Footer() {
@@ -70,7 +71,7 @@ export function Footer() {
               Monte Carlo + projeção long-only via active-set.
             </li>
             <li>
-              <a href="/metodologia/" className="text-strong hover:underline">
+              <a href={withBase("/metodologia/")} className="text-strong hover:underline">
                 Página de metodologia completa →
               </a>
             </li>

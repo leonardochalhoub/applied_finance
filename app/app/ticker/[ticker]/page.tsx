@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { TickerSparkChart } from "@/components/TickerSparkChart";
 import { loadIbov, loadKpis, loadPrices } from "@/lib/data";
 import { fmtBRL, fmtDate, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 
 export const dynamic = "force-static";
 
@@ -46,7 +47,7 @@ export default async function TickerPage({
   return (
     <div className="space-y-12">
       <section>
-        <a href="/" className="text-xs text-muted hover:text-strong">
+        <a href={withBase("/")} className="text-xs text-muted hover:text-strong">
           ← voltar
         </a>
         <div className="mt-3 flex flex-wrap items-baseline gap-3">
@@ -55,7 +56,7 @@ export default async function TickerPage({
           </h1>
           <span className="text-base text-body">{row.company_name}</span>
           {row.sector_b3 ? (
-            <a href={`/setores/?s=${encodeURIComponent(row.sector_b3)}`} className="chip hover:text-strong">
+            <a href={withBase(`/setores/?s=${encodeURIComponent(row.sector_b3)}`)} className="chip hover:text-strong">
               {row.sector_b3}
             </a>
           ) : null}
@@ -163,7 +164,7 @@ export default async function TickerPage({
                   <tr key={p.ticker} className="hover:bg-[color:var(--bg-subtle)]">
                     <td className="px-5 py-2.5">
                       <a
-                        href={`/ticker/${encodeURIComponent(p.ticker)}/`}
+                        href={withBase(`/ticker/${encodeURIComponent(p.ticker)}/`)}
                         className="mono text-sm font-semibold hover:underline"
                       >
                         {p.ticker.replace(/\.SA$/, "")}
@@ -189,7 +190,7 @@ export default async function TickerPage({
 
       <section className="card px-5 py-4 text-sm text-muted">
         Quer comparar este ticker com outros?{" "}
-        <a href={`/comparar/?t=${encodeURIComponent(row.ticker)}`} className="text-strong hover:underline">
+        <a href={withBase(`/comparar/?t=${encodeURIComponent(row.ticker)}`)} className="text-strong hover:underline">
           Abrir o comparador →
         </a>
       </section>

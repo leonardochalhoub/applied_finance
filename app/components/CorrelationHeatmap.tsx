@@ -1,5 +1,6 @@
 import type { CorrelationPair } from "@/lib/data";
 import { fmtNum2 } from "@/lib/format";
+import { withBase } from "@/lib/links";
 
 function _color(rho: number): string {
   if (!Number.isFinite(rho)) return "var(--neutral-cell)";
@@ -31,14 +32,14 @@ export function CorrelationHeatmap({
             <div className="flex min-w-0 items-center gap-3">
               <a
                 className="mono text-sm hover:underline"
-                href={`/ticker/${encodeURIComponent(p.ticker_i)}/`}
+                href={withBase(`/ticker/${encodeURIComponent(p.ticker_i)}/`)}
               >
                 {p.ticker_i.replace(/\.SA$/, "")}
               </a>
               <span className="text-muted">×</span>
               <a
                 className="mono text-sm hover:underline"
-                href={`/ticker/${encodeURIComponent(p.ticker_j)}/`}
+                href={withBase(`/ticker/${encodeURIComponent(p.ticker_j)}/`)}
               >
                 {p.ticker_j.replace(/\.SA$/, "")}
               </a>
