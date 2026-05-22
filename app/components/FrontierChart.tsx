@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
+  Customized,
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
@@ -187,6 +188,53 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
     { vol: calEndVol, ret: calEndRet, weights: [], series: "Capital Allocation Line" },
   ];
 
+  // Derivative triangles — geometric "rise over run" construction of ∂E[r]/∂σ
+  // at two frontier points. By the first-order condition for max-Sharpe,
+  //
+  //     dE[r]/dσ |_{σ*}  =  (E[r*] − r_f) / σ*   (= Sharpe ratio at σ*)
+  //
+  // so the triangle anchored at the tangency portfolio has hypotenuse parallel
+  // to the CAL. A second triangle past max-Sharpe shows the slope dropping
+  // below the Sharpe ratio — the geometric reason walking right of the
+  // tangency portfolio is suboptimal.
+  type DerivAnchor = { vol: number; ret: number; slope: number };
+  const derivTriangles: { msTri: DerivAnchor | null; tailTri: DerivAnchor | null } = (() => {
+    const pts = frontierResult.frontier;
+    if (pts.length < 5) return { msTri: null, tailTri: null };
+    // Max-Sharpe anchor: use the analytical tangency portfolio directly,
+    // with slope = Sharpe ratio. This is exact by the first-order condition
+    //     dE[r]/dσ |_{σ*} = (E[r*] − r_f)/σ* ≡ Sharpe*
+    // so the value displayed under the triangle matches the Sharpe shown on
+    // the clicked-portfolio card to the last decimal — no FD approximation.
+    const msTri: DerivAnchor = {
+      vol: frontierResult.maxSharpe.vol,
+      ret: frontierResult.maxSharpe.ret,
+      slope: frontierResult.maxSharpe.sharpe,
+    };
+    // Tail anchor: a frontier point past max-Sharpe. No closed-form slope
+    // here (without rebuilding the Merton constants), so we use a centred
+    // finite difference on adjacent frontier points — accuracy is fine for
+    // the qualitative "slope < Sharpe" story.
+    let msIdx = 0;
+    let bestDist = Infinity;
+    pts.forEach((p, i) => {
+      const d = Math.abs(p.vol - frontierResult.maxSharpe.vol);
+      if (d < bestDist) { bestDist = d; msIdx = i; }
+    });
+    const tailIdx = Math.max(1, Math.min(pts.length - 2, Math.floor(msIdx + 0.55 * (pts.length - 1 - msIdx))));
+    let tailTri: DerivAnchor | null = null;
+    if (tailIdx > msIdx + 2 && tailIdx >= 1 && tailIdx <= pts.length - 2) {
+      const lo = pts[tailIdx - 1];
+      const hi = pts[tailIdx + 1];
+      tailTri = {
+        vol: pts[tailIdx].vol,
+        ret: pts[tailIdx].ret,
+        slope: (hi.ret - lo.ret) / Math.max(hi.vol - lo.vol, 1e-9),
+      };
+    }
+    return { msTri, tailTri };
+  })();
+
   // Individual asset markers — only include those that fit inside the visible
   // axes. Off-chart corners (e.g. ultra-volatile single tickers) are dropped
   // to keep the chart focused on the dense data region.
@@ -244,6 +292,7 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             <LegendDot color="var(--muted)" shape="dot-small" /> ativo individual
             <LegendDot color="var(--accent)" line /> fronteira
             <LegendDot color="var(--gain)" line dashed /> CAL (linha de alocação de capital)
+            <LegendDot color="var(--gain)" shape="triangle" /> derivada ∂E[r]/∂σ
             <LegendDot color="var(--strong)" shape="circle-outline" /> mín. variância
             <LegendDot color="var(--gain)" shape="star" /> máx. Sharpe
             {userPoint ? (
@@ -400,6 +449,81 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
                       style={{ cursor: "pointer" }}
                     />
                   )}
+                />
+                {/* Derivative triangles — geometric "rise over run" for
+                    ∂E[r]/∂σ at the tangency portfolio (hypotenuse ∥ CAL,
+                    slope = Sharpe ratio) and past it (slope < Sharpe). Drawn
+                    via <Customized> using the chart's own scales so the
+                    triangle stays correct under axis-domain changes. */}
+                <Customized
+                  component={(props: { xAxisMap?: Record<string, { scale?: (v: number) => number }>; yAxisMap?: Record<string, { scale?: (v: number) => number }> }) => {
+                    const xScale = props.xAxisMap?.[0]?.scale ?? Object.values(props.xAxisMap ?? {})[0]?.scale;
+                    const yScale = props.yAxisMap?.[0]?.scale ?? Object.values(props.yAxisMap ?? {})[0]?.scale;
+                    if (typeof xScale !== "function" || typeof yScale !== "function") return null;
+
+                    const renderTriangle = (
+                      anchor: DerivAnchor,
+                      color: string,
+                      annotation: string,
+                      key: string,
+                    ) => {
+                      // Adapt triangle width so the vertical extent stays
+                      // inside ~14% of the y-range even when the slope is
+                      // steep (near min-var).
+                      const baseW = (xMax - xMin) * 0.07;
+                      const maxDE = (yMax - yMin) * 0.14;
+                      const w = anchor.slope > 1e-6 ? Math.min(baseW, maxDE / anchor.slope) : baseW;
+                      const dE = anchor.slope * w;
+                      // Anchor sits at the TOP-RIGHT vertex (C); triangle
+                      // extends down-left so the hypotenuse arrives at the
+                      // frontier point — geometrically the "tangent touching
+                      // the curve" picture.
+                      const Cx = xScale(anchor.vol);
+                      const Cy = yScale(anchor.ret);
+                      const Bx = xScale(anchor.vol - w);
+                      const By = yScale(anchor.ret);
+                      const Ax = xScale(anchor.vol - w);
+                      const Ay = yScale(anchor.ret - dE);
+                      const slopeFmt = anchor.slope.toFixed(2).replace(".", ",");
+                      return (
+                        <g key={key} pointerEvents="none">
+                          <path
+                            d={`M ${Ax} ${Ay} L ${Bx} ${By} L ${Cx} ${Cy} Z`}
+                            fill={color}
+                            fillOpacity={0.07}
+                          />
+                          {/* Top leg (Δσ) */}
+                          <line x1={Bx} y1={By} x2={Cx} y2={Cy} stroke={color} strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.7} />
+                          {/* Left leg (ΔE[r]) */}
+                          <line x1={Ax} y1={Ay} x2={Bx} y2={By} stroke={color} strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.7} />
+                          {/* Hypotenuse (tangent line) */}
+                          <line x1={Ax} y1={Ay} x2={Cx} y2={Cy} stroke={color} strokeWidth={1.75} strokeOpacity={0.9} />
+                          {/* Δσ label, above the top leg */}
+                          <text x={(Bx + Cx) / 2} y={By - 5} fontSize={9} fill="var(--muted)" textAnchor="middle">Δσ</text>
+                          {/* ΔE[r] label, left of the left leg */}
+                          <text x={Bx - 5} y={(Ay + By) / 2 + 3} fontSize={9} fill="var(--muted)" textAnchor="end">ΔE[r]</text>
+                          {/* Slope value (the actual derivative) — placed at A so it sits below the triangle */}
+                          <text x={Ax} y={Ay + 14} fontSize={10.5} fontWeight={600} fill={color} textAnchor="start">
+                            ∂E[r]/∂σ = {slopeFmt}
+                          </text>
+                          <text x={Ax} y={Ay + 26} fontSize={9} fill="var(--muted)" textAnchor="start">
+                            {annotation}
+                          </text>
+                        </g>
+                      );
+                    };
+
+                    return (
+                      <g>
+                        {derivTriangles.msTri
+                          ? renderTriangle(derivTriangles.msTri, "var(--gain)", "= Sharpe (tangência)", "tri-ms")
+                          : null}
+                        {derivTriangles.tailTri
+                          ? renderTriangle(derivTriangles.tailTri, "var(--strong)", "< Sharpe (subótimo)", "tri-tail")
+                          : null}
+                      </g>
+                    );
+                  }}
                 />
                 <Scatter
                   name="min variance"
@@ -680,7 +804,7 @@ function LegendDot({
   color: string;
   line?: boolean;
   dashed?: boolean;
-  shape?: "dot" | "dot-small" | "circle-outline" | "star" | "diamond";
+  shape?: "dot" | "dot-small" | "circle-outline" | "star" | "diamond" | "triangle";
 }) {
   if (line) {
     if (dashed) {
@@ -716,6 +840,13 @@ function LegendDot({
   }
   if (shape === "diamond") {
     return <span aria-hidden className="inline-block h-2.5 w-2.5 rotate-45" style={{ background: color }} />;
+  }
+  if (shape === "triangle") {
+    return (
+      <svg width="12" height="10" viewBox="0 0 12 10" aria-hidden style={{ display: "inline-block" }}>
+        <path d="M0 9 L12 9 L12 0 Z" fill={color} fillOpacity={0.18} stroke={color} strokeWidth={1.25} />
+      </svg>
+    );
   }
   if (shape === "dot-small") {
     return <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full opacity-80" style={{ background: color }} />;

@@ -1,3 +1,4 @@
+import { MarkowitzEquationCard } from "@/components/MarkowitzEquationCard";
 import { PortfolioShell } from "@/components/PortfolioShell";
 import { loadCdi, loadIbov, loadKpis, loadPrices, loadPricesClose } from "@/lib/data";
 
@@ -55,6 +56,8 @@ export default async function PortfolioPage() {
           trabalho pioneiro na teoria da economia financeira.
         </p>
       </header>
+
+      <MarkowitzEquationCard />
 
       <PortfolioShell prices={prices} closes={closes} kpis={kpis} cdi={cdi} ibov={ibov} />
 
