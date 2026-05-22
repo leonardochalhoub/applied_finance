@@ -33,6 +33,20 @@ jobs:
         working-directory: pipelines
         run: databricks bundle deploy --target prod
 
+      - name: Sync seed CSVs to UC Volume
+        # The yf_ohlcv ingest reads from
+        # /Volumes/${catalog}/bronze/reference/ticker_universe.csv — keep it
+        # in sync with data/ticker_universe.csv on every run so a CSV edit
+        # in main propagates without a manual `databricks fs cp`.
+        run: |
+          databricks fs mkdirs "dbfs:/Volumes/${DATABRICKS_CATALOG}/bronze/reference/" || true
+          databricks fs cp "data/ticker_universe.csv" \
+            "dbfs:/Volumes/${DATABRICKS_CATALOG}/bronze/reference/ticker_universe.csv" \
+            --overwrite
+          databricks fs cp "data/index_membership.csv" \
+            "dbfs:/Volumes/${DATABRICKS_CATALOG}/bronze/reference/index_membership.csv" \
+            --overwrite
+
       - name: Run daily refresh job
         working-directory: pipelines
         run: databricks bundle run --target prod job_mercado_br_daily_refresh
