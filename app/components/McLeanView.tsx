@@ -77,9 +77,42 @@ function sigClass(sig: string): string {
   return "text-muted";
 }
 
+// Portuguese spoken form of paper equation (1). Kept separate from the LaTeX
+// so the screen-reader/audio version reads naturally instead of glyph names.
+const EQUATION_SPOKEN_PT = [
+  "Delta Caixa, índice i t,",
+  "igual a alfa,",
+  "mais beta um vezes Delta Emissão de Ações, índice i t,",
+  "mais beta dois vezes Delta Dívida, índice i t,",
+  "mais beta três vezes Fluxo de Caixa, índice i t,",
+  "mais beta quatro vezes Outros, índice i t,",
+  "mais beta cinco vezes Ativos, índice i t,",
+  "mais épsilon, índice i t.",
+  "Variáveis de fluxo normalizadas por Ativo Total, índice i, t menos um.",
+].join(" ");
+
 export function McLeanView({ data }: { data: McLeanArtifact }) {
   const [windowKey, setWindowKey] = useState<WindowKey>("full");
   const [sample, setSample]       = useState<SampleKey>("full");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  function speakEquation() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    if (isSpeaking) {
+      synth.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(EQUATION_SPOKEN_PT);
+    u.lang = "pt-BR";
+    u.rate = 0.95;
+    u.onend = () => setIsSpeaking(false);
+    u.onerror = () => setIsSpeaking(false);
+    synth.cancel();
+    synth.speak(u);
+    setIsSpeaking(true);
+  }
 
   const win       = data.windows[windowKey];
   const desc      = win.desc[sample];
@@ -152,7 +185,12 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
                 <img
                   src={`${BASE}/logos/ea-ufrgs.png`}
                   alt="Escola de Administração — UFRGS"
-                  className="h-16 w-auto"
+                  className="h-16 w-auto dark:hidden"
+                />
+                <img
+                  src={`${BASE}/logos/ea-ufrgs-dark.png`}
+                  alt="Escola de Administração — UFRGS"
+                  className="hidden h-16 w-auto dark:block"
                 />
               </a>
             </div>
@@ -183,12 +221,34 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
           </div>
           <div>
             <p className="text-muted">A equação testada é a (1) do paper original:</p>
-            <div className="mt-2 rounded-md border border-border bg-[color:var(--bg-subtle)] px-5 py-4">
+            <div className="relative mt-3 rounded-lg border border-border bg-[color:var(--bg-elevated)] px-6 py-5 shadow-sm">
+              <button
+                type="button"
+                onClick={speakEquation}
+                aria-label={isSpeaking ? "Parar leitura da equação" : "Ouvir a equação"}
+                aria-pressed={isSpeaking}
+                title={isSpeaking ? "Parar" : "Ouvir a equação"}
+                className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-[color:var(--bg-subtle)] text-muted transition hover:text-strong hover:border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]"
+              >
+                {isSpeaking ? (
+                  // stop icon
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                    <rect x="2" y="2" width="8" height="8" rx="1" />
+                  </svg>
+                ) : (
+                  // speaker icon
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 6h2.5L9 3v10L5.5 10H3z" fill="currentColor" />
+                    <path d="M11.5 5.5a3.5 3.5 0 0 1 0 5" />
+                    <path d="M13.5 3.5a6 6 0 0 1 0 9" />
+                  </svg>
+                )}
+              </button>
               <BlockMath
                 ariaLabel="Delta Cash igual a alpha mais beta um Delta Issue mais beta dois Delta Debt mais beta três Cash Flow mais beta quatro Other mais beta cinco Assets mais epsilon"
                 tex={String.raw`\Delta\mathrm{Cash}_{i,t} \;=\; \alpha \;+\; \beta_{1}\,\Delta\mathrm{Issue}_{i,t} \;+\; \beta_{2}\,\Delta\mathrm{Debt}_{i,t} \;+\; \beta_{3}\,\mathrm{CashFlow}_{i,t} \;+\; \beta_{4}\,\mathrm{Other}_{i,t} \;+\; \beta_{5}\,\mathrm{Assets}_{i,t} \;+\; \varepsilon_{i,t}`}
               />
-              <p className="mt-2 text-center text-[11px] text-muted">
+              <p className="mt-3 border-t border-border pt-3 text-center text-[11px] text-muted">
                 Variáveis de fluxo normalizadas por{" "}
                 <InlineMath tex={String.raw`\text{Ativo Total}_{i,\,t-1}`} />.
               </p>
@@ -461,6 +521,92 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
               pooled={win.pooled.constrained}
               paperNote="Paper: ΔIssue NÃO significativo"
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Interpretive notes — what the replication does and does not say */}
+      <section className="card overflow-hidden">
+        <div className="border-b border-border px-5 py-3">
+          <div className="eyebrow">Leitura dos resultados</div>
+          <div className="mt-1 text-xs text-muted">
+            O que esta replicação permite afirmar — e o que ainda não permite — confrontada com o
+            artigo original de 2015.
+          </div>
+        </div>
+
+        <div className="space-y-5 px-5 py-4 text-sm">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-strong">
+              O que se sustenta
+            </div>
+            <p className="mt-2 text-body">
+              No OLS pooled (Modelo 1 da eq. 1), <strong>todos os três coeficientes de retenção
+              são positivos e significativos a 1%</strong> — ΔIssue, ΔDebt e CashFlow — e Assets
+              continua não-significativo. É a mesma história qualitativa da Tabela 3 do artigo. O
+              mecanismo de cash savings de McLean (2011) <strong>sobrevive em dados abertos da
+              CVM</strong>, mesmo trocando Economática por DFP. Estatísticas descritivas
+              (Cash≈0,08, ΔCash≈0,006, ΔIssue≈0,026, ΔDebt≈0,041) também ficam dentro da
+              distribuição reportada em 2015, reforçando que o painel pós-2010 é reconhecidamente
+              o mesmo universo de firmas listadas.
+            </p>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-strong">
+              Onde o resultado diverge — e por quê
+            </div>
+            <ul className="mt-2 space-y-2 text-body">
+              <li>
+                <strong>As janelas mal se sobrepõem.</strong> Paper cobre 1995–2013; réplica cobre
+                2010–2024. Apenas quatro anos em comum. A janela moderna inclui ciclos da Selic
+                pós-2015, hoarding de liquidez na COVID e retração do BNDES — regime macro
+                materialmente diferente. Coeficientes maiores em ΔIssue/ΔDebt na réplica são
+                consistentes com isso, mas <em>não permitem atribuir o delta à metodologia</em> sem
+                fixar a janela.
+              </li>
+              <li>
+                <strong>A assimetria precaucionária inverte.</strong> No paper, firmas restritas
+                poupam <em>mais</em> dos recursos externos — núcleo do argumento de 2015. Na
+                réplica, os coeficientes do grupo <em>não restrito</em> superam os do restrito em
+                todas as três fontes (ΔIssue 0,124 vs. 0,081; ΔDebt 0,147 vs. 0,086; CashFlow
+                0,097 vs. 0,065). Dois drivers prováveis: (a) acumulação de caixa por grandes
+                firmas pós-COVID infla o lado não-restrito; (b) o proxy por decil de Ativo Total
+                dentro de setor-ano classifica de forma distinta em uma B3 moderna mais concentrada.
+                Esse achado <em>é, em si, um resultado</em> — não uma falha do código.
+              </li>
+              <li>
+                <strong>Other (0,112**) é frágil.</strong> 75% das firmas-ano são zero (p25 =
+                mediana = p75 = 0); a significância depende de uma cauda curta de eventos de venda
+                de ativo permanente. Tratar como ruído, não como achado.
+              </li>
+              <li>
+                <strong>Assets em escala diferente.</strong> Média de ln(AT) na réplica fica em
+                ~21,6 contra ~13,9 no paper, gap de ano-base/unidade da deflação. Coeficiente
+                permanece ~0 nos dois, então não muda inferência — mas precisa ser harmonizado
+                antes de qualquer tabela publicada lado-a-lado.
+              </li>
+              <li>
+                <strong>R² praticamente dobra (0,06 → 0,11).</strong> Mais plausível atribuir à
+                homogeneidade do painel pós-IFRS (CPC 26/2010 padronizou a DFP) do que a ganho
+                metodológico. Não vender como mérito.
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-md border border-border bg-[color:var(--bg-subtle)] px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-strong">
+              Narrativa defensável
+            </div>
+            <p className="mt-2 text-body">
+              O mecanismo de cash savings documentado em 2015 segue operando em 2010–2024:
+              firmas brasileiras continuam retendo parcela significativa de cada real captado via
+              emissão, dívida ou caixa operacional. No entanto, a{" "}
+              <strong>assimetria precaucionária entre restritas e não-restritas não se replica
+              out-of-sample</strong>. Qualquer afirmação mais forte exige (a) reaver Economática
+              para refazer a janela 1995–2013, ou (b) isolar o subsample 2010–2013 para
+              separar efeito de fonte de dados de efeito de janela.
+            </p>
           </div>
         </div>
       </section>
