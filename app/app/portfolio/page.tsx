@@ -66,16 +66,40 @@ export default async function PortfolioPage() {
         <ul className="mt-3 space-y-2">
           <li>
             • <strong>μ (retornos esperados)</strong> e <strong>Σ (covariância)</strong> são
-            estimados a partir dos log-retornos diários da janela escolhida,
-            anualizados via ×252 (variância) / ×√252 (vol).
+            estimados a partir dos log-retornos diários (com correção de
+            Jensen para μ_simples), anualizados via ×252.
+          </li>
+          <li>
+            • <strong>Σ</strong> passa por <strong>shrinkage Ledoit-Wolf (2004)</strong>{" "}
+            data-driven com alvo de correlação constante. Intensidade ótima
+            δ* é mostrada no badge da tela de Sugestões.
+          </li>
+          <li>
+            • <strong>μ</strong> passa por <strong>duas camadas de shrinkage</strong>:
+            (1) Bayes-Stein / Jorion (1986) toward grand mean com ψ*
+            data-driven; (2) macro-anchor toward rf + ERP (Damodaran ≈ 6%)
+            com α = 0,5. Sem isso, a fronteira mostra retornos esperados
+            irrealisticamente altos (viés de máxima ordem). Detalhes em{" "}
+            <a href="/metodologia" className="underline decoration-dotted underline-offset-2 hover:text-strong">
+              /metodologia
+            </a>.
+          </li>
+          <li>
+            • <strong>Eixo Y do gráfico</strong> fixado em 0–35%. Ativos
+            individuais acima desse teto saem da vista por design — a stack
+            de shrinkage acima já garante que o ótimo viva em <span className="mono">[rf, rf + σ_mkt]</span>.
           </li>
           <li>
             • <strong>Taxa livre de risco</strong> = média do CDI da BCB SGS
-            série 12 sobre a janela (cdi.json).
+            série 12 sobre a janela (cdi.json). <strong>Poupança</strong>{" "}
+            (≈ 6,17% a.a. com SELIC &gt; 8,5%) aparece como reta de
+            referência adicional, dominada pelo CDI.
           </li>
           <li>
-            • <strong>Shrinkage</strong> 5% para a diagonal nas sugestões;
-            estabiliza Σ em N grande.
+            • <strong>CAL / Linha do Mercado de Capitais (CML)</strong>:
+            reta tangente à fronteira no ponto de máximo Sharpe, partindo de{" "}
+            <span className="mono">(0, rf)</span>. Inclinação = Sharpe da
+            carteira de tangência = preço de mercado do risco.
           </li>
           <li>
             • <strong>Long-only</strong> usa projeção iterativa active-set
