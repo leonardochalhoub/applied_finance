@@ -23,8 +23,102 @@ dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
 
 
+# ── schemas ────────────────────────────────────────────────────────────────
+spark.sql(
+    f"COMMENT ON SCHEMA {catalog}.bronze IS "
+    "'Raw ingestion layer — Yahoo Finance OHLCV + curated CSVs (universe, "
+    "index membership). Append-only via MERGE; preserves source fidelity.'"
+)
+spark.sql(
+    f"COMMENT ON SCHEMA {catalog}.silver IS "
+    "'Cleaned and conformed layer — split/dividend-adjusted OHLCV, SCD2 ticker "
+    "dimension, long-form index membership. Single source of truth for KPI math.'"
+)
+spark.sql(
+    f"COMMENT ON SCHEMA {catalog}.gold IS "
+    "'Analytics-ready artifacts — per-ticker KPIs, sector aggregates, daily "
+    "returns matrix, annualized covariance matrices per window.'"
+)
+
+
 def _escape(s: str) -> str:
     return s.replace("'", "''")
+
+
+def _classify_column(col: str, dtype: str) -> dict:
+    """Derive {role, unit, pii} tags from column name + Spark dtype.
+
+    Roles: key | dimension | measure | timestamp | provenance | flag | attribute | collection
+    Units (measures only): BRL | count | ratio | fraction | log_return |
+        stddev_annualized | sharpe_ratio | variance_annualized | utc_timestamp
+    pii is always 'false' (all public market data).
+    """
+    n = col.lower()
+    dt = (dtype or "").lower()
+    t = {"pii": "false"}
+
+    if n in ("source_run_id",):
+        t["role"] = "provenance"; return t
+    if n == "ingested_at" or n.endswith("_at"):
+        t["role"] = "provenance"; t["unit"] = "utc_timestamp"; return t
+    if n in ("trading_date", "valid_from", "valid_to", "valid_through",
+             "as_of", "listed_from", "listed_to", "last_close_date") \
+            or n.endswith("_date"):
+        t["role"] = "timestamp"; return t
+
+    if n in ("ticker", "ticker_i", "ticker_j", "ticker_key", "cnpj"):
+        t["role"] = "key"; return t
+
+    if n.startswith("is_"):
+        t["role"] = "flag"; return t
+
+    if n in ("sector_b3", "subsector_b3", "sector_i", "sector_j", "index", "window_label"):
+        t["role"] = "dimension"; return t
+
+    if n in ("prior_tickers", "members"):
+        t["role"] = "collection"; return t
+
+    if n in ("company_name", "notes", "canonical_root"):
+        t["role"] = "attribute"; return t
+
+    if n in ("price_open", "price_high", "price_low", "price_close", "price_adjusted",
+             "open", "high", "low", "close", "close_raw", "last_close", "index_level"):
+        t["role"] = "measure"; t["unit"] = "BRL"; return t
+    if n in ("volume", "n_obs", "member_count"):
+        t["role"] = "measure"; t["unit"] = "count"; return t
+    if n == "weight":
+        t["role"] = "measure"; t["unit"] = "fraction"; return t
+    if n in ("adj_factor", "cdi_annual_used", "cdi_global_mean", "max_drawdown"):
+        t["role"] = "measure"; t["unit"] = "ratio"; return t
+    if n.startswith("return") or n.startswith("contribution"):
+        t["role"] = "measure"; t["unit"] = "log_return"; return t
+    if n.startswith("vol_"):
+        t["role"] = "measure"; t["unit"] = "stddev_annualized"; return t
+    if n.startswith("sharpe"):
+        t["role"] = "measure"; t["unit"] = "sharpe_ratio"; return t
+    if n == "cov":
+        t["role"] = "measure"; t["unit"] = "variance_annualized"; return t
+
+    # Fallback: numeric column of a known type → likely a measure (covers
+    # gold.returns_wide ticker columns and any future numeric additions).
+    if dt.startswith(("double", "float", "decimal", "int", "long", "bigint", "smallint", "tinyint")):
+        t["role"] = "measure"; t["unit"] = "log_return"; return t
+    t["role"] = "attribute"
+    return t
+
+
+def _apply_column_tags(fqn: str) -> None:
+    rows = spark.sql(f"DESCRIBE TABLE {fqn}").collect()
+    for r in rows:
+        col = r["col_name"]
+        if not col or col.startswith("#"):
+            continue
+        tags = _classify_column(col, r["data_type"] or "")
+        tag_sql = ", ".join(f"'{k}' = '{_escape(str(v))}'" for k, v in tags.items())
+        try:
+            spark.sql(f"ALTER TABLE {fqn} ALTER COLUMN `{col}` SET TAGS ({tag_sql})")
+        except Exception as exc:
+            log.warning("column tag failed on %s.%s: %s", fqn, col, exc)
 
 
 def _apply(table: str, comment: str, tags: dict, columns: dict | None = None,
@@ -36,6 +130,9 @@ def _apply(table: str, comment: str, tags: dict, columns: dict | None = None,
     dynamic ticker columns).
     """
     fqn = f"{catalog}.{table}"
+    if not spark.catalog.tableExists(fqn):
+        log.warning("skipping governance for missing table: %s", fqn)
+        return
     spark.sql(f"COMMENT ON TABLE {fqn} IS '{_escape(comment)}'")
     if tags:
         tag_sql = ", ".join(f"'{k}' = '{_escape(str(v))}'" for k, v in tags.items())
@@ -61,6 +158,8 @@ def _apply(table: str, comment: str, tags: dict, columns: dict | None = None,
                 )
             except Exception as exc:
                 log.warning("generic column comment failed on %s.%s: %s", table, col, exc)
+
+    _apply_column_tags(fqn)
     log.info("governance applied: %s", fqn)
 
 
