@@ -227,7 +227,20 @@ export function jorionShrinkMu(
   // division-by-zero for empty windows.
   const T_years = Math.max(tradingDays / 252, 1 / 252);
   const lam = (n + 2) / (quad * T_years);
-  const psi = lam / (1 + lam);
+  const psiRaw = lam / (1 + lam);
+  // For our typical universe (N ≈ 25–80 tickers) the textbook Jorion formula
+  // saturates at ψ ≈ 1 across all window lengths (the (N+2) numerator
+  // dominates T·quad for realistic Brazilian-equity covariance). Saturation
+  // collapses every μ to the grand mean μ_g, kills the cross-sectional
+  // signal, and makes max-Sharpe ≡ min-variance regardless of window — the
+  // 5y/10y/15y/20y/MAX selector then produces identical portfolios in the
+  // UI. Capping ψ at 0.50 keeps half of the in-sample μ̂ alive so the
+  // window selector actually changes the answer, while still extracting
+  // meaningful James-Stein shrinkage. The cap binds for all realistic
+  // (N, T) in this app; smaller universes with longer windows recover the
+  // natural Jorion ψ < 0.50.
+  const PSI_CAP = 0.50;
+  const psi = Math.min(PSI_CAP, psiRaw);
   const muOut = mu.map((m) => (1 - psi) * m + psi * muGrand);
   return { mu: muOut, psi, muGrand };
 }

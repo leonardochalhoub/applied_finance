@@ -110,7 +110,7 @@ export default function MetodologiaPage() {
           designa especificamente a reta entre <span className="mono">rf</span>{" "}
           e a carteira <em>de mercado</em> (todos os ativos investíveis,
           pesados por capitalização). Para um subconjunto amostral como o
-          nosso (~38 tickers B3), o nome técnico é CAL. Mantemos os dois
+          nosso (subset de tickers B3), o nome técnico é CAL. Mantemos os dois
           rótulos porque, na prática brasileira, &ldquo;linha do mercado de
           capitais&rdquo; é o termo mais usado e o conceito é o mesmo: a
           fronteira ampliada por <span className="mono">rf</span>.
@@ -212,9 +212,16 @@ export default function MetodologiaPage() {
           />
         </div>
         <p className="mt-2 text-sm text-body">
-          Para <span className="mono">N ≈ 38</span> tickers e janelas de 1–5
-          anos, <span className="mono">ψ*</span> tipicamente cai em{" "}
-          <span className="mono">[0.3, 0.8]</span> — quanto menor T e maior
+          Para nosso universo (~60–80 tickers B3) e janelas de 1–5
+          anos, <span className="mono">ψ̂</span> bruto satura próximo de 1
+          (o numerador N+2 domina T·quad com Σ Ledoit-Wolf bem-condicionado),
+          o que colapsaria todo <span className="mono">μ</span> para{" "}
+          <span className="mono">μ_g</span> e tornaria max-Sharpe ≡ min-variância
+          em qualquer janela. Aplicamos um teto explícito{" "}
+          <span className="mono">ψ ≤ 0,50</span> em{" "}
+          <span className="mono">lib/mvEstimators.ts → jorionShrinkMu()</span>{" "}
+          para preservar metade do sinal cross-sectional do{" "}
+          <span className="mono">μ̂</span> bruto. Quanto menor T e maior
           dispersão de <span className="mono">μ̂</span>, mais o estimador é
           encolhido. Implementação em{" "}
           <span className="mono">lib/mvEstimators.ts → jorionShrinkMu()</span>.

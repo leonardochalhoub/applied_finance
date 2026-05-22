@@ -134,17 +134,20 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   // vol nominal ≈ 0 que rf, mas retorno menor — dominada em média-variância.
   const poupancaRate = 0.7 * rf;
 
-  // Y-axis members — every must-show point on the chart. Filter NaN/Infinity
-  // out so a bad user/compare marker can't poison Math.min/max and propagate
-  // into Recharts' domain prop (which would silently render an empty chart).
+  // Y-axis members — the cloud + frontier + portfolio markers ONLY. We
+  // deliberately exclude rf and poupança from the bounds: they sit well
+  // below typical max-Sharpe returns (rf ≈ 13%, poupança ≈ 9% vs port
+  // returns ≈ 20–25%), and including them stretches the axis downward
+  // and squashes the cloud into the top third of the canvas. Their
+  // numeric values are surfaced as text in the header so the user knows
+  // them without paying the visual cost. Reference lines are still drawn,
+  // but only when they happen to fall inside the data-driven range.
   const yValues: number[] = [
     frontierResult.minVariance.ret,
     frontierResult.maxSharpe.ret,
     ...frontierResult.frontier.map((p) => p.ret),
     cloudRetLo,
     cloudRetHi,
-    rf, // anchors the CAL — almost always relevant
-    poupancaRate, // mean-variance dominated by rf, but visually instructive
   ];
   if (userPoint && Number.isFinite(userPoint.ret)) yValues.push(userPoint.ret);
   if (comparePoint && Number.isFinite(comparePoint.ret)) yValues.push(comparePoint.ret);
@@ -306,8 +309,13 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             {caption ? (
               <span className="ml-3 text-[10px] uppercase tracking-wider text-muted">{caption}</span>
             ) : null}
-            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted">
-              · rf = {(rf * 100).toFixed(2).replace(".", ",")}%
+            <span
+              className="ml-2 text-[10px] uppercase tracking-wider text-muted"
+              title="rf = CDI médio sobre a janela · poupança ≈ 70% do CDI (Lei 12.703/2012)"
+            >
+              · rf (CDI) = {(rf * 100).toFixed(2).replace(".", ",")}%
+              {" · "}
+              poupança ≈ {(poupancaRate * 100).toFixed(2).replace(".", ",")}%
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-body">

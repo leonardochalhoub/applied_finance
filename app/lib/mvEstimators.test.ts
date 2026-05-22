@@ -105,21 +105,36 @@ describe("jorionShrinkMu — Bayes-Stein μ shrinkage (dimensional consistency)"
     expect(out.psi).toBeLessThanOrEqual(1);
   });
 
-  it("ψ is large (> 0.30) for short windows — Jorion is ACTIVE, not inert", () => {
+  it("ψ is active (> 0.30) for short windows — Jorion is NOT inert", () => {
     // Regression test for the historical bug: T was passed as daily count
     // while μ/Σ were annualized, making ψ ≈ 1/252 of the textbook value.
-    // After the fix, ψ at 5 years on a moderately disperse μ should be
-    // far above 0.3.
+    // After the fix, ψ at 5 years on a moderately disperse μ is large.
     const out = annualizeAndShrink(5);
     expect(out.psi).toBeGreaterThan(0.30);
   });
 
-  it("ψ decreases monotonically as T grows (more data → less shrinkage)", () => {
+  it("ψ is capped at 0.50 to preserve cross-sectional signal", () => {
+    // Without the cap, ψ saturates near 1 for our typical (N≈25–80) universe
+    // — Jorion collapses every μ to μ_g and the max-Sharpe portfolio loses
+    // all dependence on the user's window selection.
+    const psi5  = annualizeAndShrink(5).psi;
+    const psi10 = annualizeAndShrink(10).psi;
+    const psi20 = annualizeAndShrink(20).psi;
+    for (const p of [psi5, psi10, psi20]) {
+      expect(p).toBeLessThanOrEqual(0.50 + 1e-9);
+    }
+  });
+
+  it("ψ is non-increasing as T grows (or pinned at cap)", () => {
+    // With the 0.50 cap, ψ may flatten across windows where the natural
+    // value would have exceeded the cap. Strict monotone-decreasing only
+    // holds in the un-capped regime; here we just assert ψ never INCREASES
+    // with T.
     const psi5 = annualizeAndShrink(5).psi;
     const psi10 = annualizeAndShrink(10).psi;
     const psi20 = annualizeAndShrink(20).psi;
-    expect(psi5).toBeGreaterThan(psi10);
-    expect(psi10).toBeGreaterThan(psi20);
+    expect(psi5).toBeGreaterThanOrEqual(psi10 - 1e-9);
+    expect(psi10).toBeGreaterThanOrEqual(psi20 - 1e-9);
   });
 
   it("μ_g lies inside the range of input μ", () => {

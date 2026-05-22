@@ -246,6 +246,15 @@ resources:
               catalog: "${var.catalog}"
               artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
 
+        - task_key: export_prices_artifacts
+          depends_on:
+            - { task_key: silver_b3_ohlcv_adjusted }
+          notebook_task:
+            notebook_path: ./notebooks/export/prices_artifacts.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              artifacts_dir: "/Volumes/${var.catalog}/gold/artifacts"
+
         # ─── McLean (2011) replication cascade ─────────────────────────────
         # Independent sub-DAG: ingest CVM open data → bronze → silver →
         # gold regression tables → export JSON artifact for the /mclean tab.

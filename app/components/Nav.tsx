@@ -12,7 +12,7 @@ const ITEMS = [
   { href: "/triagem/", label: "Triagem" },
   { href: "/setores/", label: "Setores" },
   { href: "/correlacoes/", label: "Correlações" },
-  { href: "/mclean/", label: "McLean" },
+  { href: "/mclean/", label: "McLean (2011)" },
   { href: "/finops/", label: "FinOps" },
   { href: "/metodologia/", label: "Metodologia" },
 ];
