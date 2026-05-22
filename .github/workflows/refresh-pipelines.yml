@@ -108,6 +108,15 @@ jobs:
           mkdir -p _site
           if [ -d app/out ]; then cp -r app/out/* _site/; fi
           cp -r _artifacts/data _site/data
+          # GitHub Pages defaults to Jekyll, which strips every directory
+          # whose name starts with "_" — including `_next/`, where every
+          # Next.js bundled CSS and JS chunk lives. Without this sentinel
+          # file, the site loads with no styling and no client JS (user
+          # sees a bullet-list nav and unstyled headers — the exact
+          # failure mode reported 2026-05-22 after the skip_databricks
+          # redeploy). `deploy-pages.yml` already does this; mirroring it
+          # here so refresh-pipelines deploys are also Jekyll-immune.
+          touch _site/.nojekyll
 
       - name: Force-push gh-pages
         run: |
