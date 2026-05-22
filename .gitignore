@@ -62,6 +62,13 @@ data/raw_local/
 *.parquet.local
 *.delta.local
 
+# McLean replication — reproducible from `pipelines/notebooks/mclean/`
+# Bronze (CVM zips ~165MB) and silver (intermediate parquets) are regenerable.
+# The published gold artifact lives in `app/public/data/mclean_results.json`.
+data/mclean/bronze/
+data/mclean/silver/
+data/mclean/gold/
+
 # ─────────────────────────────────────────────────────────────────────────────
 # OS / Editor
 # ─────────────────────────────────────────────────────────────────────────────

@@ -96,6 +96,62 @@ export type CdiArtifact = {
   rows: { date: string; rate_daily_pct: number; rate_annual_pct: number }[];
 };
 
+// ── McLean (2011) replication ──────────────────────────────────────────────
+export type McLeanStat = { mean: number | null; std: number | null; p25: number | null; median: number | null; p75: number | null; n: number };
+export type McLeanCoef = { coef: number; tstat: number; p?: number; sig: string };
+export type McLeanPooled = {
+  n: number;
+  r2: number;
+  r2_adj?: number;
+  const: McLeanCoef;
+  dIssue: McLeanCoef;
+  dDebt: McLeanCoef;
+  Cashflow: McLeanCoef;
+  Other: McLeanCoef;
+  Assets: McLeanCoef;
+};
+export type McLeanAnnualRow = {
+  year: number;
+  n: number;
+  r2: number;
+  dIssue: { coef: number; tstat: number; sig: string };
+  dDebt: { coef: number; tstat: number; sig: string };
+  Cashflow: { coef: number; tstat: number; sig: string };
+  Other: { coef: number; tstat: number; sig: string };
+  Assets: { coef: number; tstat: number; sig: string };
+};
+export type McLeanArtifact = {
+  meta: {
+    window: [number, number];
+    n_firms: number;
+    n_obs: number;
+    paper: string;
+    paper_window: [number, number];
+    paper_n_firms: number;
+    paper_n_obs: number;
+    data_source: string;
+  };
+  desc: {
+    full: Record<string, McLeanStat>;
+    unconstrained: Record<string, McLeanStat>;
+    constrained: Record<string, McLeanStat>;
+  };
+  pooled: {
+    full: McLeanPooled;
+    unconstrained: McLeanPooled;
+    constrained: McLeanPooled;
+  };
+  annual: {
+    full: McLeanAnnualRow[];
+    unconstrained: McLeanAnnualRow[];
+    constrained: McLeanAnnualRow[];
+  };
+  paper_ref: {
+    desc_full: Record<string, McLeanStat>;
+    pooled_model1_full: Record<string, McLeanCoef | number> & { r2: number; n: number };
+  };
+};
+
 async function _load<T>(name: string): Promise<T | null> {
   try {
     const file = path.join(process.cwd(), "public", "data", `${name}.json`);
@@ -113,3 +169,4 @@ export const loadIbov = () => _load<IbovArtifact>("ibov_overview");
 export const loadPrices = () => _load<PricesArtifact>("prices_normalized");
 export const loadPricesClose = () => _load<PricesCloseArtifact>("prices_close");
 export const loadCdi = () => _load<CdiArtifact>("cdi");
+export const loadMcLean = () => _load<McLeanArtifact>("mclean_results");
