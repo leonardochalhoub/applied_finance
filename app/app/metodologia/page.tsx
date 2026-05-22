@@ -232,10 +232,27 @@ export default function MetodologiaPage() {
           />
         </div>
         <p className="mt-2 text-sm text-body">
-          <strong>Parâmetros default:</strong>{" "}
-          <span className="mono">α = 0,50</span> (50% prior, 50% dados após
-          Jorion) e <InlineMath tex={String.raw`\mathrm{ERP} = 6\%`} /> — a
-          estimativa de Damodaran para Brasil emergente (ver{" "}
+          <strong>α é adaptativo em T</strong>: janelas curtas (alto erro de
+          estimação) recebem ancoragem mais forte, janelas longas confiam
+          mais nos dados. Rampa linear ancorada em{" "}
+          <span className="mono">(0,5 ano → α = 0,90)</span> e{" "}
+          <span className="mono">(10 anos → α = 0,50)</span>, com piso{" "}
+          <span className="mono">0,30</span> e teto <span className="mono">0,95</span>:
+        </p>
+        <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="alfa de T igual a clip entre 0,30 e 0,95 de 0,90 menos 0,042 vezes T anos menos 0,5"
+            tex={String.raw`\alpha(T_{\text{anos}}) \;=\; \mathrm{clip}\!\left[\,0.90 - 0.042\,(T_{\text{anos}} - 0.5),\;\; 0.30,\;\; 0.95\,\right]`}
+          />
+        </div>
+        <p className="mt-2 text-sm text-body">
+          Comportamento indicativo: <span className="mono">α(6m) ≈ 0,90</span>,{" "}
+          <span className="mono">α(1y) ≈ 0,88</span>,{" "}
+          <span className="mono">α(3y) ≈ 0,80</span>,{" "}
+          <span className="mono">α(5y) ≈ 0,71</span>,{" "}
+          <span className="mono">α(10y) ≈ 0,50</span>. ERP fixo em{" "}
+          <InlineMath tex={String.raw`6\%`} /> — estimativa de Damodaran para
+          Brasil emergente (ver{" "}
           <a
             href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html"
             target="_blank"

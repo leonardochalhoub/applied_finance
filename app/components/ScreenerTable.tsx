@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { KpiRow } from "@/lib/data";
 import { fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 
 type Props = {
   rows: KpiRow[];
@@ -126,7 +127,7 @@ export function ScreenerTable({ rows, sectors }: Props) {
                   <td className="px-3 py-2.5">
                     <a
                       className="mono text-sm font-semibold hover:underline"
-                      href={`/ticker/${encodeURIComponent(row.ticker)}/`}
+                      href={withBase(`/ticker/${encodeURIComponent(row.ticker)}/`)}
                     >
                       {row.ticker.replace(/\.SA$/, "")}
                     </a>

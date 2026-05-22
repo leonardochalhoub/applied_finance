@@ -12,6 +12,7 @@ import type {
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
 import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
 type Universe = "ibov" | "all";
@@ -24,10 +25,21 @@ type Universe = "ibov" | "all";
  *  of "max-order-statistic" cartoon territory. */
 const ERP_PRIOR = 0.06;
 
-/** Macro-prior intensity α: how hard to shrink μ̂ toward (rf + ERP)·𝟙
- *  AFTER the data-driven Jorion shrinkage. 0 = pure Jorion, 1 = ignore
- *  data entirely. 0.5 = balanced. */
-const MACRO_PRIOR_ALPHA = 0.5;
+/** Macro-prior intensity α(T): how hard to shrink μ̂_BS toward
+ *  (rf + ERP)·𝟙. Adaptive in T_anos because the max-of-N order-statistic
+ *  bias in the max-Sharpe portfolio's μ persists even with large T, just
+ *  decaying slowly. Linear ramp anchored at (0,5y → 0,90) and (10y → 0,50),
+ *  with floor 0,30 (long windows) and cap 0,95 (very short windows).
+ *
+ *  Indicative behaviour:
+ *    6 m : α ≈ 0,90    1 y : α ≈ 0,88    3 y : α ≈ 0,80
+ *    5 y : α ≈ 0,71   10 y : α ≈ 0,50   15 y : α = 0,30 (floor)
+ */
+function macroPriorAlpha(tradingDays: number): number {
+  const years = Math.max(0.05, tradingDays / 252);
+  const alpha = 0.90 - 0.042 * (years - 0.5);
+  return Math.min(0.95, Math.max(0.30, alpha));
+}
 
 /** Snapshot emitted to the parent so the FrontierChart can use Sugestões'
  *  μ/Σ as a stable reference frame even before any JSON is imported. */
@@ -182,10 +194,9 @@ export function PortfolioSuggestions({
   const effectiveStats = useMemo(() => {
     if (!stats) return null;
     const anchor = rf + ERP_PRIOR;
-    const muFinal = stats.mu.map(
-      (m) => (1 - MACRO_PRIOR_ALPHA) * m + MACRO_PRIOR_ALPHA * anchor,
-    );
-    return { ...stats, mu: muFinal, shrinkAlpha: MACRO_PRIOR_ALPHA };
+    const alpha = macroPriorAlpha(stats.Tn);
+    const muFinal = stats.mu.map((m) => (1 - alpha) * m + alpha * anchor);
+    return { ...stats, mu: muFinal, shrinkAlpha: alpha };
   }, [stats, rf]);
 
   // Lift μ/Σ to the parent shell so the FrontierChart can use it as a stable
@@ -695,7 +706,7 @@ function SuggestionCard({
             style={{ gridTemplateColumns: "60px 1fr 80px 80px 60px" }}
           >
             <a
-              href={`/ticker/${encodeURIComponent(a.ticker)}/`}
+              href={withBase(`/ticker/${encodeURIComponent(a.ticker)}/`)}
               className="mono text-sm font-semibold hover:underline"
             >
               {a.ticker.replace(/\.SA$/, "")}

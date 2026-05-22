@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { PricesArtifact, SectorRow } from "@/lib/data";
 import { cellColor, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import { withBase } from "@/lib/links";
 import type { WindowedTickerStats } from "@/lib/windowed";
 
 type SortKey = "return" | "members" | "vol";
@@ -263,7 +264,7 @@ function SectorDetail({
               <tr key={r.ticker} className="hover:bg-[color:var(--bg-subtle)]">
                 <td className="whitespace-nowrap px-5 py-2.5">
                   <a
-                    href={`/ticker/${encodeURIComponent(r.ticker)}/`}
+                    href={withBase(`/ticker/${encodeURIComponent(r.ticker)}/`)}
                     className="mono text-sm font-semibold text-strong hover:underline"
                   >
                     {r.ticker.replace(/\.SA$/, "")}

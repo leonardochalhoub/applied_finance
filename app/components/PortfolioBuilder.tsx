@@ -236,9 +236,15 @@ export function PortfolioBuilder({
     const endDate = prices.dates[prices.dates.length - 1];
     const rfLocal = cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
     const ERP_PRIOR = 0.06;
-    const MACRO_PRIOR_ALPHA = 0.5;
+    // α adaptive em T (mesma curva de PortfolioSuggestions): janelas curtas
+    // recebem mais ancoragem porque o viés do máximo decai devagar.
+    const yearsLocal = Math.max(0.05, Tn / 252);
+    const macroPriorAlphaLocal = Math.min(
+      0.95,
+      Math.max(0.30, 0.90 - 0.042 * (yearsLocal - 0.5)),
+    );
     const anchor = rfLocal + ERP_PRIOR;
-    const muFinal = js.mu.map((m) => (1 - MACRO_PRIOR_ALPHA) * m + MACRO_PRIOR_ALPHA * anchor);
+    const muFinal = js.mu.map((m) => (1 - macroPriorAlphaLocal) * m + macroPriorAlphaLocal * anchor);
 
     return {
       mu: muFinal,

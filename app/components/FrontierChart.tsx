@@ -169,13 +169,15 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   );
   const rangeY = Math.max(dataMaxY - dataMinY, 1e-3);
   const yMin = dataMinY - 0.10 * rangeY;
-  // Y-axis is pinned at exactly 35% by design. After the dual-shrinkage on
-  // μ (Jorion + macro-anchor) the realistic max-Sharpe return lands in
-  // [rf, rf + σ_mkt], i.e. ~18–25% for Brazil — anything reaching 35%
-  // is already in the upper tail and warrants suspicion. Individual high-σ
-  // tickers above 35% drop off the chart by design; the dense data region
-  // gets the canvas it deserves.
-  const yMax = 0.35;
+  // Y-axis adapta-se aos dados (após a stack de shrinkage μ) com piso
+  // 20% (sempre mostra algum headroom acima do rf) e teto 35% (ativos
+  // individuais com retorno irrealisticamente alto saem da vista por
+  // design — não inflam o eixo). Para janelas curtas e alpha alto, dataMaxY
+  // ≈ rf + 5pp → yMax ≈ 0,20. Para janelas longas com mais sinal, o eixo
+  // expande naturalmente até o teto de 0,35.
+  const Y_AXIS_FLOOR = 0.20;
+  const Y_AXIS_CEILING = 0.35;
+  const yMax = Math.min(Y_AXIS_CEILING, Math.max(Y_AXIS_FLOOR, dataMaxY + 0.10 * rangeY));
   const rfInRange = rf >= yMin && rf <= yMax;
 
   // Poupança — renda fixa do varejo, regulada pela Lei 12.703/2012:
