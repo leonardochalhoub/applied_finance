@@ -23,6 +23,7 @@ TOP_RUNS      = int(dbutils.widgets.get("top_runs"))
 GOLD_RUNS         = f"{CATALOG}.gold.finops_run_costs"
 GOLD_DAILY        = f"{CATALOG}.gold.finops_daily_spend"
 ATTRIBUTION_TABLE = f"{CATALOG}.silver.finops_storage_attribution"
+LAYER_TABLE       = f"{CATALOG}.silver.finops_layer_breakdown"
 OUTPUT_PATH       = f"{ARTIFACTS_DIR}/finops_summary.json"
 
 dbutils.fs.mkdirs(ARTIFACTS_DIR)
@@ -292,13 +293,26 @@ if spark.catalog.tableExists(ATTRIBUTION_TABLE):
         workspace_bytes = int(attr_pdf["total_bytes"].sum())
         catalogs_breakdown = []
         for _, row in attr_pdf.sort_values("total_bytes", ascending=False).iterrows():
+            try:
+                fmts = json.loads(row["formats"]) if isinstance(row["formats"], str) else []
+            except Exception:
+                fmts = []
+            try:
+                vol_by_ext = json.loads(row["volumes_by_ext"]) if isinstance(row["volumes_by_ext"], str) else {}
+            except Exception:
+                vol_by_ext = {}
             catalogs_breakdown.append({
-                "catalog":       row["catalog"],
-                "is_target":     bool(row["is_target"]),
-                "tables_bytes":  int(row["tables_bytes"]),
-                "volumes_bytes": int(row["volumes_bytes"]),
-                "total_bytes":   int(row["total_bytes"]),
-                "share_pct":     f(row["share_pct"]),
+                "catalog":        row["catalog"],
+                "is_target":      bool(row["is_target"]),
+                "n_tables":       int(row.get("n_tables", 0) or 0),
+                "tables_bytes":   int(row["tables_bytes"]),
+                "tables_rows":    int(row.get("tables_rows", 0) or 0),
+                "volumes_bytes":  int(row["volumes_bytes"]),
+                "total_bytes":    int(row["total_bytes"]),
+                "share_pct":      f(row["share_pct"]),
+                "formats":        fmts,
+                "has_iceberg":    bool(row.get("has_iceberg", False)),
+                "volumes_by_ext": vol_by_ext,
             })
         attribution = {
             "snapshot_at":          str(attr_pdf["snapshot_at"].iloc[0]),
@@ -310,6 +324,43 @@ if spark.catalog.tableExists(ATTRIBUTION_TABLE):
         }
         print(f"attribution: {CATALOG} = {target_bytes/1e6:.2f}MB / "
               f"{workspace_bytes/1e6:.2f}MB ({attribution['storage_share_pct']}%)")
+
+# ─── Layer breakdown (target catalog only) ────────────────────────────────────
+layers = None
+if spark.catalog.tableExists(LAYER_TABLE):
+    layer_pdf = spark.read.table(LAYER_TABLE).toPandas()
+    if not layer_pdf.empty:
+        target_layers = layer_pdf[layer_pdf["catalog"] == CATALOG].copy()
+        # Sort: bronze → silver → gold → others
+        order_map = {"bronze": 0, "silver": 1, "gold": 2}
+        target_layers["_order"] = target_layers["schema"].map(lambda s: order_map.get(s, 99))
+        target_layers = target_layers.sort_values(["_order", "schema"]).drop(columns=["_order"])
+        layers_out = []
+        for _, row in target_layers.iterrows():
+            try:
+                fmts = json.loads(row["formats"]) if isinstance(row["formats"], str) else []
+            except Exception:
+                fmts = []
+            try:
+                tables = json.loads(row["tables"]) if isinstance(row["tables"], str) else []
+            except Exception:
+                tables = []
+            layers_out.append({
+                "schema":       row["schema"],
+                "n_tables":     int(row["n_tables"]),
+                "total_bytes":  int(row["total_bytes"]),
+                "total_rows":   int(row["total_rows"]),
+                "total_files":  int(row["total_files"]),
+                "formats":      fmts,
+                "has_iceberg":  bool(row["has_iceberg"]),
+                "tables":       tables,
+            })
+        layers = {
+            "catalog":     CATALOG,
+            "snapshot_at": str(layer_pdf["snapshot_at"].iloc[0]),
+            "layers":      layers_out,
+        }
+        print(f"layers: {[(l['schema'], l['n_tables'], l['total_rows']) for l in layers_out]}")
 
 summary = {
     "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -323,6 +374,7 @@ summary = {
     "kpis":         kpis,
     "storage":      storage,
     "attribution":  attribution,
+    "layers":       layers,
     "daily":        daily_out,
     "by_product":   by_product,
     "by_outcome":   by_outcome,

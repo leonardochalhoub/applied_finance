@@ -265,10 +265,15 @@ export type FinopsRunRow = {
 export type FinopsAttributionCatalog = {
   catalog: string;
   is_target: boolean;
+  n_tables: number;
   tables_bytes: number;
+  tables_rows: number;
   volumes_bytes: number;
   total_bytes: number;
   share_pct: number;
+  formats: string[];
+  has_iceberg: boolean;
+  volumes_by_ext: Record<string, { bytes: number; files: number }>;
 };
 
 export type FinopsAttribution = {
@@ -280,6 +285,32 @@ export type FinopsAttribution = {
   catalogs: FinopsAttributionCatalog[];
 };
 
+export type FinopsLayerTable = {
+  table: string;
+  bytes: number;
+  rows: number | null;
+  num_files: number;
+  format: string;
+  has_iceberg: boolean;
+};
+
+export type FinopsLayer = {
+  schema: string;
+  n_tables: number;
+  total_bytes: number;
+  total_rows: number;
+  total_files: number;
+  formats: string[];
+  has_iceberg: boolean;
+  tables: FinopsLayerTable[];
+};
+
+export type FinopsLayers = {
+  catalog: string;
+  snapshot_at: string;
+  layers: FinopsLayer[];
+};
+
 export type FinopsArtifact = {
   generated_at_utc: string;
   catalog: string;
@@ -288,6 +319,7 @@ export type FinopsArtifact = {
   kpis: FinopsKpis;
   storage: FinopsStorage;
   attribution: FinopsAttribution | null;
+  layers: FinopsLayers | null;
   daily: FinopsDailyRow[];
   by_product: FinopsProductRow[];
   by_outcome: FinopsOutcomeRow[];

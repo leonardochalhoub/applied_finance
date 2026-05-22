@@ -401,6 +401,16 @@ export function FinOpsView({ data }: { data: FinopsArtifact }) {
         </Panel>
       )}
 
+      {/* Layer breakdown (bronze / silver / gold) */}
+      {data.layers && data.layers.layers.length > 0 && (
+        <Panel
+          label={`Camadas do ${data.layers.catalog} · linhas, bytes, formatos`}
+          sub="Quantidade física de cada layer Medallion — útil pra entender de onde vem o storage cost"
+        >
+          <LayerTable layers={data.layers} />
+        </Panel>
+      )}
+
       {/* Two-col: by product + by outcome */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel
@@ -977,10 +987,13 @@ function AttributionTable({
           <thead className="border-b border-border bg-[color:var(--bg-subtle)] text-muted">
             <tr>
               <th className="px-3 py-2 text-left font-medium">Catálogo</th>
-              <th className="px-3 py-2 text-right font-medium">Tabelas Delta</th>
-              <th className="px-3 py-2 text-right font-medium">Volumes</th>
+              <th className="px-3 py-2 text-right font-medium">Tabelas</th>
+              <th className="px-3 py-2 text-right font-medium">Linhas</th>
+              <th className="px-3 py-2 text-right font-medium">Bytes (tabelas)</th>
+              <th className="px-3 py-2 text-right font-medium">Bytes (Volumes)</th>
               <th className="px-3 py-2 text-right font-medium">Total</th>
               <th className="px-3 py-2 text-right font-medium">Share</th>
+              <th className="px-3 py-2 text-left font-medium">Formatos</th>
             </tr>
           </thead>
           <tbody>
@@ -996,12 +1009,19 @@ function AttributionTable({
                     <span className="chip ml-2 text-[9px]">alvo</span>
                   ) : null}
                 </td>
+                <td className="px-3 py-2 text-right tabular">{fmtInt(c.n_tables)}</td>
+                <td className="px-3 py-2 text-right tabular">
+                  {c.tables_rows > 0 ? fmtInt(c.tables_rows) : <span className="text-muted">n/d</span>}
+                </td>
                 <td className="px-3 py-2 text-right tabular">{fmtBytes(c.tables_bytes)}</td>
                 <td className="px-3 py-2 text-right tabular">{fmtBytes(c.volumes_bytes)}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular text-strong">
                   {fmtBytes(c.total_bytes)}
                 </td>
                 <td className="px-3 py-2 text-right tabular">{fmtDec1(c.share_pct)}%</td>
+                <td className="px-3 py-2 text-left">
+                  <FormatBadges formats={c.formats} hasIceberg={c.has_iceberg} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1011,7 +1031,146 @@ function AttributionTable({
       <p className="text-[11px] text-muted">
         Snapshot: {attribution.snapshot_at}. O rateio assume que a fração do storage
         cresce proporcional aos bytes físicos — aproximação razoável porque
-        DEFAULT_STORAGE é cobrado por GB-mês independente do catálogo.
+        DEFAULT_STORAGE é cobrado por GB-mês independente do catálogo. Contagem de
+        linhas só é calculada para o catálogo alvo (DESCRIBE DETAIL não expõe rows).
+      </p>
+    </div>
+  );
+}
+
+function FormatBadges({
+  formats,
+  hasIceberg,
+}: {
+  formats: string[];
+  hasIceberg: boolean;
+}) {
+  const COLOR: Record<string, string> = {
+    delta:   "color-mix(in srgb, var(--accent) 18%, var(--bg-subtle))",
+    parquet: "color-mix(in srgb, var(--gain) 18%, var(--bg-subtle))",
+    csv:     "color-mix(in srgb, var(--loss) 14%, var(--bg-subtle))",
+  };
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {formats.map((f) => (
+        <span
+          key={f}
+          className="rounded-sm px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-strong"
+          style={{ background: COLOR[f] ?? "var(--bg-subtle)" }}
+        >
+          {f}
+        </span>
+      ))}
+      {hasIceberg ? (
+        <span
+          className="rounded-sm px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider"
+          style={{
+            background: "color-mix(in srgb, #0891b2 16%, var(--bg-subtle))",
+            color: "#0891b2",
+          }}
+          title="Bronze exposta também como Iceberg via UniForm (mesmos arquivos)"
+        >
+          🧊 iceberg
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+const LAYER_LABEL: Record<string, string> = {
+  bronze: "Bronze",
+  silver: "Silver",
+  gold:   "Gold",
+};
+const LAYER_DESC: Record<string, string> = {
+  bronze: "Raw ingerido (yfinance OHLCV, CVM DFP) → Delta append-only",
+  silver: "Limpeza, ajustes corporativos, tipagem — Delta com expectations",
+  gold:   "Agregações analíticas e features prontos para o app",
+};
+
+function LayerTable({ layers }: { layers: FinopsArtifact["layers"] }) {
+  if (!layers) return null;
+  const totalBytes = layers.layers.reduce((s, l) => s + l.total_bytes, 0);
+  const totalRows = layers.layers.reduce((s, l) => s + l.total_rows, 0);
+  const totalTables = layers.layers.reduce((s, l) => s + l.n_tables, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat label="Camadas" value={fmtInt(layers.layers.length)} sub="Schemas Medallion" />
+        <Stat label="Tabelas" value={fmtInt(totalTables)} sub="Total" />
+        <Stat label="Linhas" value={fmtInt(totalRows)} sub="Σ todas as camadas" />
+        <Stat label="Bytes" value={fmtBytes(totalBytes)} sub="Físico em Delta" />
+      </div>
+
+      <div className="space-y-3">
+        {layers.layers.map((l) => (
+          <details
+            key={l.schema}
+            className="rounded-md border border-border bg-[color:var(--bg-subtle)] overflow-hidden"
+          >
+            <summary className="cursor-pointer list-none px-4 py-3 hover:bg-[color:var(--bg-elevated)]">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="font-semibold text-strong">
+                  {LAYER_LABEL[l.schema] ?? l.schema}
+                </span>
+                <span className="text-[11px] text-muted">{l.schema}</span>
+                <FormatBadges formats={l.formats} hasIceberg={l.has_iceberg} />
+                <span className="ml-auto flex items-center gap-3 text-xs text-body">
+                  <span>
+                    <strong>{fmtInt(l.n_tables)}</strong> tabelas
+                  </span>
+                  <span>
+                    <strong className="tabular">{fmtInt(l.total_rows)}</strong> linhas
+                  </span>
+                  <span className="tabular text-strong">{fmtBytes(l.total_bytes)}</span>
+                </span>
+              </div>
+              {LAYER_DESC[l.schema] ? (
+                <div className="mt-1 text-[11px] text-muted">{LAYER_DESC[l.schema]}</div>
+              ) : null}
+            </summary>
+            <div className="overflow-x-auto border-t border-border bg-[color:var(--bg-elevated)]">
+              <table className="w-full text-xs">
+                <thead className="bg-[color:var(--bg-subtle)] text-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Tabela</th>
+                    <th className="px-3 py-2 text-right font-medium">Linhas</th>
+                    <th className="px-3 py-2 text-right font-medium">Bytes</th>
+                    <th className="px-3 py-2 text-right font-medium">Arquivos</th>
+                    <th className="px-3 py-2 text-left font-medium">Formato</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {l.tables.map((t) => (
+                    <tr key={t.table} className="border-b border-border/40 last:border-0">
+                      <td className="px-3 py-1.5 text-strong">
+                        <code className="text-[11px]">{t.table}</code>
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular">
+                        {t.rows != null ? fmtInt(t.rows) : <span className="text-muted">—</span>}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular">{fmtBytes(t.bytes)}</td>
+                      <td className="px-3 py-1.5 text-right tabular text-muted">{fmtInt(t.num_files)}</td>
+                      <td className="px-3 py-1.5 text-left">
+                        <FormatBadges
+                          formats={[t.format]}
+                          hasIceberg={t.has_iceberg}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted">
+        Snapshot: {layers.snapshot_at}. Bytes via DESCRIBE DETAIL (sizeInBytes Delta);
+        linhas via COUNT(*) por tabela. Iceberg via UniForm detectado por{" "}
+        <code className="text-[10px]">delta.universalFormat.enabledFormats</code>.
       </p>
     </div>
   );
