@@ -13,7 +13,7 @@ import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 import { BacktestPanel } from "./BacktestPanel";
 import { RiskDecompositionPanel } from "./RiskDecompositionPanel";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
-import { fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtNum2, fmtPctAA, signedClass } from "@/lib/format";
 import { withBase } from "@/lib/links";
 import type { ReferenceStats } from "./PortfolioSuggestions";
 

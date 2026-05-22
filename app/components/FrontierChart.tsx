@@ -16,7 +16,7 @@ import {
 
 import { downloadSvgChart } from "@/lib/chartDownload";
 import { withBase } from "@/lib/links";
-import { fmtAxisPct, fmtNum2, fmtPctAA, fmtPctSigned, signedClass } from "@/lib/format";
+import { fmtAxisPct, fmtNum2, fmtPctAA, signedClass } from "@/lib/format";
 import { buildFrontier, type FrontierResult } from "@/lib/markowitz";
 
 const PCT2_BR = new Intl.NumberFormat("pt-BR", {
