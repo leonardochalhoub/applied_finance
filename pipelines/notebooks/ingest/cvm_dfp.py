@@ -10,7 +10,7 @@ Output layout under `/Volumes/{catalog}/bronze/raw/cvm_dfp/run_id=<run_id>/`:
     dfp_cia_aberta_2010.zip
     dfp_cia_aberta_2011.zip
     ...
-    dfp_cia_aberta_2024.zip
+    dfp_cia_aberta_2025.zip
     cad_cia_aberta.csv
 """
 # COMMAND ----------
@@ -28,7 +28,7 @@ from pathlib import Path
 dbutils.widgets.text("catalog", "finance_prd")
 dbutils.widgets.text("volume_dir", "/Volumes/finance_prd/bronze/raw/cvm_dfp")
 dbutils.widgets.text("from_year", "2010")
-dbutils.widgets.text("to_year",   "2024")
+dbutils.widgets.text("to_year",   "2025")
 
 catalog    = dbutils.widgets.get("catalog")
 volume_dir = dbutils.widgets.get("volume_dir")

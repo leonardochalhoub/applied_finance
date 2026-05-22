@@ -14,17 +14,17 @@ Plus a separate gold table `gold.mclean_pooled_fit` carries the per-fit
 metadata (n, R², adj. R²) — kept separate so coefficients stay narrow/joinable.
 """
 # COMMAND ----------
-import logging
-
-log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
-
 # MAGIC %pip install -q statsmodels
 # COMMAND ----------
 dbutils.library.restartPython()
 # COMMAND ----------
+import logging
+
 import pandas as pd
 import statsmodels.api as sm
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 dbutils.widgets.text("catalog", "finance_prd")
 catalog = dbutils.widgets.get("catalog")
@@ -32,7 +32,7 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.gold")
 
 REG_VARS = ["dIssue", "dDebt", "Cashflow", "Other", "Assets"]
 WINDOWS = {
-    "full":     (2010, 2024),
+    "full":     (2010, 2025),
     "original": (2010, 2013),
 }
 

@@ -86,7 +86,9 @@ STAGE_SCHEMA = StructType([
 ])
 
 def _parse_year_from_zip_name(name: str) -> int | None:
-    m = re.search(r"(\d{4})", name)
+    # Use just the basename so 4-digit runs of digits inside parent directories
+    # (e.g. UUID-shaped `run_id=...`) don't shadow the real year suffix.
+    m = re.search(r"(\d{4})", os.path.basename(name))
     return int(m.group(1)) if m else None
 
 def _scale(escala: str | None) -> float:
@@ -114,12 +116,15 @@ if not all_zips:
     raise RuntimeError(f"No zip files found under {volume_dir}/run_id=*/")
 log.info(f"Found {len(all_zips)} zip(s) under {volume_dir}")
 
-# Parse each zip on the driver (the files are small — ~10MB) into Python rows,
-# then build the staging DataFrame in one shot.
-import csv, io
-rows: list[tuple] = []
-for path, year, run_id in all_zips:
-    log.info(f"  reading {os.path.basename(path)} (year={year}, run={run_id[:8]})")
+# Parse and MERGE one zip at a time. Each annual CVM zip yields ~200k rows
+# (~16 fields each as Python tuples), and accumulating all of them in one
+# Python list before staging blows the driver heap once you have ~15+ years.
+# Staging per-zip caps the driver footprint at one year's worth of rows.
+import csv, gc, io
+
+
+def _parse_zip(path: str, year: int, run_id: str) -> list[tuple]:
+    rows: list[tuple] = []
     with zipfile.ZipFile(path) as z:
         for stmt, pattern in STMT_PATTERNS.items():
             candidates = [n for n in z.namelist() if pattern in n]
@@ -159,17 +164,27 @@ for path, year, run_id in all_zips:
                     run_id,
                     ingested_at,
                 ))
+    return rows
 
-log.info(f"Parsed {len(rows):,} raw lines from CVM CSVs; staging into Spark…")
-stage = spark.createDataFrame(rows, schema=STAGE_SCHEMA)
-stage.createOrReplaceTempView("stage_cvm_dfp_lines")
 
-# MERGE keyed by (cd_cvm, dt_fim_exerc, statement, cd_conta, ordem_exerc) so
-# re-ingests of a later restatement overwrite the older row.
-spark.sql(f"""
+# Dedupe the source by the natural key before MERGE — newer CVM zips
+# (notably 2025) ship restatements that produce multiple rows with the same
+# (cd_cvm, dt_fim_exerc, statement, cd_conta, ordem_exerc) but different
+# VERSAO. Without this, Delta MERGE fails with
+# DELTA_MULTIPLE_SOURCE_ROW_MATCHING_TARGET_ROW_IN_MERGE. Keep the highest
+# VERSAO (the latest restatement); break ties by ingested_at.
+MERGE_SQL = f"""
 MERGE INTO {catalog}.bronze.cvm_dfp_lines AS tgt
 USING (
-    SELECT * FROM stage_cvm_dfp_lines
+  SELECT * EXCEPT(_rn) FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (
+             PARTITION BY cd_cvm, dt_fim_exerc, statement, cd_conta, ordem_exerc
+             ORDER BY versao DESC NULLS LAST, ingested_at DESC
+           ) AS _rn
+    FROM stage_cvm_dfp_chunk
+  )
+  WHERE _rn = 1
 ) AS src
 ON  tgt.cd_cvm = src.cd_cvm
 AND tgt.dt_fim_exerc = src.dt_fim_exerc
@@ -178,7 +193,20 @@ AND tgt.cd_conta = src.cd_conta
 AND tgt.ordem_exerc = src.ordem_exerc
 WHEN MATCHED THEN UPDATE SET *
 WHEN NOT MATCHED THEN INSERT *
-""")
+"""
+
+grand_total = 0
+for path, year, run_id in all_zips:
+    log.info(f"  reading {os.path.basename(path)} (year={year}, run={run_id[:8]})")
+    chunk = _parse_zip(path, year, run_id)
+    log.info(f"    parsed {len(chunk):,} rows; staging + MERGE…")
+    spark.createDataFrame(chunk, schema=STAGE_SCHEMA).createOrReplaceTempView("stage_cvm_dfp_chunk")
+    spark.sql(MERGE_SQL)
+    grand_total += len(chunk)
+    del chunk
+    gc.collect()
+
+log.info(f"Parsed and merged {grand_total:,} raw lines across {len(all_zips)} zip(s).")
 
 total = spark.table(f"{catalog}.bronze.cvm_dfp_lines").count()
 log.info(f"bronze.cvm_dfp_lines → {total:,} rows total")
