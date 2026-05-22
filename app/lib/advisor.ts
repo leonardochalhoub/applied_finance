@@ -24,6 +24,10 @@ export type AdvisorInput = {
   userPoint: PortfolioPoint;
   /** Optimal portfolio summary statistics. */
   optimalPoint: PortfolioPoint;
+  /** Optional bootstrap std-dev of the optimal weights per ticker. When
+   *  provided, the advisor gates buy/sell recommendations on
+   *  |Δw| > 2·σ_bootstrap — otherwise the language softens to "considerar". */
+  bootstrapStd?: number[];
 };
 
 export type Recommendation = {
@@ -179,33 +183,55 @@ export function analyze(input: AdvisorInput): AdvisorReport {
 
   // ── 3. Per-ticker actions: vender / reduzir / aumentar / comprar ─────
   // Compare user weight vs optimal weight; gradient gives direction.
+  // When a bootstrap std-dev is available per ticker, we GATE strong verbs
+  // (vender/comprar) on |Δw| > 2·σ_bootstrap, which is a 95% significance
+  // test that the recommended re-allocation isn't within the noise band of
+  // the underlying Markowitz estimator. Below that bar we downgrade to
+  // "considerar" — non-committal language matching the statistics.
   const grad = marginalSharpeContribution(userW, input.mu, input.sigma, input.rf);
+  const bootStd = input.bootstrapStd;
   const perTicker = tickers.map((t, i) => ({
     ticker: t,
     userW: userW[i],
     optW: optW[i],
     delta: optW[i] - userW[i],
     grad: grad[i],
+    sd: bootStd?.[i] ?? null,
+    significant: bootStd ? Math.abs(optW[i] - userW[i]) > 2 * (bootStd[i] ?? 0) : true,
   }));
 
   // Significant overweights (where user has too much vs optimal)
   const overweights = perTicker
     .filter((p) => p.delta < -0.05 && p.userW > 0.1)
-    .sort((a, b) => a.delta - b.delta) // most negative first
+    .sort((a, b) => a.delta - b.delta)
     .slice(0, 3);
 
   for (const p of overweights) {
     const symbol = p.ticker.replace(/\.SA$/, "");
-    recommendations.push({
-      level: "warn",
-      title: `Reduzir ${symbol}`,
-      detail: `Você tem ${(p.userW * 100).toFixed(1)}% em ${symbol}, ` +
-        `mas o ótimo Markowitz sugere apenas ${(p.optW * 100).toFixed(1)}%. ` +
-        `Excesso de ${(Math.abs(p.delta) * 100).toFixed(1)} p.p. está custando eficiência. ` +
-        `Considere realocar para tickers sub-ponderados.`,
-      ticker: p.ticker,
-      action: p.optW < 0.01 ? "vender" : "reduzir",
-    });
+    const sigText = p.sd != null
+      ? ` (bootstrap SD do peso ótimo: ${(p.sd * 100).toFixed(1)} p.p.${p.significant ? "" : " — Δw NÃO ultrapassa 2·SD, dentro do ruído"})`
+      : "";
+    if (p.significant) {
+      recommendations.push({
+        level: "warn",
+        title: `Reduzir ${symbol}`,
+        detail: `Você tem ${(p.userW * 100).toFixed(1)}% em ${symbol}, ` +
+          `mas o ótimo Markowitz sugere apenas ${(p.optW * 100).toFixed(1)}%. ` +
+          `Excesso de ${(Math.abs(p.delta) * 100).toFixed(1)} p.p. está custando eficiência. ` +
+          `Considere realocar para tickers sub-ponderados.` + sigText,
+        ticker: p.ticker,
+        action: p.optW < 0.01 ? "vender" : "reduzir",
+      });
+    } else {
+      recommendations.push({
+        level: "warn",
+        title: `Considerar reduzir ${symbol}`,
+        detail: `Sua posição (${(p.userW * 100).toFixed(1)}%) está acima do ótimo Markowitz (${(p.optW * 100).toFixed(1)}%), ` +
+          `mas a diferença de ${(Math.abs(p.delta) * 100).toFixed(1)} p.p. está dentro da incerteza estatística ` +
+          `do estimador — bootstrap SD ${(p.sd! * 100).toFixed(1)} p.p. Sem urgência para rebalancear.`,
+        ticker: p.ticker,
+      });
+    }
   }
 
   // Significant underweights / missing tickers (optimal recommends but user doesn't have)
@@ -216,18 +242,32 @@ export function analyze(input: AdvisorInput): AdvisorReport {
 
   for (const p of underweights) {
     const symbol = p.ticker.replace(/\.SA$/, "");
-    const verb = p.userW < 0.01 ? "adicionar" : "comprar";
-    const verbText = p.userW < 0.01
-      ? `Adicione ${symbol} à carteira: ótimo sugere ${(p.optW * 100).toFixed(1)}%, atualmente em 0%.`
-      : `Aumente ${symbol} de ${(p.userW * 100).toFixed(1)}% para ${(p.optW * 100).toFixed(1)}%.`;
-    recommendations.push({
-      level: "good",
-      title: `${verb === "adicionar" ? "Adicionar" : "Aumentar"} ${symbol}`,
-      detail: `${verbText} O sub-investimento de ${(Math.abs(p.delta) * 100).toFixed(1)} p.p. ` +
-        `está limitando seu retorno esperado em ${((p.delta * input.mu[tickers.indexOf(p.ticker)]) * 100).toFixed(2)}%.`,
-      ticker: p.ticker,
-      action: verb,
-    });
+    const sigText = p.sd != null
+      ? ` (bootstrap SD: ${(p.sd * 100).toFixed(1)} p.p.${p.significant ? "" : " — Δw NÃO ultrapassa 2·SD, dentro do ruído"})`
+      : "";
+    if (p.significant) {
+      const verb = p.userW < 0.01 ? "adicionar" : "comprar";
+      const verbText = p.userW < 0.01
+        ? `Adicione ${symbol} à carteira: ótimo sugere ${(p.optW * 100).toFixed(1)}%, atualmente em 0%.`
+        : `Aumente ${symbol} de ${(p.userW * 100).toFixed(1)}% para ${(p.optW * 100).toFixed(1)}%.`;
+      recommendations.push({
+        level: "good",
+        title: `${verb === "adicionar" ? "Adicionar" : "Aumentar"} ${symbol}`,
+        detail: `${verbText} O sub-investimento de ${(Math.abs(p.delta) * 100).toFixed(1)} p.p. ` +
+          `está limitando seu retorno esperado em ${((p.delta * input.mu[tickers.indexOf(p.ticker)]) * 100).toFixed(2)}%.` + sigText,
+        ticker: p.ticker,
+        action: verb,
+      });
+    } else {
+      recommendations.push({
+        level: "good",
+        title: `Considerar aumentar ${symbol}`,
+        detail: `O ótimo Markowitz sugere ${(p.optW * 100).toFixed(1)}% (você tem ${(p.userW * 100).toFixed(1)}%), ` +
+          `mas a recomendação está dentro da incerteza estatística do estimador — bootstrap SD ${(p.sd! * 100).toFixed(1)} p.p. ` +
+          `Sinal fraco; tratar como sugestão, não ordem.`,
+        ticker: p.ticker,
+      });
+    }
   }
 
   // ── 4. Vol vs benchmark ───────────────────────────────────────────────

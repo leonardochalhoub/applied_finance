@@ -6,6 +6,10 @@ import { analyze, type AdvisorReport } from "@/lib/advisor";
 import { cdiMeanForWindow } from "@/lib/cdi";
 import type { CdiArtifact, KpiArtifact, PricesArtifact } from "@/lib/data";
 import { buildFrontier, evaluatePortfolio, type FrontierResult } from "@/lib/markowitz";
+import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
+import { bootstrapMaxSharpe } from "@/lib/bootstrap";
+
+import { BacktestPanel } from "./BacktestPanel";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
 import { fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 
@@ -166,39 +170,37 @@ export function PortfolioBuilder({
       X.push(row);
     }
     const Tn = X.length;
-    const mean = new Array(n).fill(0);
+
+    // ── Ledoit-Wolf shrinkage on daily Σ (data-driven δ*) ──
+    const lw = ledoitWolf(X);
+    const sigmaDaily = lw.sigma;
+
+    // ── Sample mean of daily log returns ──
+    const meanLog = new Array(n).fill(0);
     for (const row of X) {
-      for (let i = 0; i < n; i++) mean[i] += row[i];
+      for (let i = 0; i < n; i++) meanLog[i] += row[i];
     }
-    for (let i = 0; i < n; i++) mean[i] /= Tn;
-    const cov: number[][] = [];
-    for (let i = 0; i < n; i++) {
-      const row = new Array(n).fill(0);
-      cov.push(row);
-    }
-    for (const r of X) {
-      for (let i = 0; i < n; i++) {
-        const di = r[i] - mean[i];
-        for (let j = i; j < n; j++) {
-          cov[i][j] += di * (r[j] - mean[j]);
-        }
-      }
-    }
-    for (let i = 0; i < n; i++) {
-      for (let j = i; j < n; j++) {
-        cov[i][j] /= Tn - 1;
-        if (j !== i) cov[j][i] = cov[i][j];
-      }
-    }
-    const mu = mean.map((m) => m * 252);
-    const sigma = cov.map((row) => row.map((v) => v * 252));
-    const trace = sigma.reduce((s, r, i) => s + r[i], 0) / n;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        sigma[i][j] = 0.99 * sigma[i][j] + (i === j ? 0.01 * trace : 0);
-      }
-    }
-    return { mu, sigma, n, Tn, tickers: selected.slice() };
+    for (let i = 0; i < n; i++) meanLog[i] /= Tn;
+
+    // ── Jensen correction: μ_simple ≈ μ_log + σ²/2 (per asset, unannualized) ──
+    const meanSimpleDaily = jensenCorrectMu(meanLog, sigmaDaily);
+
+    // ── Annualize ──
+    const muAnnual = meanSimpleDaily.map((m) => m * 252);
+    const sigmaAnnual = sigmaDaily.map((row) => row.map((v) => v * 252));
+
+    // ── Jorion (Bayes-Stein) shrinkage on μ toward grand mean ──
+    const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
+    return {
+      mu: js.mu,
+      sigma: sigmaAnnual,
+      n,
+      Tn,
+      tickers: selected.slice(),
+      shrinkDelta: lw.delta,
+      shrinkPsi: js.psi,
+      X,
+    };
   }, [selected, prices, snapshot]);
 
   // Auto-release snapshot if user adds a ticker not in the original universe
@@ -268,6 +270,14 @@ export function PortfolioBuilder({
     });
   }, [stats, userPoint, importedPoint, imported, rf, onChartData]);
 
+  // Bootstrap the max-Sharpe portfolio to get per-weight noise bands.
+  // Skip when in snapshot mode (no X available) or when N is huge.
+  const bootstrap = useMemo(() => {
+    if (!stats?.X || stats.X.length < 60) return null;
+    if (stats.tickers.length > 30) return null; // keep under ~2s
+    return bootstrapMaxSharpe(stats.X, rf, 80);
+  }, [stats, rf]);
+
   const advisorReport: AdvisorReport | null = useMemo(() => {
     if (!stats || !userPoint || !frontierResult) return null;
     return analyze({
@@ -279,8 +289,9 @@ export function PortfolioBuilder({
       sigma: stats.sigma,
       userPoint,
       optimalPoint: frontierResult.maxSharpe,
+      bootstrapStd: bootstrap?.weights.map((w) => w.std),
     });
-  }, [stats, userPoint, frontierResult, rf]);
+  }, [stats, userPoint, frontierResult, rf, bootstrap]);
 
   // URL sync
   useEffect(() => {
@@ -714,6 +725,15 @@ export function PortfolioBuilder({
 
       {/* AI advisor panel */}
       {advisorReport ? <AdvisorPanel report={advisorReport} /> : null}
+
+      {/* Walk-forward out-of-sample backtest vs 1/N (DeMiguel-Garlappi-Uppal 2009) */}
+      {stats && selected.length >= 2 ? (
+        <BacktestPanel
+          tickers={selected}
+          prices={prices}
+          rf={rf}
+        />
+      ) : null}
 
       {!stats ? (
         <p className="text-sm text-muted">

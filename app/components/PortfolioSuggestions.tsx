@@ -10,6 +10,7 @@ import type {
   PricesCloseArtifact,
 } from "@/lib/data";
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
+import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
 import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
@@ -64,6 +65,7 @@ export function PortfolioSuggestions({
     });
     if (valid.length < 2) return null;
 
+    // Build X (T × N) matrix of daily log returns over the window
     const seriesData: number[][] = [];
     for (const tk of valid) {
       const px = prices.series[tk]!;
@@ -75,36 +77,38 @@ export function PortfolioSuggestions({
     }
     const Tn = seriesData[0].length;
     const n = valid.length;
-    const mean = new Array(n).fill(0);
-    for (let i = 0; i < n; i++) {
-      for (let t = 0; t < Tn; t++) mean[i] += seriesData[i][t];
-      mean[i] /= Tn;
-    }
-    const cov: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+    // Transpose to T × N (rows = observations, cols = tickers) for ledoitWolf
+    const X: number[][] = [];
     for (let t = 0; t < Tn; t++) {
-      for (let i = 0; i < n; i++) {
-        const di = seriesData[i][t] - mean[i];
-        for (let j = i; j < n; j++) {
-          cov[i][j] += di * (seriesData[j][t] - mean[j]);
-        }
-      }
+      const row: number[] = new Array(n);
+      for (let i = 0; i < n; i++) row[i] = seriesData[i][t];
+      X.push(row);
     }
-    for (let i = 0; i < n; i++) {
-      for (let j = i; j < n; j++) {
-        cov[i][j] /= Tn - 1;
-        if (j !== i) cov[j][i] = cov[i][j];
-      }
+    // ── Ledoit-Wolf shrinkage on daily Σ ──
+    const lw = ledoitWolf(X);
+    // ── Sample mean of daily log returns ──
+    const meanLog = new Array(n).fill(0);
+    for (const row of X) {
+      for (let i = 0; i < n; i++) meanLog[i] += row[i];
     }
-    const mu = mean.map((m) => m * 252);
-    const sigma = cov.map((row) => row.map((v) => v * 252));
-    // light shrinkage to diagonal for numerical stability
-    const trace = sigma.reduce((s, r, i) => s + r[i], 0) / n;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        sigma[i][j] = 0.95 * sigma[i][j] + (i === j ? 0.05 * trace : 0);
-      }
-    }
-    return { mu, sigma, n, Tn, tickers: valid, startIdx: start };
+    for (let i = 0; i < n; i++) meanLog[i] /= Tn;
+    // ── Jensen correction: μ_simple ≈ μ_log + σ²/2 ──
+    const meanSimpleDaily = jensenCorrectMu(meanLog, lw.sigma);
+    // ── Annualize ──
+    const muAnnual = meanSimpleDaily.map((m) => m * 252);
+    const sigmaAnnual = lw.sigma.map((row) => row.map((v) => v * 252));
+    // ── Jorion (Bayes-Stein) shrinkage on μ toward grand mean ──
+    const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
+    return {
+      mu: js.mu,
+      sigma: sigmaAnnual,
+      n,
+      Tn,
+      tickers: valid,
+      startIdx: start,
+      shrinkDelta: lw.delta,
+      shrinkPsi: js.psi,
+    };
   }, [prices, candidates, window]);
 
   const rf = useMemo(() => {
@@ -240,10 +244,21 @@ export function PortfolioSuggestions({
           />
           long-only (sem short)
         </label>
-        <div className="ml-auto text-[10px] text-muted">
-          {stats
-            ? `${stats.tickers.length} tickers · ${stats.Tn} dias úteis · CDI ${(rf * 100).toFixed(2).replace(".", ",")}%`
-            : "aguardando dados…"}
+        <div className="ml-auto text-right text-[10px] text-muted">
+          {stats ? (
+            <>
+              <div>
+                {stats.tickers.length} tickers · {stats.Tn} dias úteis · CDI{" "}
+                {(rf * 100).toFixed(2).replace(".", ",")}%
+              </div>
+              <div className="mt-0.5" title="Intensidade ótima de shrinkage data-driven (Ledoit-Wolf 2004 em Σ, Jorion 1986 em μ)">
+                shrink Σ δ*={(stats.shrinkDelta * 100).toFixed(1).replace(".", ",")}% ·
+                shrink μ ψ={(stats.shrinkPsi * 100).toFixed(1).replace(".", ",")}%
+              </div>
+            </>
+          ) : (
+            "aguardando dados…"
+          )}
         </div>
       </div>
 

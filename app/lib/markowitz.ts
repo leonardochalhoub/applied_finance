@@ -26,6 +26,7 @@
  */
 
 import { dot, inv, matVec, scale, type Matrix, type Vector } from "./matrix";
+import { solveLongOnlyMV } from "./qp";
 
 export type PortfolioPoint = {
   weights: number[];  // aligned with the input universe
@@ -94,41 +95,52 @@ function _solveSubset(
   return { mv, ms };
 }
 
-/** Long-only iterative projection: drop most-negative weight, re-solve, repeat. */
+/** Long-only min-variance OR max-Sharpe via proper convex QP solver.
+ *  Replaces previous greedy "drop most-negative weight" heuristic which could
+ *  miss the global optimum on ill-conditioned Σ. */
 function _longOnly(
   mu: Vector,
   sigma: Matrix,
   rf: number,
   target: "mv" | "ms",
 ): Vector {
-  const n = mu.length;
-  let active = Array.from({ length: n }, (_, i) => i);
-  const w = new Array(n).fill(0);
-  for (let iter = 0; iter < n; iter++) {
-    const solved = _solveSubset(mu, sigma, rf, active);
-    if (!solved) break;
-    const sub = target === "mv" ? solved.mv : solved.ms;
-    // map back to full vector
-    for (let i = 0; i < n; i++) w[i] = 0;
-    for (let k = 0; k < active.length; k++) w[active[k]] = sub[k];
-    // find most-negative weight
-    let minIdx = -1;
-    let minVal = 0;
-    for (const i of active) {
-      if (w[i] < minVal) {
-        minVal = w[i];
-        minIdx = i;
-      }
-    }
-    if (minIdx === -1) break; // all ≥ 0 → done
-    active = active.filter((i) => i !== minIdx);
-    if (active.length === 0) break;
+  if (target === "mv") {
+    return solveLongOnlyMV(mu, sigma);
   }
-  // Numerical safety: clip tiny negatives, renormalize
-  for (let i = 0; i < n; i++) if (w[i] < 0) w[i] = 0;
-  const sum = w.reduce((a, b) => a + b, 0);
-  if (sum > 0) for (let i = 0; i < n; i++) w[i] /= sum;
-  return w;
+  // Max-Sharpe via re-parameterization. Long-only tangency with rf:
+  //   max (μ - rf·𝟙)ᵀ w / √(wᵀ Σ w)  s.t. 𝟙ᵀ w = 1, w ≥ 0
+  // Equivalent to solving: min wᵀ Σ w s.t. (μ - rf·𝟙)ᵀ y = 1, y ≥ 0, then
+  // setting w = y / sum(y). This converts the fractional objective to a
+  // standard QP. We just sweep target returns and pick the one that maximizes
+  // Sharpe — robust and dependency-free.
+  const n = mu.length;
+  const muMax = Math.max(...mu);
+  // Build a list of candidate target returns and evaluate Sharpe on each
+  const candidates = 24;
+  // Start sweep from rf + small offset to muMax
+  const rMin = Math.max(rf + 1e-4, solveMinTarget(mu, sigma));
+  if (muMax <= rMin) {
+    // Degenerate: all assets have lower return than rf; fall back to min-var
+    return solveLongOnlyMV(mu, sigma);
+  }
+  let bestSharpe = -Infinity;
+  let bestW: Vector = new Array(n).fill(1 / n);
+  for (let i = 0; i < candidates; i++) {
+    const r = rMin + (i / (candidates - 1)) * (muMax - rMin);
+    const w = solveLongOnlyMV(mu, sigma, { targetReturn: r });
+    const port = _portfolio(w, mu, sigma, rf);
+    if (port.sharpe > bestSharpe && Number.isFinite(port.sharpe)) {
+      bestSharpe = port.sharpe;
+      bestW = w;
+    }
+  }
+  return bestW;
+}
+
+/** Return the smallest achievable expected return for a long-only portfolio
+ *  on this μ — used as the lower bound when sweeping for max Sharpe. */
+function solveMinTarget(mu: Vector, _sigma: Matrix): number {
+  return Math.min(...mu);
 }
 
 /** Box-Muller standard normal. */
@@ -320,56 +332,14 @@ export function buildFrontier(
   return { minVariance: mv, maxSharpe: ms, frontier, cloud, hasNegativeWeights };
 }
 
-/** Long-only target-return projection: greedy KKT-style active-set. */
+/** Long-only target-return projection — proper convex QP via active-set. */
 function _longOnlyForTarget(
   mu: Vector,
   sigma: Matrix,
-  rf: number,
+  _rf: number,
   targetReturn: number,
 ): Vector {
-  const n = mu.length;
-  let active = Array.from({ length: n }, (_, i) => i);
-  const w = new Array(n).fill(0);
-  for (let iter = 0; iter < n; iter++) {
-    // Solve constrained min-variance s.t. sum=1 and w·μ = target on subset
-    try {
-      const subMu = _subvec(mu, active);
-      const subSig = _submat(sigma, active);
-      const subInv = inv(subSig);
-      const e = _ones(active.length);
-      const z = matVec(subInv, e);
-      const yvec = matVec(subInv, subMu);
-      const A = dot(e, z);
-      const B = dot(e, yvec);
-      const C = dot(subMu, yvec);
-      const D = A * C - B * B;
-      if (Math.abs(D) < 1e-12) break;
-      const lambda = (C - targetReturn * B) / D;
-      const gamma = (targetReturn * A - B) / D;
-      const subW: number[] = [];
-      for (let i = 0; i < active.length; i++) subW.push(lambda * z[i] + gamma * yvec[i]);
-      for (let i = 0; i < n; i++) w[i] = 0;
-      for (let k = 0; k < active.length; k++) w[active[k]] = subW[k];
-
-      let minIdx = -1;
-      let minVal = -1e-9;
-      for (const i of active) {
-        if (w[i] < minVal) {
-          minVal = w[i];
-          minIdx = i;
-        }
-      }
-      if (minIdx === -1) break;
-      active = active.filter((i) => i !== minIdx);
-      if (active.length === 0) break;
-    } catch {
-      break;
-    }
-  }
-  for (let i = 0; i < n; i++) if (w[i] < 0) w[i] = 0;
-  const sum = w.reduce((a, b) => a + b, 0);
-  if (sum > 0) for (let i = 0; i < n; i++) w[i] /= sum;
-  return w;
+  return solveLongOnlyMV(mu, sigma, { targetReturn });
 }
 
 export function evaluatePortfolio(
