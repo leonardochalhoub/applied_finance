@@ -84,7 +84,7 @@ export function BacktestPanel({ tickers, prices, rf, ibovDailyLogRet }: Props) {
       date: p.date,
       Markowitz: p.markowitz * 100,
       "1/N": p.equalWeight * 100,
-      IBOV: p.benchmark != null ? p.benchmark * 100 : null,
+      B3: p.benchmark != null ? p.benchmark * 100 : null,
     }));
   }, [result]);
 
@@ -136,7 +136,7 @@ export function BacktestPanel({ tickers, prices, rf, ibovDailyLogRet }: Props) {
           <div className="grid grid-cols-3 gap-3 border-b border-border px-5 py-4">
             <SummaryCard label="Markowitz" data={result.markowitz} highlight />
             <SummaryCard label="1/N (equal-weight)" data={result.equalWeight} />
-            {result.benchmark ? <SummaryCard label="IBOV" data={result.benchmark} /> : <div />}
+            {result.benchmark ? <SummaryCard label="B3" data={result.benchmark} /> : <div />}
           </div>
           <div className="p-4">
             <div style={{ width: "100%", height: 320 }}>
@@ -177,7 +177,7 @@ export function BacktestPanel({ tickers, prices, rf, ibovDailyLogRet }: Props) {
                   {ibovDailyLogRet ? (
                     <Line
                       type="monotone"
-                      dataKey="IBOV"
+                      dataKey="B3"
                       stroke="var(--muted)"
                       strokeWidth={1.5}
                       strokeDasharray="2 3"

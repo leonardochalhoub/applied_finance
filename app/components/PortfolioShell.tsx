@@ -45,7 +45,7 @@ export function PortfolioShell({ prices, closes, kpis, cdi, ibov }: Props) {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Sugestões</h2>
           <p className="text-xs text-muted">
-            Otimizadas sobre todo o universo (ou apenas IBOV) usando uma janela
+            Otimizadas sobre todo o universo (ou apenas B3) usando uma janela
             de estimação configurável. Define quanto investir e gere a ordem de
             compra com um clique.
           </p>
@@ -68,7 +68,7 @@ export function PortfolioShell({ prices, closes, kpis, cdi, ibov }: Props) {
           <h2 className="text-lg font-semibold tracking-tight">
             Fronteira eficiente —{" "}
             {referenceStats
-              ? `${referenceStats.universe === "ibov" ? "IBOV" : "todo o universo"} · janela ${referenceStats.window}`
+              ? `${referenceStats.universe === "ibov" ? "B3" : "todo o universo"} · janela ${referenceStats.window}`
               : "carregando…"}
           </h2>
           <p className="text-xs text-muted">
@@ -89,7 +89,7 @@ export function PortfolioShell({ prices, closes, kpis, cdi, ibov }: Props) {
             comparePoint={chart?.comparePoint ?? null}
             caption={
               chart?.caption ??
-              `${referenceStats!.universe === "ibov" ? "IBOV" : "Todos"} · janela ${referenceStats!.window} · ${referenceStats!.tickers.length} ativos`
+              `${referenceStats!.universe === "ibov" ? "B3" : "Todos"} · janela ${referenceStats!.window} · ${referenceStats!.tickers.length} ativos`
             }
             onLoad={(w) => setExternalWeights(w)}
           />

@@ -223,7 +223,7 @@ export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
       <section className="card px-6 py-5">
         <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
           <div>
-            <div className="eyebrow">IBOV · retorno {windowLabelPt(window)}</div>
+            <div className="eyebrow">B3 · retorno {windowLabelPt(window)}</div>
             <div className={`display-stat mt-2 ${signedClass(indexReturnWindow)}`}>
               {fmtPctSigned(indexReturnWindow)}
             </div>
@@ -286,7 +286,7 @@ export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
       {/* ── IBOV composição (window-recomputed) ───────────────────────────── */}
       <section>
         <h2 className="mb-4 text-lg font-semibold tracking-tight">
-          IBOV — composição e contribuição ({windowLabelPt(window)})
+          B3 — composição e contribuição ({windowLabelPt(window)})
         </h2>
         <IbovContribution members={ibovRows} />
       </section>

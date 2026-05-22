@@ -151,7 +151,7 @@ export default function MetodologiaPage() {
             usa &quot;considerar&quot;.
           </li>
           <li>
-            • Backtest walk-forward contra 1/N e IBOV (na tela do construtor).
+            • Backtest walk-forward contra 1/N e B3 (na tela do construtor).
           </li>
         </ul>
       </section>

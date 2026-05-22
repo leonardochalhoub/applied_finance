@@ -263,7 +263,7 @@ export function PortfolioSuggestions({
                     : "text-muted hover:text-strong"
                 }`}
               >
-                {u === "ibov" ? "IBOV" : "Todos"}
+                {u === "ibov" ? "B3" : "Todos"}
               </button>
             ))}
           </div>

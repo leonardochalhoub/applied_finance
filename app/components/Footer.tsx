@@ -45,7 +45,7 @@ export function Footer() {
                 B3 · setores e composição de índices
               </a>
               <div className="mt-0.5 text-muted">
-                Universo de tickers, sector_b3, composição IBOV (curado manualmente
+                Universo de tickers, sector_b3, composição B3 (curado manualmente
                 em <span className="mono">data/ticker_universe.csv</span>).
               </div>
             </li>
