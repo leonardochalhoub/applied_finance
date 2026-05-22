@@ -1,16 +1,15 @@
 # Databricks notebook source
 """Ingest OHLCV from Yahoo Finance via yfr_py and land Parquet to a UC Volume."""
 # COMMAND ----------
-import logging
-
-log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
-
 # MAGIC %pip install -q "yfr_py @ git+https://github.com/leonardochalhoub/applied_finance.git#subdirectory=yfr_py"
 # COMMAND ----------
 dbutils.library.restartPython()
 # COMMAND ----------
+# `import logging` + log binding must live BELOW restartPython — the kernel
+# restart wipes any globals set in earlier cells. Matches the same fix
+# already applied to gold/mclean_{annual,pooled}.py in commit 0148ca9.
 import datetime as dt
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -18,6 +17,9 @@ from pathlib import Path
 import pandas as pd
 
 from yfr_py import yf_get
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 dbutils.widgets.text("catalog", "finance_prd")
 dbutils.widgets.text("volume_dir", "/Volumes/finance_prd/bronze/raw/yf")
