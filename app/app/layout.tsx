@@ -5,14 +5,18 @@ import type { ReactNode } from "react";
 
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
+import { withBase } from "@/lib/links";
 
 export const metadata: Metadata = {
   title: "Applied Finance — Análise do Mercado Acionário Brasileiro",
   description:
     "Plataforma aberta e gratuita de análise do mercado acionário brasileiro. KPIs, comparação setorial, correlações, Markowitz e visão IBOV.",
+  // Absolute URLs on GH Pages must include the base path (/applied_finance) —
+  // Next.js does NOT auto-prefix paths inside the `icons` metadata block the
+  // way it does <Link href>. Wrap with `withBase` so prod and dev both work.
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: "/apple-touch-icon.svg",
+    icon: [{ url: withBase("/icon.svg"), type: "image/svg+xml" }],
+    apple: withBase("/apple-touch-icon.svg"),
   },
 };
 
