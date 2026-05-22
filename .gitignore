@@ -94,3 +94,12 @@ playwright/.cache/
 build-output.log
 *.log
 finops/raw/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Research archive — local-only reference materials
+# Published papers (PDFs + extracted text) stay local to avoid copyright issues.
+# Authored code (Stata / scripts) and institutional logos may be committed
+# selectively via `git add -f` if needed.
+# ─────────────────────────────────────────────────────────────────────────────
+.claude/sdd/archive/*.pdf
+.claude/sdd/archive/*.txt
