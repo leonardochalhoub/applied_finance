@@ -53,18 +53,74 @@ universe = pd.read_csv(universe_path)
 active = universe[universe["listed_to"].isna()]
 tickers = active["ticker"].tolist()
 
-log.info(f"Ingesting {len(tickers)} active tickers from {first_date} to {last_date}")
+# Two-mode ingest:
+#   - EXISTING tickers (already in bronze.b3_ohlcv_raw) → short lookback only.
+#   - NEW tickers (just added to ticker_universe.csv, no bronze rows yet) →
+#     full backfill from BACKFILL_FROM so the silver/gold tables don't have
+#     a 10-day-long ticker dragging the universe-wide coverage filter down.
+#
+# Without this split, every ticker added to the universe CSV would appear
+# in the app with ~10 days of price history (since lookback_days defaults
+# to 10), fail every long-window coverage filter, and the user would see
+# "5Y / 10Y / MAX collapse to the same data" indefinitely until 20-30
+# manual backfill runs caught up.
+BACKFILL_FROM = dt.date(2000, 1, 3)
 
-df = yf_get(
-    tickers=tickers,
-    first_date=first_date,
-    last_date=last_date,
-    freq_data="daily",
-    type_return="arit",
-    do_cache=False,
-    do_parallel=True,
-    be_quiet=True,
+try:
+    existing = set(
+        spark.sql(f"SELECT DISTINCT ticker FROM {catalog}.bronze.b3_ohlcv_raw")
+            .toPandas()["ticker"]
+            .tolist()
+    )
+except Exception as e:
+    log.warning("bronze.b3_ohlcv_raw not queryable (%s) — full-backfill EVERY ticker", e)
+    existing = set()
+
+new_tickers = [t for t in tickers if t not in existing]
+returning_tickers = [t for t in tickers if t in existing]
+log.info(
+    "Universe split: %d new (backfill from %s) · %d returning (lookback %s)",
+    len(new_tickers), BACKFILL_FROM, len(returning_tickers), first_date,
 )
+
+frames: list[pd.DataFrame] = []
+if returning_tickers:
+    df_old = yf_get(
+        tickers=returning_tickers,
+        first_date=first_date,
+        last_date=last_date,
+        freq_data="daily",
+        type_return="arit",
+        do_cache=False,
+        do_parallel=True,
+        be_quiet=True,
+    )
+    log.info("returning batch: %d rows", len(df_old))
+    frames.append(df_old)
+
+if new_tickers:
+    # Yahoo can handle ~250+ tickers × 25y in one call, but be defensive
+    # in case of timeouts: chunk into 50 per call.
+    CHUNK = 50
+    for i in range(0, len(new_tickers), CHUNK):
+        chunk = new_tickers[i : i + CHUNK]
+        log.info("backfill batch %d/%d: %d tickers", i // CHUNK + 1, (len(new_tickers) + CHUNK - 1) // CHUNK, len(chunk))
+        df_new_chunk = yf_get(
+            tickers=chunk,
+            first_date=BACKFILL_FROM,
+            last_date=last_date,
+            freq_data="daily",
+            type_return="arit",
+            do_cache=False,
+            do_parallel=True,
+            be_quiet=True,
+        )
+        frames.append(df_new_chunk)
+
+if not frames:
+    raise RuntimeError("No tickers ingested — universe CSV empty or all tickers delisted?")
+
+df = pd.concat(frames, ignore_index=True)
 
 run_id = os.environ.get("DATABRICKS_RUN_ID", str(uuid.uuid4()))
 df["source_run_id"] = run_id
