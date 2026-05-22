@@ -1,0 +1,45 @@
+name: Diag · bronze coverage
+
+# One-off diagnostic: query bronze.b3_ohlcv_raw and print the row count,
+# distinct ticker count, min/max trading_date, and per-ticker date-range
+# distribution. Lets us see whether bronze actually has the historical
+# archive we expect or if it's a sliding 10-day window.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST:    ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN:   ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_CATALOG: finance_prd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+
+      - name: List SQL warehouses
+        run: databricks warehouses list --output json | jq -r '.[]|"\(.id)\t\(.name)\t\(.state)"' 2>/dev/null || databricks warehouses list
+
+      - name: Query bronze coverage
+        run: |
+          WH=$(databricks warehouses list --output json | jq -r '[.[] | select(.state=="RUNNING")][0].id // [.[]][0].id')
+          echo "Using warehouse: $WH"
+
+          run_sql() {
+            local stmt="$1"
+            echo "=== $stmt ==="
+            databricks api post /api/2.0/sql/statements \
+              --json "$(jq -n --arg w "$WH" --arg s "$stmt" \
+                '{warehouse_id:$w, statement:$s, wait_timeout:"30s"}')" \
+            | jq -r '.result.data_array // .status // .'
+            echo ""
+          }
+
+          run_sql "SELECT COUNT(*) AS rows, COUNT(DISTINCT ticker) AS tickers, MIN(trading_date) AS min_d, MAX(trading_date) AS max_d FROM ${DATABRICKS_CATALOG}.bronze.b3_ohlcv_raw"
+          run_sql "SELECT ticker, COUNT(*) AS n_days, MIN(trading_date) AS first_d, MAX(trading_date) AS last_d FROM ${DATABRICKS_CATALOG}.bronze.b3_ohlcv_raw GROUP BY ticker ORDER BY n_days DESC LIMIT 20"
+          run_sql "SELECT CASE WHEN n_days < 30 THEN 'a) <30 days' WHEN n_days < 252 THEN 'b) 30-252 days' WHEN n_days < 1260 THEN 'c) 252-1260 days' ELSE 'd) ≥ 5 years' END AS bucket, COUNT(*) AS n_tickers FROM (SELECT ticker, COUNT(*) AS n_days FROM ${DATABRICKS_CATALOG}.bronze.b3_ohlcv_raw GROUP BY ticker) GROUP BY bucket ORDER BY bucket"
