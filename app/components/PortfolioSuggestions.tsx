@@ -10,11 +10,24 @@ import type {
   PricesCloseArtifact,
 } from "@/lib/data";
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
-import { jensenCorrectMu, ledoitWolf } from "@/lib/mvEstimators";
+import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
 import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
 type Universe = "ibov" | "all";
+
+/** Equity risk premium prior for the macro-anchor shrinkage step.
+ *  6% ≈ Damodaran's long-run ERP estimate for emerging Brazil — i.e. the
+ *  market portfolio's expected return above the risk-free rate, NOT a
+ *  forecast for any single stock. Combined with rf this gives a realistic
+ *  anchor (rf + ERP ≈ 18% in current CDI regime) that pulls the chart out
+ *  of "max-order-statistic" cartoon territory. */
+const ERP_PRIOR = 0.06;
+
+/** Macro-prior intensity α: how hard to shrink μ̂ toward (rf + ERP)·𝟙
+ *  AFTER the data-driven Jorion shrinkage. 0 = pure Jorion, 1 = ignore
+ *  data entirely. 0.5 = balanced. */
+const MACRO_PRIOR_ALPHA = 0.5;
 
 /** Snapshot emitted to the parent so the FrontierChart can use Sugestões'
  *  μ/Σ as a stable reference frame even before any JSON is imported. */
@@ -25,6 +38,10 @@ export type ReferenceStats = {
   rf: number;
   window: WindowLabel;
   universe: Universe;
+  /** Bayes-Stein intensity ψ* applied to μ (0 = raw, 1 = grand mean only). */
+  shrinkPsi?: number;
+  /** Macro-prior intensity α applied to μ (toward rf + ERP). */
+  shrinkAlpha?: number;
 };
 
 type Props = {
@@ -56,7 +73,9 @@ export function PortfolioSuggestions({
   onStatsChange,
 }: Props) {
   const [amount, setAmount] = useState<number>(10000);
-  const [window, setWindow] = useState<WindowLabel>("1Y");
+  // 5Y default: SE(μ̂) ∝ 1/√T, so 5y trims standard error by √5 ≈ 2.24×
+  // vs. 1y. The Jorion + macro-prior layers do the rest of the work.
+  const [window, setWindow] = useState<WindowLabel>("5Y");
   const [universe, setUniverse] = useState<Universe>("ibov");
   const [longOnly, setLongOnly] = useState<boolean>(true);
 
@@ -110,18 +129,32 @@ export function PortfolioSuggestions({
     for (let i = 0; i < n; i++) meanLog[i] /= Tn;
     // ── Jensen correction: μ_simple ≈ μ_log + σ²/2 ──
     const meanSimpleDaily = jensenCorrectMu(meanLog, lw.sigma);
-    // ── Annualize (no Jorion μ shrinkage on the visualization μ; see note in builder) ──
-    const muAnnual = meanSimpleDaily.map((m) => m * 252);
+    // ── Annualize ──
+    const muRaw = meanSimpleDaily.map((m) => m * 252);
     const sigmaAnnual = lw.sigma.map((row) => row.map((v) => v * 252));
+    // ── Bayes-Stein / Jorion (1986) μ shrinkage toward the grand mean ──
+    //
+    // SE(μ̂_annual) = σ_annual / √T_years. For Brazilian equities with
+    // σ ≈ 30% and a 1-year window, that's ±30% standard error on EACH
+    // ticker's annual return — the cross-sectional max of N noisy estimates
+    // routinely lands at +50–80% by pure luck (max-of-N order statistic).
+    //
+    // Shrinking toward μ_g = (𝟙ᵀΣ⁻¹μ̂)/(𝟙ᵀΣ⁻¹𝟙) with data-driven intensity
+    // ψ* is the classical James-Stein remedy. For our typical (T,N) regime
+    // ψ* ≈ 0.4–0.8 — the chart collapses from cartoon territory into the
+    // realistic [rf, rf + σ_mkt] band where actual equity premia live.
+    const js = jorionShrinkMu(muRaw, sigmaAnnual, Tn);
     return {
-      mu: muAnnual,
+      mu: js.mu,
+      muRaw,
       sigma: sigmaAnnual,
       n,
       Tn,
       tickers: valid,
       startIdx: start,
       shrinkDelta: lw.delta,
-      shrinkPsi: 0,
+      shrinkPsi: js.psi,
+      muGrand: js.muGrand,
     };
   }, [prices, candidates, window]);
 
@@ -132,31 +165,56 @@ export function PortfolioSuggestions({
     return cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
   }, [cdi, prices, kpis, stats]);
 
+  // ── Macro-anchored second-stage shrinkage of μ ─────────────────────────
+  //
+  // Even after Jorion (Stage 1) pulls μ̂ toward the cross-sectional grand
+  // mean μ_g, μ_g itself is a noisy estimate that inherits the max-order-
+  // statistic bias (max-Sharpe always concentrates on whichever asset got
+  // luckiest in-sample). Stage 2 shrinks each component of μ_BS toward the
+  // *macro prior* (rf + ERP)·𝟙 — independent of the realized cross-section:
+  //
+  //     μ_final = (1 − α) μ_BS + α (rf + ERP) · 𝟙
+  //
+  // This is a hierarchical-Bayes step: the prior on μ_g is "the market
+  // portfolio's expected return is rf + ERP, period." Lets the chart land
+  // in the realistic [rf, rf + σ_mkt] band at every window length, not just
+  // long ones.
+  const effectiveStats = useMemo(() => {
+    if (!stats) return null;
+    const anchor = rf + ERP_PRIOR;
+    const muFinal = stats.mu.map(
+      (m) => (1 - MACRO_PRIOR_ALPHA) * m + MACRO_PRIOR_ALPHA * anchor,
+    );
+    return { ...stats, mu: muFinal, shrinkAlpha: MACRO_PRIOR_ALPHA };
+  }, [stats, rf]);
+
   // Lift μ/Σ to the parent shell so the FrontierChart can use it as a stable
   // reference frame (constant cloud across pre/post-import) — only the marker
   // moves when the user imports or edits weights.
   useEffect(() => {
     if (!onStatsChange) return;
-    if (!stats) {
+    if (!effectiveStats) {
       onStatsChange(null);
       return;
     }
     onStatsChange({
-      tickers: stats.tickers,
-      mu: stats.mu,
-      sigma: stats.sigma,
+      tickers: effectiveStats.tickers,
+      mu: effectiveStats.mu,
+      sigma: effectiveStats.sigma,
       rf,
       window,
       universe,
+      shrinkPsi: effectiveStats.shrinkPsi,
+      shrinkAlpha: effectiveStats.shrinkAlpha,
     });
-  }, [stats, rf, window, universe, onStatsChange]);
+  }, [effectiveStats, rf, window, universe, onStatsChange]);
 
   // Build the suggested portfolios with proper long-only handling
   // and re-rank so labels match actual properties
   const suggestions: Suggestion[] | null = useMemo(() => {
-    if (!stats) return null;
+    if (!effectiveStats) return null;
     try {
-      const r = buildFrontier(stats.mu, stats.sigma, rf, {
+      const r = buildFrontier(effectiveStats.mu, effectiveStats.sigma, rf, {
         longOnly,
         frontierSteps: 60,
         cloudSize: 0,
@@ -170,10 +228,10 @@ export function PortfolioSuggestions({
       const halfwayNorm = halfwayW.map((x) => x / hSum);
       let ret = 0,
         variance = 0;
-      for (let i = 0; i < halfwayNorm.length; i++) ret += halfwayNorm[i] * stats.mu[i];
+      for (let i = 0; i < halfwayNorm.length; i++) ret += halfwayNorm[i] * effectiveStats.mu[i];
       for (let i = 0; i < halfwayNorm.length; i++) {
         for (let j = 0; j < halfwayNorm.length; j++) {
-          variance += halfwayNorm[i] * stats.sigma[i][j] * halfwayNorm[j];
+          variance += halfwayNorm[i] * effectiveStats.sigma[i][j] * halfwayNorm[j];
         }
       }
       const halfwayVol = Math.sqrt(Math.max(0, variance));
@@ -278,14 +336,22 @@ export function PortfolioSuggestions({
           long-only (sem short)
         </label>
         <div className="ml-auto text-right text-[10px] text-muted">
-          {stats ? (
+          {stats && effectiveStats ? (
             <>
               <div>
                 {stats.tickers.length} tickers · {stats.Tn} dias úteis · CDI{" "}
                 {(rf * 100).toFixed(2).replace(".", ",")}%
               </div>
-              <div className="mt-0.5" title="Intensidade ótima de shrinkage data-driven (Ledoit-Wolf 2004 em Σ)">
-                shrink Σ δ*={(stats.shrinkDelta * 100).toFixed(1).replace(".", ",")}%
+              <div
+                className="mt-0.5"
+                title={
+                  "Shrinkage data-driven em Σ (Ledoit-Wolf 2004) + duas " +
+                  "camadas em μ: ψ* Jorion (Bayes-Stein, dispersão sobre Σ⁻¹) " +
+                  `e α macro-anchor toward rf + ERP=${(ERP_PRIOR * 100).toFixed(0)}%.`
+                }
+              >
+                shrink Σ δ*={(stats.shrinkDelta * 100).toFixed(1).replace(".", ",")}% ·{" "}
+                μ ψ*={(stats.shrinkPsi * 100).toFixed(0)}% · α={(effectiveStats.shrinkAlpha * 100).toFixed(0)}%
               </div>
             </>
           ) : (
@@ -294,7 +360,7 @@ export function PortfolioSuggestions({
         </div>
       </div>
 
-      {!stats ? (
+      {!effectiveStats ? (
         <p className="text-sm text-muted">
           Sem cobertura suficiente nesta janela. Tente uma janela menor ou universo maior.
         </p>
@@ -309,9 +375,9 @@ export function PortfolioSuggestions({
                 label={s.label}
                 blurb={s.blurb}
                 point={s.point}
-                tickers={stats.tickers}
-                mu={stats.mu}
-                sigma={stats.sigma}
+                tickers={effectiveStats.tickers}
+                mu={effectiveStats.mu}
+                sigma={effectiveStats.sigma}
                 amount={amount}
                 prices={prices}
                 closes={closes}

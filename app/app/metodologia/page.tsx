@@ -1,3 +1,5 @@
+import { BlockMath, InlineMath } from "@/components/Math";
+
 export const dynamic = "force-static";
 
 export default function MetodologiaPage() {
@@ -83,15 +85,35 @@ export default function MetodologiaPage() {
       </section>
 
       <section className="card px-6 py-5">
-        <div className="eyebrow">Capital Allocation Line (CAL)</div>
+        <div className="eyebrow">CAL / Linha do Mercado de Capitais (CML)</div>
         <p className="mt-2 text-sm text-body">
           A reta tangente à fronteira no ponto de máximo Sharpe é a{" "}
-          <strong>Capital Allocation Line</strong> (Tobin 1958, Sharpe 1964):{" "}
-          <span className="mono">E[r] = rf + Sharpe_t × σ</span>. Mistura entre o
-          ativo livre de risco e a carteira tangência. <strong>Não chamamos de CML</strong>{" "}
-          (Capital Market Line) porque a CML, em sentido estrito CAPM, conecta{" "}
-          <span className="mono">rf</span> à <em>carteira de mercado</em>, não à
-          carteira tangência de um subconjunto amostral.
+          <strong>Capital Allocation Line (CAL)</strong> — também chamada de{" "}
+          <strong>linha do mercado de capitais (CML)</strong> na tradição de{" "}
+          Tobin (1958) e Sharpe (1964):
+        </p>
+        <div className="mt-3 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="E de r igual a rf mais Sharpe da tangência vezes sigma"
+            tex={String.raw`E[r] \;=\; r_f \;+\; \mathrm{Sharpe}_{T}\cdot\sigma`}
+          />
+        </div>
+        <p className="mt-2 text-sm text-body">
+          A inclinação da reta é precisamente o índice de Sharpe da carteira de
+          tangência (preço de mercado do risco). Geometricamente, a CAL/CML
+          domina toda alternativa <em>buy-and-hold</em> em ativos isolados:
+          qualquer ponto abaixo da reta é, por construção, mean-variance
+          dominado.
+        </p>
+        <p className="mt-2 text-xs text-muted">
+          Nota de terminologia: em ortodoxia CAPM estrita, &ldquo;CML&rdquo;
+          designa especificamente a reta entre <span className="mono">rf</span>{" "}
+          e a carteira <em>de mercado</em> (todos os ativos investíveis,
+          pesados por capitalização). Para um subconjunto amostral como o
+          nosso (~38 tickers B3), o nome técnico é CAL. Mantemos os dois
+          rótulos porque, na prática brasileira, &ldquo;linha do mercado de
+          capitais&rdquo; é o termo mais usado e o conceito é o mesmo: a
+          fronteira ampliada por <span className="mono">rf</span>.
         </p>
       </section>
 
@@ -130,30 +152,157 @@ export default function MetodologiaPage() {
           <strong>extremamente sensível a erro de estimação em μ</strong>{" "}
           (Merton 1980, &quot;On Estimating the Expected Return on the Market&quot;).
           Para uma janela de <em>1 ano</em> de retornos diários com vol anual{" "}
-          <span className="mono">σ ≈ 30%</span>, o erro-padrão da média estimada é da
-          ordem de <span className="mono">σ ≈ 30%</span> — ou seja, &quot;retorno esperado de
-          10% ± 30%&quot; é estatisticamente indistinguível de &quot;retorno
-          esperado de 0% ± 30%&quot;.
+          <span className="mono">σ ≈ 30%</span>, o erro-padrão da média anualizada é:
         </p>
+        <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="erro-padrão da mu anualizada igual a sigma anualizada dividido por raiz de T em anos"
+            tex={String.raw`\mathrm{SE}\!\left(\hat{\mu}_{\text{ann}}\right) \;=\; \frac{\sigma_{\text{ann}}}{\sqrt{T_{\text{anos}}}}`}
+          />
+        </div>
         <p className="mt-2 text-sm text-body">
-          DeMiguel, Garlappi e Uppal (2009, &quot;Optimal Versus Naive
+          Ou seja, &quot;retorno esperado de 10% ± 30%&quot; é estatisticamente
+          indistinguível de &quot;retorno esperado de 0% ± 30%&quot;. Pior: a
+          fronteira de Markowitz é{" "}
+          <strong>uma estatística de máxima ordem</strong> — concentra-se
+          sempre no ativo que <em>teve mais sorte</em> na amostra, então o
+          máximo de N estimativas ruidosas é viesado para cima mesmo com T
+          grande. DeMiguel, Garlappi e Uppal (2009, &quot;Optimal Versus Naive
           Diversification&quot;) mostram empiricamente que a carteira{" "}
           <strong>1/N</strong> (peso igual) frequentemente bate Markowitz
-          out-of-sample exatamente por causa desse ruído. Tratamos isso com:
+          out-of-sample exatamente por isso. Combatemos com a stack descrita
+          abaixo.
         </p>
-        <ul className="mt-2 space-y-1 text-sm text-body">
-          <li>• Shrinkage em Σ (Ledoit-Wolf, acima).</li>
-          <li>• Shrinkage em μ (Jorion 1986, James-Stein) toward grand mean.</li>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Stack de shrinkage em μ — Jorion + macro-prior</div>
+        <p className="mt-2 text-sm text-body">
+          A μ usada na visualização e nas carteiras sugeridas passa por{" "}
+          <strong>duas camadas</strong> de shrinkage aplicadas em sequência.
+          Sem elas, o gráfico mostra retornos esperados em torno de 50–100%
+          a.a. (puro ruído amplificado pelo viés do máximo). Com elas, o
+          gráfico aterrissa na faixa realista <span className="mono">[rf, rf + σ_mkt]</span>.
+        </p>
+
+        <div className="mt-3 text-[11px] uppercase tracking-wider text-muted">
+          Estágio 1 · Bayes-Stein (Jorion 1986)
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Encolhe cada <span className="mono">μ̂_i</span> em direção à{" "}
+          <strong>média grand</strong>{" "}
+          <span className="mono">μ_g = (𝟙ᵀΣ⁻¹μ̂)/(𝟙ᵀΣ⁻¹𝟙)</span> (retorno da
+          carteira de mínima variância) com intensidade{" "}
+          <em>data-driven</em> <span className="mono">ψ*</span>:
+        </p>
+        <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="mu Bayes-Stein igual a um menos psi vezes mu chapéu mais psi vezes mu grand vezes vetor um"
+            tex={String.raw`\hat{\boldsymbol{\mu}}_{\text{BS}} \;=\; (1-\psi^{*})\,\hat{\boldsymbol{\mu}} \;+\; \psi^{*}\,\mu_g\,\mathbf{1}, \qquad \psi^{*} = \frac{\lambda}{1+\lambda}, \quad \lambda = \frac{N+2}{T\,(\hat{\boldsymbol{\mu}}-\mu_g\mathbf{1})^{\!\top}\Sigma^{-1}(\hat{\boldsymbol{\mu}}-\mu_g\mathbf{1})}`}
+          />
+        </div>
+        <p className="mt-2 text-sm text-body">
+          Para <span className="mono">N ≈ 38</span> tickers e janelas de 1–5
+          anos, <span className="mono">ψ*</span> tipicamente cai em{" "}
+          <span className="mono">[0.3, 0.8]</span> — quanto menor T e maior
+          dispersão de <span className="mono">μ̂</span>, mais o estimador é
+          encolhido. Implementação em{" "}
+          <span className="mono">lib/mvEstimators.ts → jorionShrinkMu()</span>.
+          O valor de <span className="mono">ψ*</span> efetivamente aplicado é
+          exposto no badge da tela de Sugestões.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          Estágio 2 · Macro-anchor (rf + ERP)
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Mesmo após Jorion, a <em>própria</em>{" "}
+          <span className="mono">μ_g</span> herda o viés do máximo (se um
+          setor rallyou no período, ele puxa <span className="mono">μ_g</span>{" "}
+          junto). O estágio 2 encolhe{" "}
+          <span className="mono">μ̂_BS</span> em direção a{" "}
+          <strong>(rf + ERP)·𝟙</strong> — um <em>prior macro</em> ancorado
+          no equity risk premium de longo prazo, independente do que aconteceu
+          na janela:
+        </p>
+        <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
+          <BlockMath
+            ariaLabel="mu final igual a um menos alfa vezes mu Bayes-Stein mais alfa vezes rf mais ERP vezes vetor um"
+            tex={String.raw`\boxed{\;\boldsymbol{\mu}_{\text{final}} \;=\; (1-\alpha)\,\hat{\boldsymbol{\mu}}_{\text{BS}} \;+\; \alpha\,(r_f + \mathrm{ERP})\,\mathbf{1}\;}`}
+          />
+        </div>
+        <p className="mt-2 text-sm text-body">
+          <strong>Parâmetros default:</strong>{" "}
+          <span className="mono">α = 0,50</span> (50% prior, 50% dados após
+          Jorion) e <InlineMath tex={String.raw`\mathrm{ERP} = 6\%`} /> — a
+          estimativa de Damodaran para Brasil emergente (ver{" "}
+          <a
+            href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-strong"
+          >
+            Damodaran &ldquo;Country Risk Premium&rdquo;
+          </a>
+          ). Para a taxa CDI atual (<span className="mono">rf ≈ 12–15%</span>), o
+          âncora fica em <span className="mono">18–21%</span> — o teto natural
+          das expectativas de retorno realistas para uma carteira de ações
+          brasileiras.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          Por que duas camadas?
+        </div>
+        <p className="mt-1 text-sm text-body">
+          Jorion sozinho lida com a <em>dispersão entre ativos</em> (todos
+          encolhidos toward o mesmo ponto). O macro-anchor lida com a{" "}
+          <em>localização absoluta</em> desse ponto (que o Brasil dos últimos
+          5–10 anos não dita o equity premium estrutural). Aplicadas juntas,
+          extraem informação <em>relativa</em> entre tickers dos dados (Jorion
+          preserva ranking) mas <em>ancoram o nível</em> em teoria (macro
+          prior). O resultado é uma fronteira que se parece muito mais com o
+          que livros-texto de CAPM emergente esperam (<span className="mono">σ ≈ 25%</span>,{" "}
+          <span className="mono">E[r] ≈ rf + 5–8%</span>) e muito menos com
+          uma anedota de momentum recente.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          Outras defesas contra ruído (já em produção)
+        </div>
+        <ul className="mt-1 space-y-1 text-sm text-body">
           <li>
-            • Bootstrap das alocações no advisor: só recomenda{" "}
-            <em>vender/comprar/reduzir</em> se{" "}
-            <span className="mono">|Δw| &gt; 2·σ_bootstrap</span> — caso contrário
-            usa &quot;considerar&quot;.
+            • <strong>Σ</strong>: Ledoit-Wolf 2004 com alvo de correlação
+            constante (seção acima).
           </li>
           <li>
-            • Backtest walk-forward contra 1/N e B3 (na tela do construtor).
+            • <strong>Bootstrap das alocações</strong> no advisor: só recomenda{" "}
+            <em>vender/comprar/reduzir</em> se{" "}
+            <span className="mono">|Δw| &gt; 2·σ_bootstrap</span>; caso
+            contrário usa &ldquo;considerar&rdquo;.
+          </li>
+          <li>
+            • <strong>Backtest walk-forward</strong> contra 1/N e B3 no
+            construtor — sanidade out-of-sample.
+          </li>
+          <li>
+            • <strong>Outlier guards</strong> em retornos diários (ver seção
+            abaixo) eliminam ticks corrompidos antes da estimação.
           </li>
         </ul>
+      </section>
+
+      <section className="card px-6 py-5">
+        <div className="eyebrow">Visualização — teto do eixo Y</div>
+        <p className="mt-2 text-sm text-body">
+          O eixo de retorno esperado da fronteira é fixado em{" "}
+          <strong>0% até 35% a.a.</strong> Após a stack de shrinkage acima, o
+          máximo Sharpe realista para o universo B3 fica em{" "}
+          <span className="mono">rf + σ_mkt ≈ 18–25%</span>; qualquer ponto
+          tocando o teto de 35% já está na cauda direita e merece suspeita.
+          Ativos individuais com retorno esperado acima desse teto são{" "}
+          <em>visualmente descartados</em> (não removidos do cálculo) para
+          que o canvas se dedique à região onde a fronteira efetivamente vive.
+        </p>
       </section>
 
       <section className="card px-6 py-5">

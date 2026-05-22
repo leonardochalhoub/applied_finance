@@ -168,10 +168,25 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   );
   const rangeY = Math.max(dataMaxY - dataMinY, 1e-3);
   const yMin = dataMinY - 0.10 * rangeY;
-  // Headroom: never cap below 75% so the CAL, max-Sharpe markers and any
-  // high-return asset always have room to render without being clipped.
-  const yMax = Math.max(0.75, dataMaxY + 0.15 * rangeY);
+  // Y-axis is pinned at exactly 35% by design. After the dual-shrinkage on
+  // μ (Jorion + macro-anchor) the realistic max-Sharpe return lands in
+  // [rf, rf + σ_mkt], i.e. ~18–25% for Brazil — anything reaching 35%
+  // is already in the upper tail and warrants suspicion. Individual high-σ
+  // tickers above 35% drop off the chart by design; the dense data region
+  // gets the canvas it deserves.
+  const yMax = 0.35;
   const rfInRange = rf >= yMin && rf <= yMax;
+
+  // Poupança — renda fixa do varejo, regulada pela Lei 12.703/2012:
+  //   - se SELIC > 8,5% a.a.:  rendimento = 0,5%/mês + TR ≈ 6,17% a.a.
+  //   - caso contrário:        rendimento = 70% da SELIC + TR
+  // Aproximamos SELIC ≈ rf (CDI), TR ≈ 0. Renderizamos como segunda reta
+  // de referência abaixo do CDI: visualmente prova que a poupança é
+  // mean-variance dominada pelo CDI (mesma vol nominal ≈ 0, retorno menor).
+  const POUPANCA_THRESHOLD = 0.085;
+  const POUPANCA_FIXED_ANNUAL = (1 + 0.005) ** 12 - 1; // ≈ 6,17%
+  const poupancaRate = rf > POUPANCA_THRESHOLD ? POUPANCA_FIXED_ANNUAL : 0.7 * rf;
+  const poupancaInRange = poupancaRate >= yMin && poupancaRate <= yMax;
 
   // Capital Allocation Line (CAL) — tangent to the frontier at max-Sharpe,
   // anchored at the risk-free rate. CAL is the correct name when the
@@ -291,7 +306,8 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             <LegendDot color="var(--muted)" /> nuvem aleatória
             <LegendDot color="var(--muted)" shape="dot-small" /> ativo individual
             <LegendDot color="var(--accent)" line /> fronteira
-            <LegendDot color="var(--gain)" line dashed /> CAL (linha de alocação de capital)
+            <LegendDot color="var(--gain)" line dashed /> CAL · linha do mercado de capitais (CML)
+            <LegendDot color="var(--muted)" line dashed /> poupança
             <LegendDot color="var(--gain)" shape="triangle" /> derivada ∂E[r]/∂σ
             <LegendDot color="var(--strong)" shape="circle-outline" /> mín. variância
             <LegendDot color="var(--gain)" shape="star" /> máx. Sharpe
@@ -378,6 +394,22 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
                       fill: "var(--gain)",
                       fontSize: 10,
                       fillOpacity: 0.8,
+                    }}
+                  />
+                ) : null}
+                {/* Poupança — renda fixa do varejo, dominada pelo CDI */}
+                {poupancaInRange ? (
+                  <ReferenceLine
+                    y={poupancaRate}
+                    stroke="var(--muted)"
+                    strokeDasharray="2 4"
+                    strokeOpacity={0.55}
+                    label={{
+                      value: `poupança ≈ ${(poupancaRate * 100).toFixed(2).replace(".", ",")}%`,
+                      position: "insideBottomLeft",
+                      fill: "var(--muted)",
+                      fontSize: 9.5,
+                      fillOpacity: 0.85,
                     }}
                   />
                 ) : null}

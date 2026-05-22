@@ -6,7 +6,7 @@ import { analyze, type AdvisorReport } from "@/lib/advisor";
 import { cdiMeanForWindow } from "@/lib/cdi";
 import type { CdiArtifact, KpiArtifact, PricesArtifact } from "@/lib/data";
 import { buildFrontier, evaluatePortfolio, type FrontierResult } from "@/lib/markowitz";
-import { jensenCorrectMu, ledoitWolf } from "@/lib/mvEstimators";
+import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
 import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 
 import { BacktestPanel } from "./BacktestPanel";
@@ -215,24 +215,41 @@ export function PortfolioBuilder({
     const meanSimpleDaily = jensenCorrectMu(meanLog, sigmaDaily);
 
     // ── Annualize ──
-    const muAnnual = meanSimpleDaily.map((m) => m * 252);
+    const muRaw = meanSimpleDaily.map((m) => m * 252);
     const sigmaAnnual = sigmaDaily.map((row) => row.map((v) => v * 252));
 
-    // NOTE: Jorion (Bayes-Stein) μ shrinkage is intentionally NOT applied here.
-    // The frontier chart should reflect the data as-estimated. The advisor's
-    // overconfidence problem is addressed downstream via bootstrap SD and
-    // significance gating on per-ticker recommendations.
+    // ── Stage 1: Bayes-Stein / Jorion (1986) toward grand mean ───────────
+    // SE(μ̂_ann) = σ_ann/√T_years is enormous for short windows — Jorion's
+    // data-driven ψ* pulls μ̂ toward the cross-sectional grand mean to fight
+    // the max-order-statistic upward bias.
+    const js = jorionShrinkMu(muRaw, sigmaAnnual, Tn);
+
+    // ── Stage 2: macro-anchored prior toward rf + ERP ────────────────────
+    // Even after Jorion, the cross-sectional grand mean itself is biased
+    // upward when the in-sample winners drag the mean with them. Pulling
+    // toward (rf + ERP)·𝟙 with intensity α anchors the chart to a realistic
+    // equity premium (Damodaran ERP ≈ 6% for emerging Brazil) regardless of
+    // which sector rallied in the window. rf is computed inline so the
+    // shrinkage is self-contained (no useMemo cascade).
+    const startDate = prices.dates[okRows[0] + 1] ?? prices.dates[0];
+    const endDate = prices.dates[prices.dates.length - 1];
+    const rfLocal = cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
+    const ERP_PRIOR = 0.06;
+    const MACRO_PRIOR_ALPHA = 0.5;
+    const anchor = rfLocal + ERP_PRIOR;
+    const muFinal = js.mu.map((m) => (1 - MACRO_PRIOR_ALPHA) * m + MACRO_PRIOR_ALPHA * anchor);
+
     return {
-      mu: muAnnual,
+      mu: muFinal,
       sigma: sigmaAnnual,
       n,
       Tn,
       tickers: selected.slice(),
       shrinkDelta: lw.delta,
-      shrinkPsi: 0,
+      shrinkPsi: js.psi,
       X,
     };
-  }, [selected, prices, snapshot, referenceStats]);
+  }, [selected, prices, snapshot, referenceStats, cdi, kpis]);
 
   // Auto-release snapshot if user adds a ticker not in the original universe
   useEffect(() => {
