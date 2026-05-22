@@ -1,0 +1,197 @@
+name: Diag · mclean dCash distribution
+
+# One-off diagnostic: probe silver.mclean_firm_year (PRE-winsorize) for the
+# dCash distribution that's collapsing to ≤0 in gold.mclean_pooled. Goal: find
+# whether the bug is (a) raw cash levels being read inverted from CVM, (b) the
+# lag computation crossing firms or losing years, or (c) winsorization clipping
+# at q_hi ≈ 0 because the upstream distribution is degenerate.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST:    ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN:   ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_CATALOG: finance_prd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+
+      - name: Query mclean dCash diagnostics
+        run: |
+          WH=$(databricks warehouses list --output json | jq -r '[.[] | select(.state=="RUNNING")][0].id // [.[]][0].id')
+          echo "Using warehouse: $WH"
+
+          run_sql() {
+            local stmt="$1"
+            echo "=== $stmt ==="
+            databricks api post /api/2.0/sql/statements \
+              --json "$(jq -n --arg w "$WH" --arg s "$stmt" \
+                '{warehouse_id:$w, statement:$s, wait_timeout:"50s"}')" \
+            | jq -r '.result.data_array // .status // .'
+            echo ""
+          }
+
+          # (1) PRE-winsorize dCash percentiles by fiscal_year — computed
+          # freshly from silver.mclean_firm_year via LAG, no clipping. If
+          # 99th-pctile is ≈ 0 here, winsorization is innocent and the bug
+          # is in cash/ativo_total_lag itself.
+          run_sql "
+            WITH lagged AS (
+              SELECT
+                cd_cvm,
+                fiscal_year,
+                cash,
+                LAG(cash)         OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS cash_lag,
+                LAG(ativo_total)  OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS ativo_total_lag
+              FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+            ),
+            d AS (
+              SELECT
+                fiscal_year,
+                (cash - cash_lag) / ativo_total_lag AS dcash_raw
+              FROM lagged
+              WHERE cash IS NOT NULL
+                AND cash_lag IS NOT NULL
+                AND ativo_total_lag > 0
+            )
+            SELECT
+              fiscal_year,
+              COUNT(*) AS n,
+              PERCENTILE_APPROX(dcash_raw, 0.01) AS p01,
+              PERCENTILE_APPROX(dcash_raw, 0.25) AS p25,
+              PERCENTILE_APPROX(dcash_raw, 0.50) AS p50,
+              PERCENTILE_APPROX(dcash_raw, 0.75) AS p75,
+              PERCENTILE_APPROX(dcash_raw, 0.99) AS p99,
+              AVG(dcash_raw) AS mean,
+              MIN(dcash_raw) AS min,
+              MAX(dcash_raw) AS max
+            FROM d
+            WHERE fiscal_year BETWEEN 2018 AND 2025
+            GROUP BY fiscal_year
+            ORDER BY fiscal_year
+          "
+
+          # (2) Pooled (all years) PRE-winsorize percentiles — this is exactly
+          # what silver/mclean_clean.py:111 computes via approxQuantile. If
+          # q_hi (p99) ≈ 0 here, the clipping is mathematically correct and
+          # the bug is upstream.
+          run_sql "
+            WITH lagged AS (
+              SELECT
+                cd_cvm,
+                fiscal_year,
+                cash,
+                LAG(cash)        OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS cash_lag,
+                LAG(ativo_total) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS ativo_total_lag
+              FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+            )
+            SELECT
+              COUNT(*) AS n,
+              PERCENTILE_APPROX((cash - cash_lag) / ativo_total_lag, 0.01) AS p01,
+              PERCENTILE_APPROX((cash - cash_lag) / ativo_total_lag, 0.25) AS p25,
+              PERCENTILE_APPROX((cash - cash_lag) / ativo_total_lag, 0.50) AS p50,
+              PERCENTILE_APPROX((cash - cash_lag) / ativo_total_lag, 0.75) AS p75,
+              PERCENTILE_APPROX((cash - cash_lag) / ativo_total_lag, 0.99) AS p99,
+              AVG((cash - cash_lag) / ativo_total_lag) AS mean,
+              SUM(CASE WHEN (cash - cash_lag) > 0 THEN 1 ELSE 0 END) AS n_positive,
+              SUM(CASE WHEN (cash - cash_lag) < 0 THEN 1 ELSE 0 END) AS n_negative,
+              SUM(CASE WHEN (cash - cash_lag) = 0 THEN 1 ELSE 0 END) AS n_zero
+            FROM lagged
+            WHERE cash IS NOT NULL
+              AND cash_lag IS NOT NULL
+              AND ativo_total_lag > 0
+          "
+
+          # (3) Sample 20 individual firm-years with their raw cash and lag
+          # values, to spot-check that the lag isn't crossing firm boundaries
+          # or that cash isn't being scaled wrong (e.g., 2025 ingest read
+          # values without MIL scaling so cash flips sign relative to lag).
+          run_sql "
+            SELECT
+              cd_cvm,
+              fiscal_year,
+              cash,
+              LAG(cash) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS cash_lag,
+              cash - LAG(cash) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS d_cash_brl,
+              ativo_total,
+              LAG(ativo_total) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS ativo_total_lag
+            FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+            WHERE cd_cvm IN ('022187', '009512', '019615', '020745', '014109')
+              AND fiscal_year BETWEEN 2019 AND 2025
+            ORDER BY cd_cvm, fiscal_year
+          "
+
+          # (4) AFTER winsorize (silver.mclean_clean) — confirm q_hi shape.
+          run_sql "
+            SELECT
+              fiscal_year,
+              COUNT(*) AS n,
+              PERCENTILE_APPROX(dCash, 0.01) AS p01,
+              PERCENTILE_APPROX(dCash, 0.50) AS p50,
+              PERCENTILE_APPROX(dCash, 0.99) AS p99,
+              AVG(dCash) AS mean,
+              MIN(dCash) AS min,
+              MAX(dCash) AS max
+            FROM ${DATABRICKS_CATALOG}.silver.mclean_clean
+            WHERE fiscal_year BETWEEN 2018 AND 2025
+            GROUP BY fiscal_year
+            ORDER BY fiscal_year
+          "
+
+          # (5) Cross-check cash scale: if 2025 zips were ingested without the
+          # MIL multiplier (a regression in bronze/cvm_dfp_lines:140), cash
+          # values for 2025 would be 1000× smaller than 2024 → dCash ≈ -1·cash_lag/AT_lag
+          # for the 2025→2024 jump. Show median raw cash by year as a sanity
+          # check. If 2024-median is ~10⁹ BRL and 2025-median is ~10⁶ BRL,
+          # the MIL multiplier is broken on the 2025 zip.
+          run_sql "
+            SELECT
+              fiscal_year,
+              COUNT(*) AS n_firms,
+              PERCENTILE_APPROX(cash, 0.50) AS median_cash_brl,
+              PERCENTILE_APPROX(ativo_total, 0.50) AS median_at_brl
+            FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+            WHERE fiscal_year BETWEEN 2018 AND 2025
+              AND cash IS NOT NULL
+              AND ativo_total IS NOT NULL
+            GROUP BY fiscal_year
+            ORDER BY fiscal_year
+          "
+
+          # (6) Per-firm 2024→2025 cash ratio. If the MIL flag broke on the
+          # 2025 zip, ratio (cash_2025 / cash_2024) will cluster around 0.001
+          # for most firms. If ratios cluster ~1 with normal dispersion, the
+          # bug is elsewhere (e.g., the firm-year pivot dropping the 2025 row).
+          run_sql "
+            WITH yr AS (
+              SELECT cd_cvm, fiscal_year, cash, ativo_total
+              FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+              WHERE fiscal_year IN (2024, 2025) AND cash IS NOT NULL AND cash > 0
+            ),
+            pivot AS (
+              SELECT
+                cd_cvm,
+                MAX(CASE WHEN fiscal_year = 2024 THEN cash END) AS c2024,
+                MAX(CASE WHEN fiscal_year = 2025 THEN cash END) AS c2025
+              FROM yr
+              GROUP BY cd_cvm
+            )
+            SELECT
+              COUNT(*) AS n_firms_with_both,
+              PERCENTILE_APPROX(c2025 / c2024, 0.10) AS ratio_p10,
+              PERCENTILE_APPROX(c2025 / c2024, 0.50) AS ratio_p50,
+              PERCENTILE_APPROX(c2025 / c2024, 0.90) AS ratio_p90,
+              SUM(CASE WHEN c2025 / c2024 < 0.01 THEN 1 ELSE 0 END) AS n_ratio_lt_001,
+              SUM(CASE WHEN c2025 / c2024 BETWEEN 0.01 AND 0.5 THEN 1 ELSE 0 END) AS n_ratio_001_05,
+              SUM(CASE WHEN c2025 / c2024 BETWEEN 0.5 AND 2 THEN 1 ELSE 0 END) AS n_ratio_05_2,
+              SUM(CASE WHEN c2025 / c2024 > 2 THEN 1 ELSE 0 END) AS n_ratio_gt_2
+            FROM pivot
+            WHERE c2024 IS NOT NULL AND c2025 IS NOT NULL
+          "
