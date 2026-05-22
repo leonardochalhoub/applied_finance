@@ -25,6 +25,12 @@ SELECT
 FROM {catalog}.gold.kpis_per_ticker
 WHERE sector_b3 IS NOT NULL
 GROUP BY sector_b3
+-- Drop sectors where EVERY ticker has NULL vol/return (typically a sector
+-- with only newly-listed tickers whose n_obs < MIN_OBS_FOR_VOL, after the
+-- universe expansion to 290 tickers). The schema contract requires non-null
+-- aggregates, and an all-null sector is meaningless to display anyway.
+HAVING AVG(return_ytd)  IS NOT NULL
+   AND AVG(vol_annual)  IS NOT NULL
 """)
 
 log.info(f"gold.sector_aggregates → {spark.table(f'{catalog}.gold.sector_aggregates').count()} sectors")

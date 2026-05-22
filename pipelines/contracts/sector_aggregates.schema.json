@@ -18,9 +18,9 @@
         "properties": {
           "sector_b3": { "type": "string", "minLength": 1 },
           "member_count": { "type": "integer", "minimum": 1 },
-          "return_ytd_mean":   { "type": ["number", "null"] },
-          "return_ytd_median": { "type": ["number", "null"] },
-          "vol_annual_mean":   { "type": ["number", "null"], "minimum": 0 },
+          "return_ytd_mean": { "type": "number" },
+          "return_ytd_median": { "type": "number" },
+          "vol_annual_mean": { "type": "number", "minimum": 0 },
           "members": {
             "type": "array",
             "items": { "type": "string", "pattern": "^[A-Z0-9]{4,6}\\.SA$" }
