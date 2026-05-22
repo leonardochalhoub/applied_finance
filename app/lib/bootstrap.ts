@@ -19,7 +19,7 @@
  *   - per-frontier-point envelope — for shaded confidence bands on the chart.
  */
 
-import { buildFrontier, evaluatePortfolio } from "./markowitz";
+import { buildFrontier } from "./markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "./mvEstimators";
 
 export type BootstrapWeightStats = {
