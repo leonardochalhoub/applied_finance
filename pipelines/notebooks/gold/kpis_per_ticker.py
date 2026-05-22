@@ -150,6 +150,29 @@ df["source_run_id"] = run_id
 df["as_of"] = today.isoformat()
 df["cdi_global_mean"] = cdi_global_mean
 
+# Force-cast numeric columns to float64 so Spark schema inference can't drop
+# an all-None column. Without this, when every ticker has < MIN_OBS_FOR_VOL
+# observations (e.g. fresh bronze, short window, or yf_ohlcv lookback miss),
+# `vol_annual` / `max_drawdown` / `sharpe_vs_cdi` / `cdi_annual_used` /
+# `last_close` are all `None` → pandas dtype = `object` → Spark can't infer
+# a type → the column silently disappears from the written Delta table.
+# Downstream `gold.sector_aggregates` then crashes with
+#   [INTERNAL_ERROR_ATTRIBUTE_NOT_FOUND] Could not find vol_annual ...
+# Casting to float64 turns None into NaN which Spark reads as a nullable
+# DoubleType column, preserved through to the Delta schema.
+NUMERIC_COLS = (
+    "return_ytd", "vol_annual", "max_drawdown", "sharpe_vs_cdi",
+    "cdi_annual_used", "last_close",
+)
+for col in NUMERIC_COLS:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+INTEGER_COLS = ("n_obs",)
+for col in INTEGER_COLS:
+    if col in df.columns:
+        # nullable Int64 → Spark LongType (preserved even when all-null)
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
 sdf = spark.createDataFrame(df)
 sdf.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     f"{catalog}.gold.kpis_per_ticker"
