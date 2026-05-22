@@ -66,21 +66,36 @@ tickers = active["ticker"].tolist()
 # manual backfill runs caught up.
 BACKFILL_FROM = dt.date(2000, 1, 3)
 
+# A ticker is "well-covered" if bronze.b3_ohlcv_raw has at least
+# MIN_DAYS_FOR_LOOKBACK rows for it (≈ 1 trading year of history). Anything
+# below that gets full-backfilled — covers the case where bronze has
+# historically been a sliding 10-day window, not a full archive, so even
+# the long-time tickers like PETR4 / VALE3 have only ~10 rows.
+MIN_DAYS_FOR_LOOKBACK = 252
+
 try:
-    existing = set(
-        spark.sql(f"SELECT DISTINCT ticker FROM {catalog}.bronze.b3_ohlcv_raw")
-            .toPandas()["ticker"]
-            .tolist()
+    coverage = (
+        spark.sql(
+            f"""
+            SELECT ticker, COUNT(*) AS n_days
+            FROM {catalog}.bronze.b3_ohlcv_raw
+            GROUP BY ticker
+            HAVING n_days >= {MIN_DAYS_FOR_LOOKBACK}
+            """
+        )
+        .toPandas()["ticker"]
+        .tolist()
     )
+    well_covered = set(coverage)
 except Exception as e:
     log.warning("bronze.b3_ohlcv_raw not queryable (%s) — full-backfill EVERY ticker", e)
-    existing = set()
+    well_covered = set()
 
-new_tickers = [t for t in tickers if t not in existing]
-returning_tickers = [t for t in tickers if t in existing]
+new_tickers = [t for t in tickers if t not in well_covered]
+returning_tickers = [t for t in tickers if t in well_covered]
 log.info(
-    "Universe split: %d new (backfill from %s) · %d returning (lookback %s)",
-    len(new_tickers), BACKFILL_FROM, len(returning_tickers), first_date,
+    "Universe split: %d need full backfill from %s · %d well-covered (lookback %s, threshold ≥%d days)",
+    len(new_tickers), BACKFILL_FROM, len(returning_tickers), first_date, MIN_DAYS_FOR_LOOKBACK,
 )
 
 frames: list[pd.DataFrame] = []
