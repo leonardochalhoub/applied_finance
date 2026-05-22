@@ -10,7 +10,7 @@ import type {
   PricesCloseArtifact,
 } from "@/lib/data";
 import { buildFrontier, type PortfolioPoint } from "@/lib/markowitz";
-import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
+import { jensenCorrectMu, ledoitWolf } from "@/lib/mvEstimators";
 import { fmtBRL, fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
 import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
@@ -94,20 +94,18 @@ export function PortfolioSuggestions({
     for (let i = 0; i < n; i++) meanLog[i] /= Tn;
     // ── Jensen correction: μ_simple ≈ μ_log + σ²/2 ──
     const meanSimpleDaily = jensenCorrectMu(meanLog, lw.sigma);
-    // ── Annualize ──
+    // ── Annualize (no Jorion μ shrinkage on the visualization μ; see note in builder) ──
     const muAnnual = meanSimpleDaily.map((m) => m * 252);
     const sigmaAnnual = lw.sigma.map((row) => row.map((v) => v * 252));
-    // ── Jorion (Bayes-Stein) shrinkage on μ toward grand mean ──
-    const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
     return {
-      mu: js.mu,
+      mu: muAnnual,
       sigma: sigmaAnnual,
       n,
       Tn,
       tickers: valid,
       startIdx: start,
       shrinkDelta: lw.delta,
-      shrinkPsi: js.psi,
+      shrinkPsi: 0,
     };
   }, [prices, candidates, window]);
 
@@ -251,9 +249,8 @@ export function PortfolioSuggestions({
                 {stats.tickers.length} tickers · {stats.Tn} dias úteis · CDI{" "}
                 {(rf * 100).toFixed(2).replace(".", ",")}%
               </div>
-              <div className="mt-0.5" title="Intensidade ótima de shrinkage data-driven (Ledoit-Wolf 2004 em Σ, Jorion 1986 em μ)">
-                shrink Σ δ*={(stats.shrinkDelta * 100).toFixed(1).replace(".", ",")}% ·
-                shrink μ ψ={(stats.shrinkPsi * 100).toFixed(1).replace(".", ",")}%
+              <div className="mt-0.5" title="Intensidade ótima de shrinkage data-driven (Ledoit-Wolf 2004 em Σ)">
+                shrink Σ δ*={(stats.shrinkDelta * 100).toFixed(1).replace(".", ",")}%
               </div>
             </>
           ) : (

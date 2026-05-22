@@ -19,9 +19,8 @@
  *   - per-frontier-point envelope — for shaded confidence bands on the chart.
  */
 
-import { evaluatePortfolio } from "./markowitz";
+import { buildFrontier, evaluatePortfolio } from "./markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "./mvEstimators";
-import { solveLongOnlyMV } from "./qp";
 
 export type BootstrapWeightStats = {
   /** Mean weight across resamples. */
@@ -94,26 +93,12 @@ export function bootstrapMaxSharpe(
   for (let b = 0; b < B; b++) {
     const Xb = _resample(X);
     const { mu, sigma } = _estimate(Xb);
-    // Find max-Sharpe by sweeping target returns over the long-only frontier
-    const muMin = Math.min(...mu);
-    const muMax = Math.max(...mu);
-    if (muMax <= muMin + 1e-6) {
+    try {
+      const fr = buildFrontier(mu, sigma, rf, { longOnly: true, cloudSize: 0, frontierSteps: 12 });
+      allWeights.push(fr.maxSharpe.weights);
+    } catch {
       allWeights.push(new Array(n).fill(1 / n));
-      continue;
     }
-    let bestSharpe = -Infinity;
-    let bestW: number[] = new Array(n).fill(1 / n);
-    const sweep = 12;
-    for (let i = 0; i < sweep; i++) {
-      const r = muMin + (i / (sweep - 1)) * (muMax - muMin);
-      const w = solveLongOnlyMV(mu, sigma, { targetReturn: r });
-      const pt = evaluatePortfolio(w, mu, sigma, rf);
-      if (Number.isFinite(pt.sharpe) && pt.sharpe > bestSharpe) {
-        bestSharpe = pt.sharpe;
-        bestW = w;
-      }
-    }
-    allWeights.push(bestW);
   }
   // Aggregate per-ticker stats
   const stats: BootstrapWeightStats[] = [];
@@ -146,10 +131,27 @@ export function bootstrapFrontierBand(
   for (let b = 0; b < B; b++) {
     const Xb = _resample(X);
     const { mu, sigma } = _estimate(Xb);
-    for (const point of collected) {
-      const w = solveLongOnlyMV(mu, sigma, { targetReturn: point.ret });
-      const pt = evaluatePortfolio(w, mu, sigma, rf);
-      if (Number.isFinite(pt.vol) && pt.vol > 0) point.vols.push(pt.vol);
+    try {
+      const fr = buildFrontier(mu, sigma, rf, {
+        longOnly: true,
+        cloudSize: 0,
+        frontierSteps: targetRets.length,
+      });
+      // Match each requested target return to nearest frontier point
+      for (const point of collected) {
+        let best = fr.frontier[0];
+        let bestDist = Infinity;
+        for (const fp of fr.frontier) {
+          const d = Math.abs(fp.ret - point.ret);
+          if (d < bestDist) {
+            bestDist = d;
+            best = fp;
+          }
+        }
+        if (best && Number.isFinite(best.vol)) point.vols.push(best.vol);
+      }
+    } catch {
+      // skip this bootstrap iteration
     }
   }
   return collected.map((p) => {

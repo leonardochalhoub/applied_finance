@@ -67,13 +67,14 @@ export function solveLongOnlyMV(
   // ── Initial feasible point: equal-weight if no target, else closest to it ──
   let w = new Array(n).fill(1 / n);
   if (hasTarget) {
-    // Project equal-weight onto target — if equal-weight doesn't satisfy, just
-    // pick a candidate that does. Simple choice: weight on the asset with
-    // closest μ to target; if target between min(μ) and max(μ), interpolate
-    // between two assets. We use a 2-asset mix that satisfies both constraints.
     const muMin = Math.min(...mu);
     const muMax = Math.max(...mu);
-    if (target <= muMin) {
+    // Degenerate case: all μ_i nearly equal (e.g. after heavy Jorion μ shrinkage).
+    // Return constraint is then redundant with sum constraint. Use equal-weight
+    // as feasible starting point; the QP loop will refine.
+    if (muMax - muMin < 1e-9) {
+      w = new Array(n).fill(1 / n);
+    } else if (target <= muMin) {
       w = new Array(n).fill(0);
       w[mu.indexOf(muMin)] = 1;
     } else if (target >= muMax) {

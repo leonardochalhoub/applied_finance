@@ -23,6 +23,10 @@ import { fmtNum2 } from "@/lib/format";
 
 import { BlockMath, InlineMath } from "./Math";
 
+// GitHub Pages serves the site under /applied_finance/ in production but at /
+// in dev. NEXT_PUBLIC_* is inlined at build time; missing → "" (works locally).
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 type SampleKey = "full" | "unconstrained" | "constrained";
 type WindowKey = "full" | "original";
 
@@ -107,7 +111,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
           <p className="text-body">
             Réplica do modelo de fontes de caixa proposto por{" "}
             <a
-              href="https://doi.org/10.1016/j.jfineco.2010.09.005"
+              href="https://www.sciencedirect.com/science/article/abs/pii/S0304405X10002424"
               target="_blank"
               rel="noopener noreferrer"
               className="underline decoration-dotted underline-offset-2 hover:text-strong"
@@ -125,6 +129,58 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
             </a>{" "}
             na <em>Revista Brasileira de Finanças</em>, vol. 13, nº 3.
           </p>
+          <div className="flex items-start gap-5 rounded-md border border-border bg-[color:var(--bg-subtle)] px-4 py-4">
+            <div className="flex flex-shrink-0 items-center gap-3">
+              <a
+                href="https://www.ufrgs.br/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="UFRGS"
+              >
+                <img
+                  src={`${BASE}/logos/ufrgs.png`}
+                  alt="Universidade Federal do Rio Grande do Sul"
+                  className="h-16 w-auto"
+                />
+              </a>
+              <a
+                href="https://www.ufrgs.br/escoladeadministracao/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Escola de Administração UFRGS"
+              >
+                <img
+                  src={`${BASE}/logos/ea-ufrgs.png`}
+                  alt="Escola de Administração — UFRGS"
+                  className="h-16 w-auto"
+                />
+              </a>
+            </div>
+            <div className="text-xs leading-relaxed text-body">
+              O artigo brasileiro foi derivado da{" "}
+              <strong>dissertação de mestrado</strong> defendida no{" "}
+              <strong>Programa de Pós-Graduação em Administração (PPGA)</strong>{" "}
+              da{" "}
+              <a
+                href="https://www.ufrgs.br/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-dotted underline-offset-2 hover:text-strong"
+              >
+                Universidade Federal do Rio Grande do Sul (UFRGS)
+              </a>
+              ,{" "}
+              <a
+                href="https://www.ufrgs.br/escoladeadministracao/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-dotted underline-offset-2 hover:text-strong"
+              >
+                Escola de Administração
+              </a>{" "}
+              — orientação <strong>Prof. Dr. Guilherme Kirch</strong>.
+            </div>
+          </div>
           <div>
             <p className="text-muted">A equação testada é a (1) do paper original:</p>
             <div className="mt-2 rounded-md border border-border bg-[color:var(--bg-subtle)] px-5 py-4">
@@ -426,13 +482,13 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
         <p>
           ⊳{" "}
           <a
-            href="https://doi.org/10.1016/j.jfineco.2010.09.005"
+            href="https://www.sciencedirect.com/science/article/abs/pii/S0304405X10002424"
             target="_blank"
             rel="noopener noreferrer"
             className="underline decoration-dotted underline-offset-2 hover:text-body"
           >
             McLean, R. D. (2011). Share issuance and cash savings.{" "}
-            <em>Journal of Financial Economics</em>, 99(3), 693–715.
+            <em>Journal of Financial Economics</em>, 99, 693–715.
           </a>
         </p>
       </div>
@@ -490,3 +546,4 @@ function SubsamplePooledCard({
     </div>
   );
 }
+

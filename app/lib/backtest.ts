@@ -19,9 +19,8 @@
  * outperformed naive diversification on their universe.
  */
 
-import { evaluatePortfolio } from "./markowitz";
+import { buildFrontier } from "./markowitz";
 import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "./mvEstimators";
-import { solveLongOnlyMV } from "./qp";
 
 export type BacktestPoint = {
   /** Date string (YYYY-MM-DD) at the END of this test window. */
@@ -71,23 +70,16 @@ function _solveMaxSharpe(X: number[][], rf: number): number[] {
   const muAnnual = meanSimple.map((m) => m * 252);
   const sigmaAnnual = lw.sigma.map((row) => row.map((v) => v * 252));
   const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
-  const mu = js.mu;
-  const muMin = Math.min(...mu);
-  const muMax = Math.max(...mu);
-  if (muMax <= muMin + 1e-6) return new Array(n).fill(1 / n);
-  let bestSharpe = -Infinity;
-  let bestW: number[] = new Array(n).fill(1 / n);
-  const sweep = 10;
-  for (let i = 0; i < sweep; i++) {
-    const r = muMin + (i / (sweep - 1)) * (muMax - muMin);
-    const w = solveLongOnlyMV(mu, sigmaAnnual, { targetReturn: r });
-    const pt = evaluatePortfolio(w, mu, sigmaAnnual, rf);
-    if (Number.isFinite(pt.sharpe) && pt.sharpe > bestSharpe) {
-      bestSharpe = pt.sharpe;
-      bestW = w;
-    }
+  try {
+    const fr = buildFrontier(js.mu, sigmaAnnual, rf, {
+      longOnly: true,
+      cloudSize: 0,
+      frontierSteps: 12,
+    });
+    return fr.maxSharpe.weights;
+  } catch {
+    return new Array(n).fill(1 / n);
   }
-  return bestW;
 }
 
 /** Compute summary stats from a series of period log returns. */

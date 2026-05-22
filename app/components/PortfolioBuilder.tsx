@@ -6,7 +6,7 @@ import { analyze, type AdvisorReport } from "@/lib/advisor";
 import { cdiMeanForWindow } from "@/lib/cdi";
 import type { CdiArtifact, KpiArtifact, PricesArtifact } from "@/lib/data";
 import { buildFrontier, evaluatePortfolio, type FrontierResult } from "@/lib/markowitz";
-import { jensenCorrectMu, jorionShrinkMu, ledoitWolf } from "@/lib/mvEstimators";
+import { jensenCorrectMu, ledoitWolf } from "@/lib/mvEstimators";
 import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 
 import { BacktestPanel } from "./BacktestPanel";
@@ -189,16 +189,18 @@ export function PortfolioBuilder({
     const muAnnual = meanSimpleDaily.map((m) => m * 252);
     const sigmaAnnual = sigmaDaily.map((row) => row.map((v) => v * 252));
 
-    // ── Jorion (Bayes-Stein) shrinkage on μ toward grand mean ──
-    const js = jorionShrinkMu(muAnnual, sigmaAnnual, Tn);
+    // NOTE: Jorion (Bayes-Stein) μ shrinkage is intentionally NOT applied here.
+    // The frontier chart should reflect the data as-estimated. The advisor's
+    // overconfidence problem is addressed downstream via bootstrap SD and
+    // significance gating on per-ticker recommendations.
     return {
-      mu: js.mu,
+      mu: muAnnual,
       sigma: sigmaAnnual,
       n,
       Tn,
       tickers: selected.slice(),
       shrinkDelta: lw.delta,
-      shrinkPsi: js.psi,
+      shrinkPsi: 0,
       X,
     };
   }, [selected, prices, snapshot]);

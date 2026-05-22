@@ -127,24 +127,31 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
 
   // X axis: covers cloud (98th pct) and a generous margin past max-Sharpe,
   // but does NOT chase the single-asset corner if it's much farther out.
-  // Starts at 10% (volatilities below this are rarely relevant in practice).
-  const xMin = 0.10;
+  // Starts at 20% (volatilities below this are rarely seen in B3 equity).
+  const xMin = 0.20;
   const xMax = Math.max(
     cloudVolHi,
     frontierResult.maxSharpe.vol * 1.6,
     frontierResult.minVariance.vol * 2.5,
   ) * 1.04;
 
-  // Y axis: starts at 30% floor (returns below this are not the focus area),
-  // with 15% headroom above the highest data point.
+  // Y axis: zoom to where the data lives (cloud + frontier + min-var + max-
+  // Sharpe), NOT down to rf. The rf annotation will be drawn only if it
+  // falls inside this range; otherwise we display the CDI value in the
+  // caption instead of the chart. Saves ~30% of vertical canvas.
   const dataMaxY = Math.max(
     frontierResult.maxSharpe.ret,
     frontierResult.minVariance.ret,
     cloudRetHi,
   );
-  const rangeY = Math.max(dataMaxY - Math.min(rf, cloudRetLo, frontierResult.minVariance.ret), 1e-6);
-  const yMin = 0.30;
+  const dataMinY = Math.min(
+    frontierResult.minVariance.ret,
+    cloudRetLo,
+  );
+  const rangeY = Math.max(dataMaxY - dataMinY, 1e-3);
+  const yMin = dataMinY - 0.10 * rangeY;
   const yMax = dataMaxY + 0.15 * rangeY;
+  const rfInRange = rf >= yMin && rf <= yMax;
 
   // Capital Allocation Line (CAL) — tangent to the frontier at max-Sharpe,
   // anchored at the risk-free rate. CAL is the correct name when the
@@ -209,6 +216,9 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             {caption ? (
               <span className="ml-3 text-[10px] uppercase tracking-wider text-muted">{caption}</span>
             ) : null}
+            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted">
+              · rf = {(rf * 100).toFixed(2).replace(".", ",")}%
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-body">
             <LegendDot color="var(--muted)" /> nuvem aleatória
@@ -286,20 +296,23 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
                 />
                 <ZAxis range={[12, 12]} />
                 <Tooltip cursor={false} content={<FrontierTooltip />} />
-                {/* Risk-free reference line (textbook annotation for rf) */}
-                <ReferenceLine
-                  y={rf}
-                  stroke="var(--gain)"
-                  strokeDasharray="2 3"
-                  strokeOpacity={0.5}
-                  label={{
-                    value: `rf (CDI) = ${(rf * 100).toFixed(2).replace(".", ",")}%`,
-                    position: "insideTopLeft",
-                    fill: "var(--gain)",
-                    fontSize: 10,
-                    fillOpacity: 0.8,
-                  }}
-                />
+                {/* Risk-free reference line — only if rf falls inside the
+                    visible Y range; otherwise skipped to save vertical space. */}
+                {rfInRange ? (
+                  <ReferenceLine
+                    y={rf}
+                    stroke="var(--gain)"
+                    strokeDasharray="2 3"
+                    strokeOpacity={0.5}
+                    label={{
+                      value: `rf (CDI) = ${(rf * 100).toFixed(2).replace(".", ",")}%`,
+                      position: "insideTopLeft",
+                      fill: "var(--gain)",
+                      fontSize: 10,
+                      fillOpacity: 0.8,
+                    }}
+                  />
+                ) : null}
                 {/* Individual asset corner points — textbook "feasible set boundary" */}
                 <Scatter
                   name="assets"
