@@ -146,17 +146,19 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
   const yMin = 0.30;
   const yMax = dataMaxY + 0.15 * rangeY;
 
-  // Capital Market Line — clipped to whichever edge (right OR top) the line
-  // hits first inside the visible axes. Start from xMin (10%) so the line
-  // segment lies entirely inside the visible canvas.
-  const cmlSlope = (frontierResult.maxSharpe.ret - rf) / Math.max(frontierResult.maxSharpe.vol, 1e-9);
-  const cmlVolAtYMax = cmlSlope > 1e-9 ? (yMax - rf) / cmlSlope : xMax;
-  const cmlEndVol = Math.min(xMax, Math.max(xMin, cmlVolAtYMax));
-  const cmlStartRet = rf + cmlSlope * xMin;
-  const cmlEndRet = rf + cmlSlope * cmlEndVol;
-  const cmlData = [
-    { vol: xMin, ret: cmlStartRet, weights: [], series: "Capital Market Line" },
-    { vol: cmlEndVol, ret: cmlEndRet, weights: [], series: "Capital Market Line" },
+  // Capital Allocation Line (CAL) — tangent to the frontier at max-Sharpe,
+  // anchored at the risk-free rate. CAL is the correct name when the
+  // tangency portfolio is the subset's optimum (not the market portfolio,
+  // which would make it the CML). Clipped to whichever edge (right OR top)
+  // the line hits first inside the visible axes.
+  const calSlope = (frontierResult.maxSharpe.ret - rf) / Math.max(frontierResult.maxSharpe.vol, 1e-9);
+  const calVolAtYMax = calSlope > 1e-9 ? (yMax - rf) / calSlope : xMax;
+  const calEndVol = Math.min(xMax, Math.max(xMin, calVolAtYMax));
+  const calStartRet = rf + calSlope * xMin;
+  const calEndRet = rf + calSlope * calEndVol;
+  const calData = [
+    { vol: xMin, ret: calStartRet, weights: [], series: "Capital Allocation Line" },
+    { vol: calEndVol, ret: calEndRet, weights: [], series: "Capital Allocation Line" },
   ];
 
   // Individual asset markers — only include those that fit inside the visible
@@ -212,7 +214,7 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
             <LegendDot color="var(--muted)" /> nuvem aleatória
             <LegendDot color="var(--muted)" shape="dot-small" /> ativo individual
             <LegendDot color="var(--accent)" line /> fronteira
-            <LegendDot color="var(--gain)" line dashed /> CML (linha do mercado de capitais)
+            <LegendDot color="var(--gain)" line dashed /> CAL (linha de alocação de capital)
             <LegendDot color="var(--strong)" shape="circle-outline" /> mín. variância
             <LegendDot color="var(--gain)" shape="star" /> máx. Sharpe
             {userPoint ? (
@@ -330,10 +332,10 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
                     );
                   }}
                 />
-                {/* Capital Market Line: tangent at max-Sharpe, anchored at (0, rf) */}
+                {/* Capital Allocation Line: tangent at max-Sharpe, anchored at (0, rf) */}
                 <Scatter
-                  name="cml"
-                  data={cmlData}
+                  name="cal"
+                  data={calData}
                   line={{ stroke: "var(--gain)", strokeWidth: 1.5, strokeDasharray: "5 4", strokeOpacity: 0.65 }}
                   lineType="joint"
                   shape={() => <g />}

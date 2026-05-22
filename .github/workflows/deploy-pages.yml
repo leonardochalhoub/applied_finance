@@ -58,6 +58,10 @@ jobs:
           mkdir -p _site
           cp -r app/out/* _site/
           if [ -d _existing/data ]; then cp -r _existing/data _site/data; fi
+          # CRITICAL: tell GitHub Pages to skip Jekyll processing.
+          # Without .nojekyll, Jekyll strips every directory starting with "_"
+          # (including _next/static/chunks/), 404'ing all CSS and JS bundles.
+          touch _site/.nojekyll
 
       - name: Force-push gh-pages (app-only refresh; preserves data/)
         run: |
