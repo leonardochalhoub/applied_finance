@@ -127,8 +127,21 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
 
   // X axis: covers cloud (98th pct) and a generous margin past max-Sharpe,
   // but does NOT chase the single-asset corner if it's much farther out.
-  // Starts at 20% (volatilities below this are rarely seen in B3 equity).
-  const xMin = 0.20;
+  // Lower bound adapts to the actual data: a well-diversified portfolio can
+  // sit below 20% vol (especially imported optimal portfolios like Sugestões'
+  // Agressiva), so we step the floor down to include min-var, max-Sharpe,
+  // and any imported user/compare marker. Otherwise the diamond falls off
+  // the left edge.
+  const candidateMinVols = [
+    0.20,
+    frontierResult.minVariance.vol,
+    frontierResult.maxSharpe.vol,
+    userPoint?.vol ?? Infinity,
+    comparePoint?.vol ?? Infinity,
+  ];
+  const dataMinVol = Math.min(...candidateMinVols);
+  // Pad ~8% to the left so the leftmost marker isn't glued to the y-axis.
+  const xMin = Math.max(0, dataMinVol * 0.92);
   const xMax = Math.max(
     cloudVolHi,
     frontierResult.maxSharpe.vol * 1.6,
@@ -143,14 +156,20 @@ export function FrontierChart({ mu, sigma, rf, tickers, longOnly, onLoad, captio
     frontierResult.maxSharpe.ret,
     frontierResult.minVariance.ret,
     cloudRetHi,
+    userPoint?.ret ?? -Infinity,
+    comparePoint?.ret ?? -Infinity,
   );
   const dataMinY = Math.min(
     frontierResult.minVariance.ret,
     cloudRetLo,
+    userPoint?.ret ?? Infinity,
+    comparePoint?.ret ?? Infinity,
   );
   const rangeY = Math.max(dataMaxY - dataMinY, 1e-3);
   const yMin = dataMinY - 0.10 * rangeY;
-  const yMax = dataMaxY + 0.15 * rangeY;
+  // Headroom: never cap below 75% so the CAL, max-Sharpe markers and any
+  // high-return asset always have room to render without being clipped.
+  const yMax = Math.max(0.75, dataMaxY + 0.15 * rangeY);
   const rfInRange = rf >= yMin && rf <= yMax;
 
   // Capital Allocation Line (CAL) — tangent to the frontier at max-Sharpe,
@@ -633,6 +652,21 @@ function ClickedPortfolioCard({
           <li className="px-5 py-4 text-xs text-muted">Pesos negligíveis em todos os ativos.</li>
         ) : null}
       </ul>
+      {allocations.length > 0 ? (
+        <div
+          className="grid items-center gap-3 border-t border-border bg-[color:var(--bg-subtle)]/40 px-5 py-2 text-xs"
+          style={{ gridTemplateColumns: "80px 1fr 80px" }}
+        >
+          <span className="text-[10px] uppercase tracking-wider text-muted">Total</span>
+          <span />
+          <span className="text-right font-semibold tabular text-strong">
+            {(point.weights.reduce((s, w) => s + (w ?? 0), 0) * 100)
+              .toFixed(1)
+              .replace(".", ",")}
+            %
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

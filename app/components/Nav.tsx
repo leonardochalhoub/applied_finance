@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/setores/", label: "Setores" },
   { href: "/correlacoes/", label: "Correlações" },
   { href: "/mclean/", label: "McLean" },
+  { href: "/finops/", label: "FinOps" },
   { href: "/metodologia/", label: "Metodologia" },
 ];
 

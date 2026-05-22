@@ -10,8 +10,10 @@ import { jensenCorrectMu, ledoitWolf } from "@/lib/mvEstimators";
 import { bootstrapMaxSharpe } from "@/lib/bootstrap";
 
 import { BacktestPanel } from "./BacktestPanel";
+import { RiskDecompositionPanel } from "./RiskDecompositionPanel";
 import { decodeConfig, encodeConfig } from "@/lib/urlState";
 import { fmtNum2, fmtPctSigned, signedClass } from "@/lib/format";
+import type { ReferenceStats } from "./PortfolioSuggestions";
 
 type Preset = "equal" | "minvar" | "maxsharpe" | null;
 
@@ -31,6 +33,9 @@ type Props = {
   kpis: KpiArtifact;
   cdi?: CdiArtifact | null;
   externalWeights?: Record<string, number> | null;
+  /** μ/Σ from the Sugestões section. Used as a stable reference frame for
+   *  the chart when the user has not explicitly imported a snapshot. */
+  referenceStats?: ReferenceStats | null;
   /** Emits chart-ready data so the parent can render the frontier chart
    *  in a position of its choosing (e.g. between sections). */
   onChartData?: (snap: ChartSnapshot | null) => void;
@@ -55,6 +60,7 @@ export function PortfolioBuilder({
   kpis,
   cdi,
   externalWeights,
+  referenceStats,
   onChartData,
 }: Props) {
   const allTickers = useMemo(() => Object.keys(prices.series).sort(), [prices]);
@@ -108,27 +114,50 @@ export function PortfolioBuilder({
   }, [allTickers]);
 
   // ── Derived: estimate μ + Σ from price series ───────────────────────────
-  // Snapshot fast-path: if a Sugestão JSON was imported, reuse its μ/Σ so
-  // the imported portfolio's (vol, ret) on the rebuilt frontier matches the
-  // original optimisation exactly (diamond lands on star).
+  // Priority order for the chart's μ/Σ:
+  //  1. Explicit snapshot (user imported a Sugestão JSON) — exact original
+  //     coordinate frame, marker lands on its tangency.
+  //  2. referenceStats from PortfolioSuggestions — stable reference universe
+  //     so the cloud shape is constant pre/post-import; only the marker
+  //     moves when the user edits weights or imports a JSON.
+  //  3. Live local computation over `selected` only — last resort, e.g. when
+  //     Sugestões hasn't loaded yet or the user has selected tickers outside
+  //     the reference universe.
+  //
+  // In (1) and (2), stats.tickers can be a superset of `selected`. The slider
+  // UI iterates `selected`, but userPoint zero-pads weights against
+  // stats.tickers (see below) so the math aligns with mu/sigma rows.
   const stats = useMemo(() => {
     if (selected.length < 2) return null;
     if (snapshot) {
-      const indices = selected.map((t) => snapshot.tickers.indexOf(t));
-      if (indices.every((i) => i >= 0)) {
-        const muSub = indices.map((i) => snapshot.mu[i]);
-        const sigmaSub = indices.map((i) => indices.map((j) => snapshot.sigma[i][j]));
+      const allInSnap = selected.every((t) => snapshot.tickers.includes(t));
+      if (allInSnap) {
         return {
-          mu: muSub,
-          sigma: sigmaSub,
-          n: selected.length,
+          mu: snapshot.mu,
+          sigma: snapshot.sigma,
+          n: snapshot.tickers.length,
           Tn: 252,
-          tickers: selected.slice(),
+          tickers: snapshot.tickers.slice(),
         };
       }
       // selected drifted outside the snapshot universe → fall through to live
       // recomputation. We also release the snapshot via the effect below so
       // the UI reflects the change.
+    }
+    if (referenceStats) {
+      const allInRef = selected.every((t) => referenceStats.tickers.includes(t));
+      if (allInRef) {
+        return {
+          mu: referenceStats.mu,
+          sigma: referenceStats.sigma,
+          n: referenceStats.tickers.length,
+          Tn: 252,
+          tickers: referenceStats.tickers.slice(),
+        };
+      }
+      // User picked a ticker outside the reference universe (e.g. non-IBOV
+      // name when Sugestões is set to "IBOV"). Fall through to live local
+      // computation so the marker still reflects the full picks.
     }
     const T = prices.dates.length;
     if (T < 60) return null;
@@ -203,7 +232,7 @@ export function PortfolioBuilder({
       shrinkPsi: 0,
       X,
     };
-  }, [selected, prices, snapshot]);
+  }, [selected, prices, snapshot, referenceStats]);
 
   // Auto-release snapshot if user adds a ticker not in the original universe
   useEffect(() => {
@@ -212,12 +241,14 @@ export function PortfolioBuilder({
     if (!allIn) setSnapshot(null);
   }, [selected, snapshot]);
 
+  // rf priority matches the stats priority: snapshot > referenceStats > local
   const rf = useMemo(() => {
     if (snapshot?.rf != null) return snapshot.rf;
+    if (referenceStats?.rf != null) return referenceStats.rf;
     const startDate = prices.dates[0];
     const endDate = prices.dates[prices.dates.length - 1];
     return cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
-  }, [cdi, prices, kpis, snapshot]);
+  }, [cdi, prices, kpis, snapshot, referenceStats]);
 
   const frontierResult: FrontierResult | null = useMemo(() => {
     if (!stats) return null;
@@ -235,12 +266,15 @@ export function PortfolioBuilder({
 
   const userPoint = useMemo(() => {
     if (!stats) return null;
-    const w = selected.map((t) => weights[t] ?? 0);
+    // weights live in {ticker: weight}, but stats.tickers may be the FULL
+    // snapshot universe (a superset of `selected`). Zero-pad against
+    // stats.tickers so the resulting w-vector aligns with mu/sigma rows.
+    const w = stats.tickers.map((t) => weights[t] ?? 0);
     const sum = w.reduce((a, b) => a + b, 0);
     if (sum <= 0) return null;
     const normalized = w.map((x) => x / sum);
     return { ...evaluatePortfolio(normalized, stats.mu, stats.sigma, rf), weights: normalized };
-  }, [weights, selected, stats, rf]);
+  }, [weights, stats, rf]);
 
   // Imported portfolio (re-evaluated against this builder's μ/Σ)
   const importedPoint = useMemo(() => {
@@ -348,12 +382,22 @@ export function PortfolioBuilder({
   }
 
   function loadFrontierPortfolio(point: { weights: number[] }, preset: Preset) {
-    const next: Record<string, number> = {};
-    selected.forEach((t, i) => (next[t] = Math.max(0, point.weights[i])));
-    const sum = Object.values(next).reduce((a, b) => a + b, 0);
-    if (sum > 0) {
-      Object.keys(next).forEach((k) => (next[k] = next[k] / sum));
+    // point.weights aligns with stats.tickers (the optimization universe),
+    // which can be a superset of `selected` when a snapshot is loaded.
+    // Pick the non-zero positions, top-12 by weight (the slider UI cap), and
+    // update both `selected` and `weights` so the sliders match the optimum.
+    const universe = stats?.tickers ?? selected;
+    const nonZero: { t: string; w: number }[] = [];
+    for (let i = 0; i < universe.length; i++) {
+      const w = Math.max(0, point.weights[i] ?? 0);
+      if (w > 1e-4) nonZero.push({ t: universe[i], w });
     }
+    nonZero.sort((a, b) => b.w - a.w);
+    const top = nonZero.slice(0, 12);
+    const sum = top.reduce((s, x) => s + x.w, 0);
+    const next: Record<string, number> = {};
+    top.forEach(({ t, w }) => (next[t] = sum > 0 ? w / sum : 0));
+    setSelected(top.map((x) => x.t));
     setWeights(next);
     setActivePreset(preset);
   }
@@ -628,12 +672,17 @@ export function PortfolioBuilder({
                   <div></div>
                 </div>
                 <ul className="divide-y divide-border">
-                  {selected.map((t, i) => {
+                  {selected.map((t) => {
                     const w = weights[t] ?? 0;
                     const totalW = selected.reduce((s, x) => s + (weights[x] ?? 0), 0);
                     const display = totalW > 0 ? w / totalW : 0;
-                    const mv = frontierResult?.minVariance.weights[i] ?? null;
-                    const ms = frontierResult?.maxSharpe.weights[i] ?? null;
+                    // mv/ms reference the optimal portfolios from frontierResult,
+                    // whose `weights` align with stats.tickers (which may be a
+                    // superset of `selected` when a snapshot is loaded). Look up
+                    // by ticker, not by selected index.
+                    const idxInStats = stats?.tickers.indexOf(t) ?? -1;
+                    const mv = idxInStats >= 0 ? frontierResult?.minVariance.weights[idxInStats] ?? null : null;
+                    const ms = idxInStats >= 0 ? frontierResult?.maxSharpe.weights[idxInStats] ?? null : null;
                     return (
                       <li
                         key={t}
@@ -684,6 +733,50 @@ export function PortfolioBuilder({
                     );
                   })}
                 </ul>
+                {(() => {
+                  const totalW = selected.reduce((s, x) => s + (weights[x] ?? 0), 0);
+                  const sumUser = totalW > 0
+                    ? selected.reduce((s, x) => s + (weights[x] ?? 0) / totalW, 0)
+                    : 0;
+                  const sumIn = (vec?: number[]) => {
+                    if (!vec || !stats) return null;
+                    let s = 0;
+                    for (const t of selected) {
+                      const i = stats.tickers.indexOf(t);
+                      if (i >= 0) s += vec[i] ?? 0;
+                    }
+                    return s;
+                  };
+                  const sumMv = sumIn(frontierResult?.minVariance.weights);
+                  const sumMs = sumIn(frontierResult?.maxSharpe.weights);
+                  const fmt = (x: number | null | undefined) =>
+                    x == null ? "—" : `${(x * 100).toFixed(1).replace(".", ",")}%`;
+                  return (
+                    <div
+                      className="grid items-center gap-4 border-t border-border bg-[color:var(--bg-subtle)]/40 px-5 py-2 text-xs"
+                      style={{ gridTemplateColumns: "96px 1fr 78px 60px 60px 24px" }}
+                    >
+                      <span className="text-[10px] uppercase tracking-wider text-muted">Total</span>
+                      <span />
+                      <span className="text-right tabular font-semibold text-strong">
+                        {fmt(sumUser)}
+                      </span>
+                      <span
+                        className="text-right tabular text-muted"
+                        title="Soma dos pesos da carteira ótima de mínima variância nos tickers selecionados (pode ser <100% em modo snapshot)"
+                      >
+                        {fmt(sumMv)}
+                      </span>
+                      <span
+                        className="text-right tabular text-muted"
+                        title="Soma dos pesos da carteira de máximo Sharpe nos tickers selecionados (pode ser <100% em modo snapshot)"
+                      >
+                        {fmt(sumMs)}
+                      </span>
+                      <span />
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -722,6 +815,15 @@ export function PortfolioBuilder({
           tickers={stats.tickers}
           weights={userPoint.weights}
           kpis={kpis}
+        />
+      ) : null}
+
+      {/* Risk decomposition: per-asset RC% + top pair contributions */}
+      {userPoint && stats ? (
+        <RiskDecompositionPanel
+          tickers={stats.tickers}
+          weights={userPoint.weights}
+          sigma={stats.sigma}
         />
       ) : null}
 
@@ -917,6 +1019,16 @@ function SectorSummaryPanel({
           </li>
         ))}
       </ul>
+      <div
+        className="grid items-center gap-3 border-t border-border bg-[color:var(--bg-subtle)]/40 px-5 py-2 text-xs"
+        style={{ gridTemplateColumns: "180px 1fr 60px" }}
+      >
+        <span className="text-[10px] uppercase tracking-wider text-muted">Total</span>
+        <span />
+        <span className="text-right font-semibold tabular text-strong">
+          {(sectors.reduce((s, x) => s + x.weight, 0) * 100).toFixed(1).replace(".", ",")}%
+        </span>
+      </div>
     </section>
   );
 }

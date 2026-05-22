@@ -16,12 +16,27 @@ import { windowStartIndex, type WindowLabel } from "@/lib/windowed";
 
 type Universe = "ibov" | "all";
 
+/** Snapshot emitted to the parent so the FrontierChart can use Sugestões'
+ *  μ/Σ as a stable reference frame even before any JSON is imported. */
+export type ReferenceStats = {
+  tickers: string[];
+  mu: number[];
+  sigma: number[][];
+  rf: number;
+  window: WindowLabel;
+  universe: Universe;
+};
+
 type Props = {
   prices: PricesArtifact;
   closes: PricesCloseArtifact | null;
   kpis: KpiArtifact;
   cdi: CdiArtifact | null;
   ibovTickers: string[];
+  /** Lift the current optimisation μ/Σ up to the shell so the manual builder's
+   *  chart can use it as a stable reference universe (constant cloud shape
+   *  before and after import, only the marker moves). */
+  onStatsChange?: (stats: ReferenceStats | null) => void;
 };
 
 const WINDOWS: WindowLabel[] = ["6M", "1Y", "5Y", "10Y", "15Y", "20Y", "MAX"];
@@ -38,6 +53,7 @@ export function PortfolioSuggestions({
   kpis,
   cdi,
   ibovTickers,
+  onStatsChange,
 }: Props) {
   const [amount, setAmount] = useState<number>(10000);
   const [window, setWindow] = useState<WindowLabel>("1Y");
@@ -115,6 +131,25 @@ export function PortfolioSuggestions({
     const endDate = prices.dates[prices.dates.length - 1];
     return cdiMeanForWindow(cdi, startDate, endDate, kpis.cdi_global_mean ?? 0.13);
   }, [cdi, prices, kpis, stats]);
+
+  // Lift μ/Σ to the parent shell so the FrontierChart can use it as a stable
+  // reference frame (constant cloud across pre/post-import) — only the marker
+  // moves when the user imports or edits weights.
+  useEffect(() => {
+    if (!onStatsChange) return;
+    if (!stats) {
+      onStatsChange(null);
+      return;
+    }
+    onStatsChange({
+      tickers: stats.tickers,
+      mu: stats.mu,
+      sigma: stats.sigma,
+      rf,
+      window,
+      universe,
+    });
+  }, [stats, rf, window, universe, onStatsChange]);
 
   // Build the suggested portfolios with proper long-only handling
   // and re-rank so labels match actual properties
@@ -496,12 +531,10 @@ function SuggestionCard({
     // Schema matches PortfolioBuilder's "Importar JSON" exactly so the file
     // can be re-imported with no edits.
     const weightsMap: Record<string, number> = {};
-    const nonZeroIdx: number[] = [];
     for (let i = 0; i < tickers.length; i++) {
       const w = point.weights[i];
       if (w == null || Math.abs(w) < 0.0001) continue;
       weightsMap[tickers[i]] = w;
-      nonZeroIdx.push(i);
     }
     // Renormalize to sum to 1 in case rounding/filtering shifted it
     const sum = Object.values(weightsMap).reduce((a, b) => a + b, 0);
@@ -509,16 +542,13 @@ function SuggestionCard({
       Object.keys(weightsMap).forEach((k) => (weightsMap[k] = +(weightsMap[k] / sum).toFixed(6)));
     }
 
-    // Snapshot the μ/Σ sub-matrix for the non-zero tickers. This lets
-    // PortfolioBuilder reproduce the EXACT coordinate system (vol, ret) where
-    // this portfolio was optimised — so the imported diamond lands precisely
-    // on the green star of the rebuilt frontier.
-    const snapshotTickers = nonZeroIdx.map((i) => tickers[i]);
-    const snapshotMu = nonZeroIdx.map((i) => mu[i]);
-    const snapshotSigma = nonZeroIdx.map((i) =>
-      nonZeroIdx.map((j) => sigma[i][j]),
-    );
-
+    // Snapshot the FULL μ/Σ universe used in the original optimisation —
+    // tickers, μ and Σ for every asset that participated, not just the ones
+    // that ended up with positive weight. This lets PortfolioBuilder rebuild
+    // the SAME efficient frontier (same green star, same scatter cloud) so
+    // the imported diamond lands precisely on the tangency. Storing only the
+    // non-zero sub-matrix collapses the universe to ~8 assets, which produces
+    // a compressed top-right curve instead of the original frontier shape.
     const payload = {
       schema: "applied-finance.portfolio.v1",
       name: `Sugestão · ${label}`,
@@ -533,9 +563,9 @@ function SuggestionCard({
         sharpe: point.sharpe,
         cdi: rf,
         snapshot: {
-          tickers: snapshotTickers,
-          mu: snapshotMu,
-          sigma: snapshotSigma,
+          tickers,
+          mu,
+          sigma,
           rf,
         },
       },
@@ -623,6 +653,25 @@ function SuggestionCard({
           </li>
         ))}
       </ul>
+      {allocations.length > 0 ? (
+        <div
+          className="grid items-center gap-3 border-t border-border bg-[color:var(--bg-subtle)]/40 px-5 py-2 text-xs"
+          style={{ gridTemplateColumns: "60px 1fr 80px 80px 60px" }}
+        >
+          <span className="text-[10px] uppercase tracking-wider text-muted">Total</span>
+          <span />
+          <span className="text-right font-semibold tabular text-strong">
+            {(allocations.reduce((s, a) => s + a.weight, 0) * 100)
+              .toFixed(1)
+              .replace(".", ",")}
+            %
+          </span>
+          <span className="text-right font-semibold tabular text-strong">
+            {fmtBRL(allocations.reduce((s, a) => s + a.alloc, 0))}
+          </span>
+          <span />
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         <div className="text-[10px] text-muted">
