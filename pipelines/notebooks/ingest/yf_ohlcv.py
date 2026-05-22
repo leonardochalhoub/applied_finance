@@ -98,7 +98,28 @@ log.info(
     len(new_tickers), BACKFILL_FROM, len(returning_tickers), first_date, MIN_DAYS_FOR_LOOKBACK,
 )
 
-frames: list[pd.DataFrame] = []
+run_id = os.environ.get("DATABRICKS_RUN_ID", str(uuid.uuid4()))
+out_dir = f"{volume_dir}/run_id={run_id}"
+dbutils.fs.mkdirs(out_dir)
+
+
+def _persist(chunk_df: pd.DataFrame, label: str) -> None:
+    """Write a fetched chunk to its own Parquet immediately. Partial progress
+    survives cancellation: the next refresh-pipelines run's bronze MERGE
+    picks up every chunk that landed in /Volumes/.../yf/run_id={run_id}/.
+    Each chunk gets a unique filename so chunks within one run_id don't
+    collide."""
+    if chunk_df is None or len(chunk_df) == 0:
+        return
+    chunk_df = chunk_df.copy()
+    chunk_df["source_run_id"] = run_id
+    chunk_df["ingested_at"] = pd.Timestamp.utcnow()
+    out_path = f"{out_dir}/{label}.parquet"
+    chunk_df.to_parquet(out_path, index=False)
+    log.info("Wrote %s rows → %s", f"{len(chunk_df):,}", out_path)
+
+
+total_rows = 0
 if returning_tickers:
     df_old = yf_get(
         tickers=returning_tickers,
@@ -110,16 +131,19 @@ if returning_tickers:
         do_parallel=True,
         be_quiet=True,
     )
-    log.info("returning batch: %d rows", len(df_old))
-    frames.append(df_old)
+    _persist(df_old, "returning")
+    total_rows += len(df_old) if df_old is not None else 0
 
 if new_tickers:
-    # Yahoo can handle ~250+ tickers × 25y in one call, but be defensive
-    # in case of timeouts: chunk into 50 per call.
+    # Yahoo can handle ~250+ tickers × 25y in one call, but chunk into 50
+    # for two reasons: (1) graceful degradation on timeouts, and (2) partial
+    # progress survives cancellation since each chunk persists immediately.
     CHUNK = 50
+    n_batches = (len(new_tickers) + CHUNK - 1) // CHUNK
     for i in range(0, len(new_tickers), CHUNK):
         chunk = new_tickers[i : i + CHUNK]
-        log.info("backfill batch %d/%d: %d tickers", i // CHUNK + 1, (len(new_tickers) + CHUNK - 1) // CHUNK, len(chunk))
+        batch_idx = i // CHUNK + 1
+        log.info("backfill batch %d/%d: %d tickers", batch_idx, n_batches, len(chunk))
         df_new_chunk = yf_get(
             tickers=chunk,
             first_date=BACKFILL_FROM,
@@ -130,22 +154,11 @@ if new_tickers:
             do_parallel=True,
             be_quiet=True,
         )
-        frames.append(df_new_chunk)
+        _persist(df_new_chunk, f"backfill_batch_{batch_idx:03d}")
+        total_rows += len(df_new_chunk) if df_new_chunk is not None else 0
 
-if not frames:
+if total_rows == 0:
     raise RuntimeError("No tickers ingested — universe CSV empty or all tickers delisted?")
 
-df = pd.concat(frames, ignore_index=True)
-
-run_id = os.environ.get("DATABRICKS_RUN_ID", str(uuid.uuid4()))
-df["source_run_id"] = run_id
-df["ingested_at"] = pd.Timestamp.utcnow()
-
-out_dir = f"{volume_dir}/run_id={run_id}"
-dbutils.fs.mkdirs(out_dir)
-out_path = f"{out_dir}/ohlcv.parquet"
-df.to_parquet(out_path, index=False)
-log.info(f"Wrote {len(df):,} rows → {out_path}")
-
 dbutils.jobs.taskValues.set(key="ingest_run_id", value=run_id)
-dbutils.jobs.taskValues.set(key="ingest_rows", value=len(df))
+dbutils.jobs.taskValues.set(key="ingest_rows", value=total_rows)
