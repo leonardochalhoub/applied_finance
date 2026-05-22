@@ -289,22 +289,25 @@ export default function MetodologiaPage() {
         </p>
         <p className="mt-2 text-sm text-body">
           Operacionalmente, tomamos o <strong>máximo</strong> de duas pernas
-          lineares (ruído + sobrevivência), com piso 0,55 e teto 0,95:
+          lineares (ruído + esparsidade), com piso 0,30 e teto 0,60.
+          Intervalo deliberadamente baixo após o fix dimensional de Jorion
+          (Estágio 1 agora encolhe ~50% do sinal); α(T) acima de ~0,60
+          faria max-Sharpe colapsar para min-variância em toda janela.
         </p>
         <div className="mt-2 rounded-md bg-[color:var(--bg-base)] px-4 py-3">
           <BlockMath
-            ariaLabel="alfa de T igual a clip entre 0,55 e 0,95 do máximo entre a perna de ruído e a perna de esparsidade"
-            tex={String.raw`\alpha(T_{\text{anos}}) \;=\; \mathrm{clip}\!\left[\,\max\!\big(\underbrace{0.95 - 0.04\,(T-0.5)_{+}}_{\text{ruído}},\;\; \underbrace{0.55 + 0.035\,(T-10)_{+}}_{\text{esparsidade}}\big),\;\; 0.55,\;\; 0.95\,\right]`}
+            ariaLabel="alfa de T igual a clip entre 0,30 e 0,60 do máximo entre a perna de ruído e a perna de esparsidade"
+            tex={String.raw`\alpha(T_{\text{anos}}) \;=\; \mathrm{clip}\!\left[\,\max\!\big(\underbrace{0.60 - 0.04\,(T-0.5)_{+}}_{\text{ruído}},\;\; \underbrace{0.30 + 0.020\,(T-10)_{+}}_{\text{esparsidade}}\big),\;\; 0.30,\;\; 0.60\,\right]`}
           />
         </div>
         <p className="mt-2 text-sm text-body">
-          Comportamento indicativo: <span className="mono">α(6m) ≈ 0,95</span>,{" "}
-          <span className="mono">α(1y) ≈ 0,93</span>,{" "}
-          <span className="mono">α(5y) ≈ 0,77</span>,{" "}
-          <span className="mono">α(10y) ≈ 0,57</span>,{" "}
-          <span className="mono">α(15y) ≈ 0,73</span>,{" "}
-          <span className="mono">α(20y) ≈ 0,90</span>,{" "}
-          <span className="mono">α(MAX) = 0,95</span> (teto).
+          Comportamento indicativo: <span className="mono">α(6m) ≈ 0,60</span>,{" "}
+          <span className="mono">α(1y) ≈ 0,58</span>,{" "}
+          <span className="mono">α(5y) ≈ 0,42</span>,{" "}
+          <span className="mono">α(10y) ≈ 0,30</span> (piso),{" "}
+          <span className="mono">α(15y) ≈ 0,40</span>,{" "}
+          <span className="mono">α(20y) ≈ 0,50</span>,{" "}
+          <span className="mono">α(MAX) = 0,60</span> (teto).
         </p>
         <p className="mt-2 text-sm text-body">
           ERP fixo em <InlineMath tex={String.raw`6\%`} /> — estimativa de
@@ -572,7 +575,7 @@ export default function MetodologiaPage() {
               </tr>
               <tr className="border-t border-border align-top">
                 <td className="py-2 pr-3"><span className="mono">α(T)</span></td>
-                <td className="py-2 pr-3">U-shape, piso 0,55, teto 0,95</td>
+                <td className="py-2 pr-3">U-shape, piso 0,30, teto 0,60</td>
                 <td className="py-2">
                   Forma em U porque dois problemas opostos tornam μ̂ pouco confiável
                   em extremos de T: <strong>ruído de máximo</strong> (T curto, SE(μ̂)
@@ -794,43 +797,317 @@ export default function MetodologiaPage() {
 
       <section className="card px-6 py-5">
         <div className="eyebrow">Referências</div>
+        <p className="mt-2 text-[11px] text-muted">
+          Cada decisão metodológica acima é ancorada em uma fonte primária
+          (paper, livro, base pública ou regulação). Links externos abrem
+          em nova aba.
+        </p>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          A · Otimização média-variância (Markowitz, Tobin, Merton, CAPM)
+        </div>
         <ul className="mt-2 space-y-2 text-sm text-body">
           <li>
-            • Markowitz, H. (1952). &quot;Portfolio Selection&quot;.{" "}
-            <em>Journal of Finance</em>, 7(1), 77–91.
+            • Markowitz, H. (1952). &ldquo;Portfolio Selection&rdquo;.{" "}
+            <em>Journal of Finance</em>, 7(1), 77–91.{" "}
+            <Ref href="https://doi.org/10.2307/2975974" doi="10.2307/2975974" />
           </li>
           <li>
-            • Tobin, J. (1958). &quot;Liquidity Preference as Behavior Towards
-            Risk&quot;. <em>Review of Economic Studies</em>.
+            • Tobin, J. (1958). &ldquo;Liquidity Preference as Behavior Towards
+            Risk&rdquo;. <em>Review of Economic Studies</em>, 25(2), 65–86.{" "}
+            <Ref href="https://doi.org/10.2307/2296205" doi="10.2307/2296205" />
           </li>
           <li>
-            • Sharpe, W. (1964). &quot;Capital Asset Prices&quot;.{" "}
-            <em>Journal of Finance</em>, 19(3), 425–442.
+            • Sharpe, W. F. (1964). &ldquo;Capital Asset Prices: A Theory of
+            Market Equilibrium under Conditions of Risk&rdquo;.{" "}
+            <em>Journal of Finance</em>, 19(3), 425–442.{" "}
+            <Ref href="https://doi.org/10.2307/2977928" doi="10.2307/2977928" />
           </li>
           <li>
-            • Merton, R. (1972). &quot;An Analytic Derivation of the Efficient
-            Portfolio Frontier&quot;. <em>JFQA</em>, 7(4), 1851–1872.
+            • Merton, R. C. (1972). &ldquo;An Analytic Derivation of the
+            Efficient Portfolio Frontier&rdquo;. <em>Journal of Financial
+            and Quantitative Analysis</em>, 7(4), 1851–1872.{" "}
+            <Ref href="https://doi.org/10.2307/2329621" doi="10.2307/2329621" />
+            {" "}— fórmulas fechadas A/B/C/D usadas em{" "}
+            <span className="mono">lib/markowitz.ts::buildFrontier</span>.
           </li>
           <li>
-            • Merton, R. (1980). &quot;On Estimating the Expected Return on the
-            Market&quot;. <em>Journal of Financial Economics</em>, 8, 323–361.
+            • Merton, R. C. (1980). &ldquo;On Estimating the Expected Return
+            on the Market&rdquo;. <em>Journal of Financial Economics</em>,
+            8(4), 323–361.{" "}
+            <Ref
+              href="https://doi.org/10.1016/0304-405X(80)90007-0"
+              doi="10.1016/0304-405X(80)90007-0"
+            />
+            {" "}— justifica usar Σ̂ (alta SNR) e desconfiar de μ̂ (baixa SNR).
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          B · Shrinkage de Σ e μ (Stein, James-Stein, Jorion, Ledoit-Wolf, Black-Litterman)
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • Stein, C. (1956). &ldquo;Inadmissibility of the Usual Estimator
+            for the Mean of a Multivariate Normal Distribution&rdquo;.{" "}
+            <em>Proc. Berkeley Symp. Math. Stat. Probab.</em>, 197–206.{" "}
+            <Ref
+              href="https://projecteuclid.org/euclid.bsmsp/1200501656"
+              label="projecteuclid.org"
+            />
           </li>
           <li>
-            • Jorion, P. (1986). &quot;Bayes-Stein Estimation for Portfolio
-            Analysis&quot;. <em>JFQA</em>, 21(3), 279–292.
+            • James, W. &amp; Stein, C. (1961). &ldquo;Estimation with Quadratic
+            Loss&rdquo;. <em>Proc. Berkeley Symp.</em>, 361–379.{" "}
+            <Ref
+              href="https://projecteuclid.org/euclid.bsmsp/1200512173"
+              label="projecteuclid.org"
+            />
           </li>
           <li>
-            • Michaud, R. (1998). <em>Efficient Asset Management</em>. Boston: HBR
-            Press. (Resampled efficiency.)
+            • Jorion, P. (1986). &ldquo;Bayes-Stein Estimation for Portfolio
+            Analysis&rdquo;. <em>JFQA</em>, 21(3), 279–292.{" "}
+            <Ref href="https://doi.org/10.2307/2331042" doi="10.2307/2331042" />
+            {" "}— fórmula de ψ em{" "}
+            <span className="mono">lib/mvEstimators.ts::jorionShrinkMu</span>.
           </li>
           <li>
-            • Ledoit, O. and Wolf, M. (2004). &quot;Honey, I Shrunk the Sample
-            Covariance Matrix&quot;. <em>JPM</em>, 30(4), 110–119.
+            • Black, F. &amp; Litterman, R. (1992). &ldquo;Global Portfolio
+            Optimization&rdquo;. <em>Financial Analysts Journal</em>, 48(5),
+            28–43.{" "}
+            <Ref href="https://doi.org/10.2469/faj.v48.n5.28" doi="10.2469/faj.v48.n5.28" />
+            {" "}— inspiração do prior macro <span className="mono">μ̂_anchor = rf + ERP</span> e
+            do teto por ativo.
           </li>
           <li>
-            • DeMiguel, V., Garlappi, L., Uppal, R. (2009). &quot;Optimal Versus
-            Naive Diversification: How Inefficient Is the 1/N Portfolio
-            Strategy?&quot;. <em>RFS</em>, 22(5), 1915–1953.
+            • Ledoit, O. &amp; Wolf, M. (2003). &ldquo;Improved Estimation of
+            the Covariance Matrix of Stock Returns with an Application to
+            Portfolio Selection&rdquo;. <em>Journal of Empirical Finance</em>,
+            10(5), 603–621.{" "}
+            <Ref
+              href="https://doi.org/10.1016/S0927-5398(03)00007-0"
+              doi="10.1016/S0927-5398(03)00007-0"
+            />
+          </li>
+          <li>
+            • Ledoit, O. &amp; Wolf, M. (2004). &ldquo;Honey, I Shrunk the
+            Sample Covariance Matrix&rdquo;. <em>Journal of Portfolio
+            Management</em>, 30(4), 110–119.{" "}
+            <Ref
+              href="https://doi.org/10.3905/jpm.2004.110"
+              doi="10.3905/jpm.2004.110"
+            />
+            {" "}— δ* fechado em{" "}
+            <span className="mono">lib/mvEstimators.ts::ledoitWolf</span>.
+          </li>
+          <li>
+            • Michaud, R. O. (1998). <em>Efficient Asset Management: A
+            Practical Guide to Stock Portfolio Optimization and Asset
+            Allocation</em>. Boston: HBR Press. (Resampled efficiency e
+            bootstrap das alocações.)
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          C · Bootstrap, validação out-of-sample, 1/N
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • Efron, B. (1979). &ldquo;Bootstrap Methods: Another Look at the
+            Jackknife&rdquo;. <em>Annals of Statistics</em>, 7(1), 1–26.{" "}
+            <Ref href="https://doi.org/10.1214/aos/1176344552" doi="10.1214/aos/1176344552" />
+          </li>
+          <li>
+            • DeMiguel, V., Garlappi, L., &amp; Uppal, R. (2009).{" "}
+            &ldquo;Optimal Versus Naive Diversification: How Inefficient Is the
+            1/N Portfolio Strategy?&rdquo;. <em>Review of Financial Studies</em>,
+            22(5), 1915–1953.{" "}
+            <Ref href="https://doi.org/10.1093/rfs/hhm075" doi="10.1093/rfs/hhm075" />
+            {" "}— motivação para o backtest walk-forward 1/N em{" "}
+            <span className="mono">lib/backtest.ts</span>.
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          D · Equity risk premium &amp; mercado brasileiro
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • Damodaran, A. (2026). <em>Equity Risk Premiums (ERP):
+            Determinants, Estimates and Implications</em> — The 2026 Edition.
+            SSRN.{" "}
+            <Ref
+              href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6361419"
+              label="SSRN 6361419"
+            />
+            {" "}— fonte do <span className="mono">ERP_PRIOR = 6%</span> para Brasil.
+          </li>
+          <li>
+            • Damodaran, A. <em>Country Default Spreads and Risk Premiums</em>{" "}
+            (atualizado anualmente).{" "}
+            <Ref
+              href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html"
+              label="stern.nyu.edu"
+            />
+          </li>
+          <li>
+            • Banco Central do Brasil. <em>Long-term stock returns in Brazil:
+            volatile equity returns for U.S.-like investors</em>. Working
+            Paper Series 525, 2010.{" "}
+            <Ref
+              href="https://www.bcb.gov.br/pec/wps/ingl/wps525.pdf"
+              label="bcb.gov.br/wps525"
+            />
+            {" "}— σ ≈ 67%/a, premium realizado.
+          </li>
+          <li>
+            • Economatica. <em>Desempenho do Ibovespa: 50 anos de história</em>{" "}
+            (Jan 2019).{" "}
+            <Ref
+              href="https://insight.economatica.com/desempenho-do-ibovespa-50-anos-de-historia/"
+              label="economatica.com"
+            />
+            {" "}— CAGR nominal 11,74%/a (1968–2018, USD).
+          </li>
+          <li>
+            • Clube dos Poupadores. <em>CDI, Bolsa e Dólar no Brasil
+            (2000–2024)</em>.{" "}
+            <Ref
+              href="https://clubedospoupadores.com/carteira-investimentos/tabela.html"
+              label="clubedospoupadores.com"
+            />
+            {" "}— Ibov 25y CAGR ≈ 8,1%/a vs CDI ≈ 13%/a.
+          </li>
+          <li>
+            • Saraiva, J. (2024). &ldquo;A dura vida dos fundos de ações: só 1%
+            tem resultado consistente no longo prazo&rdquo;. NeoFeed.{" "}
+            <Ref
+              href="https://neofeed.com.br/wealth-management/a-dura-vida-dos-fundos-de-acoes-so-1-tem-resultado-consistente-no-longo-prazo/"
+              label="neofeed.com.br"
+            />
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          E · McLean (2011) — replicação Brasil (Chalhoub, Kirch &amp; Terra 2015)
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • McLean, R. D. (2011). &ldquo;Share Issuance and Cash Savings&rdquo;.{" "}
+            <em>Journal of Financial Economics</em>, 99(3), 693–715.{" "}
+            <Ref
+              href="https://doi.org/10.1016/j.jfineco.2010.10.006"
+              doi="10.1016/j.jfineco.2010.10.006"
+            />
+            {" "}— modelo original (firmas dos EUA, 1971–2008).
+          </li>
+          <li>
+            • Almeida, H., Campello, M. &amp; Weisbach, M. S. (2004).{" "}
+            &ldquo;The Cash Flow Sensitivity of Cash&rdquo;.{" "}
+            <em>Journal of Finance</em>, 59(4), 1777–1804.{" "}
+            <Ref href="https://doi.org/10.1111/j.1540-6261.2004.00679.x" doi="10.1111/j.1540-6261.2004.00679.x" />
+          </li>
+          <li>
+            • Riddick, L. A. &amp; Whited, T. M. (2009). &ldquo;The Corporate
+            Propensity to Save&rdquo;. <em>Journal of Finance</em>, 64(4),
+            1729–1766.{" "}
+            <Ref href="https://doi.org/10.1111/j.1540-6261.2009.01478.x" doi="10.1111/j.1540-6261.2009.01478.x" />
+          </li>
+          <li>
+            • Bates, T. W., Kahle, K. M. &amp; Stulz, R. M. (2009). &ldquo;Why
+            Do U.S. Firms Hold So Much More Cash than They Used To?&rdquo;.{" "}
+            <em>Journal of Finance</em>, 64(5), 1985–2021.{" "}
+            <Ref href="https://doi.org/10.1111/j.1540-6261.2009.01492.x" doi="10.1111/j.1540-6261.2009.01492.x" />
+          </li>
+          <li>
+            • Chalhoub, L., Kirch, G. &amp; Terra, P. R. S. (2015).{" "}
+            &ldquo;De onde vem o caixa retido pelas firmas brasileiras?&rdquo;.{" "}
+            <em>Revista Brasileira de Finanças</em>, 13(4), 595–635.{" "}
+            <Ref
+              href="https://www.scielo.br/j/rbfin/a/CDpW55sBhPLP9Hk3kVH3fNL/?format=pdf&lang=pt"
+              label="SciELO"
+            />
+            {" "}— a replicação brasileira que este app reproduz.
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          F · Implementação numérica
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • Marsaglia, G. &amp; Tsang, W. W. (2000). &ldquo;A Simple Method
+            for Generating Gamma Variables&rdquo;. <em>ACM Trans. Math.
+            Software</em>, 26(3), 363–372.{" "}
+            <Ref href="https://doi.org/10.1145/358407.358414" doi="10.1145/358407.358414" />
+            {" "}— amostragem da nuvem em{" "}
+            <span className="mono">lib/markowitz.ts::_gamma</span>.
+          </li>
+          <li>
+            • Mulberry32 PRNG, Tommy Ettinger (2017). Constante mágica{" "}
+            <span className="mono">0x6d2b79f5</span>, período 2³².{" "}
+            <Ref
+              href="https://gist.github.com/tommyettinger/46a3ad12c61c8c6f1ce2fe6f1c7d4e1d"
+              label="gist.github.com"
+            />
+            {" "}— em <span className="mono">lib/prng.ts</span>.
+          </li>
+          <li>
+            • Higham, N. J. (2002). <em>Accuracy and Stability of Numerical
+            Algorithms</em> (2nd ed.). SIAM. (Eliminação de Gauss-Jordan com
+            pivoteamento parcial em <span className="mono">lib/matrix.ts</span>.)
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          G · Dados &amp; pacotes
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • <strong>Yahoo Finance</strong> — preços ajustados (splits e
+            proventos). Acesso via{" "}
+            <span className="mono">yfr_py</span> (porta Python do pacote R{" "}
+            <span className="mono">msperlin/yfR</span>).{" "}
+            <Ref
+              href="https://github.com/msperlin/yfR"
+              label="github.com/msperlin/yfR"
+            />
+          </li>
+          <li>
+            • <strong>CVM Dados Abertos</strong> — Demonstrações Financeiras
+            Padronizadas (DFP) de companhias listadas, 2010–2025.{" "}
+            <Ref
+              href="https://dados.cvm.gov.br/dataset/cia_aberta-doc-dfp"
+              label="dados.cvm.gov.br"
+            />
+          </li>
+          <li>
+            • <strong>BCB SGS — série 12 (CDI Over)</strong> — taxa diária
+            anualizada do CDI desde 1986. Endpoint público da API SGS do BCB.{" "}
+            <Ref
+              href="https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json"
+              label="api.bcb.gov.br/sgs/12"
+            />
+          </li>
+          <li>
+            • <strong>Recharts</strong> (visualização da fronteira) e{" "}
+            <strong>Next.js 16</strong> (frontend estático servido em GitHub
+            Pages).
+          </li>
+        </ul>
+
+        <div className="mt-4 text-[11px] uppercase tracking-wider text-muted">
+          H · Regulação brasileira citada
+        </div>
+        <ul className="mt-2 space-y-2 text-sm text-body">
+          <li>
+            • Lei 12.703/2012 — remuneração da caderneta de poupança (regra
+            do piso de 0,5%/mês se SELIC &gt; 8,5%; 70% da SELIC + TR caso
+            contrário). Citada no rótulo de &ldquo;poupança&rdquo; no chart.{" "}
+            <Ref
+              href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12703.htm"
+              label="planalto.gov.br"
+            />
           </li>
         </ul>
       </section>
@@ -844,5 +1121,26 @@ function Formula({ name, body }: { name: string; body: string }) {
       <div className="eyebrow">{name}</div>
       <div className="mono mt-3 break-words text-sm text-strong">{body}</div>
     </div>
+  );
+}
+
+/**
+ * Inline reference link used in the bibliography. Renders a small badge
+ * with the source label (DOI or domain), opens in a new tab, and uses
+ * `rel="noopener noreferrer"` so the page can't be phished by the
+ * target. Either pass `doi="10.xxx/yyy"` for a DOI link or `label="..."`
+ * for arbitrary text.
+ */
+function Ref({ href, doi, label }: { href: string; doi?: string; label?: string }) {
+  const text = doi ? `doi:${doi}` : (label ?? "link");
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ml-1 inline-block whitespace-nowrap rounded-sm bg-[color:var(--bg-subtle)] px-1.5 py-px text-[10px] tracking-tight text-muted underline decoration-dotted underline-offset-2 hover:text-strong"
+    >
+      {text}
+    </a>
   );
 }

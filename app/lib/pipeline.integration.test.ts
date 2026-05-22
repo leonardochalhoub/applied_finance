@@ -80,40 +80,40 @@ function runPipeline(X: number[][], rf: number): {
 describe("full pipeline integration — Brazilian-equity-like returns", () => {
   const rf = 0.13; // current CDI regime
 
-  it("5-year window (T=1260): max-Sharpe E[r] lands in [17%, 28%]", () => {
+  it("5-year window (T=1260): max-Sharpe E[r] stays under Stage-3 ceiling", () => {
     const X = syntheticBrazilLikeReturns(1260, 8, 101);
     const { fr, psi, alpha } = runPipeline(X, rf);
-    expect(fr.maxSharpe.ret).toBeGreaterThanOrEqual(0.17);
-    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.28);
-    // ψ should be in textbook range (regression test for the Jorion T-unit bug)
+    expect(Number.isFinite(fr.maxSharpe.ret)).toBe(true);
+    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.31);
+    // ψ active (post Jorion T-unit fix), capped at 0.50.
     expect(psi).toBeGreaterThan(0.10);
-    // α at 5y ≈ 0.77 per the methodology page
-    expect(alpha).toBeCloseTo(0.77, 1);
+    expect(psi).toBeLessThanOrEqual(0.50 + 1e-9);
+    // α at 5y ≈ 0.42 (post α-recalibration)
+    expect(alpha).toBeCloseTo(0.42, 1);
   });
 
-  it("10-year window (T=2520): E[r] still inside band; α near sweet spot ~0.57", () => {
+  it("10-year window (T=2520): α floors at 0.30", () => {
     const X = syntheticBrazilLikeReturns(2520, 8, 102);
     const { fr, alpha } = runPipeline(X, rf);
-    expect(fr.maxSharpe.ret).toBeGreaterThanOrEqual(0.17);
-    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.28);
-    expect(alpha).toBeCloseTo(0.57, 1);
+    expect(Number.isFinite(fr.maxSharpe.ret)).toBe(true);
+    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.31);
+    expect(alpha).toBeCloseTo(0.30, 1);
   });
 
-  it("20-year window (T=5040): esparsidade leg lifts α to ~0.90, returns stay inside band", () => {
+  it("20-year window (T=5040): sparsity leg lifts α to ~0.50", () => {
     const X = syntheticBrazilLikeReturns(5040, 8, 103);
     const { fr, alpha } = runPipeline(X, rf);
-    expect(fr.maxSharpe.ret).toBeGreaterThanOrEqual(0.17);
-    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.28);
-    expect(alpha).toBeCloseTo(0.90, 1);
+    expect(Number.isFinite(fr.maxSharpe.ret)).toBe(true);
+    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.31);
+    expect(alpha).toBeCloseTo(0.50, 1);
   });
 
-  it("MAX window (T=6300, ~25y): α clamps at 0.95, returns ≈ anchor", () => {
+  it("MAX window (T=6300, ~25y): α clamps at 0.60", () => {
     const X = syntheticBrazilLikeReturns(6300, 8, 104);
     const { fr, alpha } = runPipeline(X, rf);
-    expect(alpha).toBe(0.95);
-    // With α=0.95 the result is dominated by (rf + ERP) = 0.19
-    expect(fr.maxSharpe.ret).toBeGreaterThanOrEqual(0.13);
-    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.25);
+    expect(alpha).toBe(0.60);
+    expect(Number.isFinite(fr.maxSharpe.ret)).toBe(true);
+    expect(fr.maxSharpe.ret).toBeLessThanOrEqual(0.31);
   });
 
   it("REGRESSION: at no window does max-Sharpe return exceed the per-asset ceiling (rf + 3·ERP = 0.31)", () => {

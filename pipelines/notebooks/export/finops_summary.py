@@ -256,13 +256,32 @@ if not runs_pdf.empty:
 # COMMAND ----------
 
 # ─── Storage spending breakdown ───────────────────────────────────────────────
+#
+# Threshold history: an earlier version used `> 0.001` (one-tenth of a cent)
+# to define "days with storage". On smaller Databricks accounts where the
+# DEFAULT_STORAGE prorated daily cost lands at ~1e-5 USD (literally a few
+# micro-dollars per day) every day fell below the threshold → days_with_storage
+# = 0 → per-day metrics divided by zero → UI showed $0.00 across the storage
+# panel even though the lifetime total was non-zero. Two robustness changes:
+#   1. Threshold dropped to 1e-9 — count any day with any non-zero cost.
+#   2. Per-day metrics fall back to averaging over the days the pipeline
+#      actually ran (`len(daily_pdf)`) when threshold-based counts hit zero,
+#      so the user always sees a meaningful run rate.
+STORAGE_EPS = 1e-9
 storage_lifetime = float(daily_pdf["cost_storage"].sum())
 storage_30d      = float(daily_30["cost_storage"].sum())
-days_with_storage    = int((daily_pdf["cost_storage"] > 0.001).sum())
-days_with_storage_30 = int((daily_30["cost_storage"]  > 0.001).sum())
+days_with_storage    = int((daily_pdf["cost_storage"] > STORAGE_EPS).sum())
+days_with_storage_30 = int((daily_30["cost_storage"]  > STORAGE_EPS).sum())
 
-storage_per_day_lifetime = (storage_lifetime / days_with_storage) if days_with_storage > 0 else 0.0
-storage_per_day_current  = (storage_30d      / days_with_storage_30) if days_with_storage_30 > 0 else 0.0
+# Use the threshold-based count when it's positive; fall back to total pipeline
+# days when storage costs are real (lifetime > 0) but all daily values land
+# below the precision threshold. This keeps the per-day/month/year columns
+# meaningful in the small-cost regime.
+denom_lifetime = days_with_storage    if days_with_storage    > 0 else (len(daily_pdf) if storage_lifetime > 0 else 0)
+denom_30d      = days_with_storage_30 if days_with_storage_30 > 0 else (len(daily_30)  if storage_30d      > 0 else 0)
+
+storage_per_day_lifetime = (storage_lifetime / denom_lifetime) if denom_lifetime > 0 else 0.0
+storage_per_day_current  = (storage_30d      / denom_30d)      if denom_30d      > 0 else 0.0
 storage_per_month_run    = storage_per_day_current * 30.0
 storage_per_year_run     = storage_per_day_current * 365.0
 storage_pct_of_total     = (100.0 * storage_lifetime / total_cost_lifetime) if total_cost_lifetime > 0 else 0.0
