@@ -116,6 +116,31 @@ if not all_zips:
     raise RuntimeError(f"No zip files found under {volume_dir}/run_id=*/")
 log.info(f"Found {len(all_zips)} zip(s) under {volume_dir}")
 
+# Skip zips already merged in a prior run. `ingest_cvm_dfp` creates a fresh
+# `run_id=<uuid>/` directory every job run holding the full 2010-202x set, so
+# without this filter the bronze workload grows linearly with the number of
+# historical ingests and eventually trips the serverless Spark Connect
+# 2-hour session timeout. `(source_run_id, source_year_file)` uniquely tags
+# each ingested zip in the table.
+already = {
+    (r["source_run_id"], r["source_year_file"])
+    for r in (
+        spark.table(f"{catalog}.bronze.cvm_dfp_lines")
+        .select("source_run_id", "source_year_file")
+        .distinct()
+        .collect()
+    )
+}
+before = len(all_zips)
+all_zips = [(p, y, rid) for (p, y, rid) in all_zips if (rid, y) not in already]
+log.info(f"Skipped {before - len(all_zips)} zip(s) already merged; {len(all_zips)} remaining.")
+if not all_zips:
+    log.info("Nothing to do — bronze.cvm_dfp_lines is already up to date.")
+    total = spark.table(f"{catalog}.bronze.cvm_dfp_lines").count()
+    log.info(f"bronze.cvm_dfp_lines → {total:,} rows total")
+    dbutils.jobs.taskValues.set(key="bronze_cvm_dfp_rows", value=total)
+    dbutils.notebook.exit("skipped: already up to date")
+
 # Parse and MERGE one zip at a time. Each annual CVM zip yields ~200k rows
 # (~16 fields each as Python tuples), and accumulating all of them in one
 # Python list before staging blows the driver heap once you have ~15+ years.

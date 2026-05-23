@@ -67,5 +67,24 @@ for year in range(from_year, to_year + 1):
 total_bytes += _download(CAD_URL, f"{out_dir}/cad_cia_aberta.csv", "Cadastro de Companhias")
 
 log.info(f"Total ingested: {total_bytes/1e6:.1f} MB → {out_dir}")
+
+# Prune prior run_id directories now that the new full set landed cleanly.
+# CVM republishes the complete 2010-202x history every year, so prior runs
+# are fully redundant; without pruning, `bronze_cvm_dfp_lines` would scan
+# N×16 zips after N daily runs and trip the serverless 2h session timeout.
+# Pruning happens AFTER all downloads succeed so a mid-ingest failure leaves
+# the previous good run in place.
+pruned = 0
+for status in dbutils.fs.ls(volume_dir):
+    if not status.path.endswith("/"):
+        continue
+    other = status.path.rstrip("/").split("run_id=")[-1]
+    if other == run_id:
+        continue
+    log.info(f"  pruning stale run_id={other[:8]}…")
+    dbutils.fs.rm(status.path, recurse=True)
+    pruned += 1
+log.info(f"Pruned {pruned} prior run_id director(ies); kept run_id={run_id[:8]}.")
+
 dbutils.jobs.taskValues.set(key="cvm_ingest_run_id", value=run_id)
 dbutils.jobs.taskValues.set(key="cvm_ingest_bytes", value=total_bytes)
