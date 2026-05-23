@@ -94,15 +94,21 @@ log.info("prices_close.json → %d tickers", len(close_series))
 norm_series: dict[str, list] = {}
 for t in tickers:
     col = wide[t]
-    first_valid = col.first_valid_index()
+    # Drop non-positive prices BEFORE picking the base — silver already
+    # filters Yahoo's negative adjusted-close artifacts (b3_ohlcv_adjusted
+    # WHERE price_adjusted > 0), but mask defensively here too: if a single
+    # negative slips through, picking it as `first_valid` flips the sign of
+    # the entire normalized series for that ticker.
+    col_pos = col.where(col > 0)
+    first_valid = col_pos.first_valid_index()
     if first_valid is None:
         norm_series[t] = [None] * len(dates)
         continue
-    base = float(col.loc[first_valid])
+    base = float(col_pos.loc[first_valid])
     if base == 0 or np.isnan(base):
         norm_series[t] = [None] * len(dates)
         continue
-    norm_col = col / base * 100.0
+    norm_col = col_pos / base * 100.0
     norm_series[t] = _series_with_nulls(norm_col)
 
 with open(f"{artifacts_dir}/prices_normalized.json", "w") as f:
