@@ -28,7 +28,15 @@ from pyspark.sql import Window
 from pyspark.sql import functions as F
 
 dbutils.widgets.text("catalog", "finance_prd")
-catalog = dbutils.widgets.get("catalog")
+# Cap silver to the last FULLY-FILED fiscal year. 2025 zips ship while many
+# firms are still mid-filing — the partial cohort skews the winsorization
+# quantiles (Cashflow flipped sign, dCash collapsed near 0 in the May 2026
+# refresh after the panel was extended to 2025). The downstream gold notebooks
+# already cap their regression window at this value; the filter here keeps the
+# winsorization quantiles consistent with what gold actually sees.
+dbutils.widgets.text("max_fiscal_year", "2024")
+catalog          = dbutils.widgets.get("catalog")
+MAX_FISCAL_YEAR  = int(dbutils.widgets.get("max_fiscal_year"))
 
 FINANCIAL_SECTORS = [
     "Bancos",
@@ -47,7 +55,10 @@ WINS_LO_CF       = 0.025       # CashFlow has a fatter left tail per paper
 REG_CORE_VARS = ["dCash", "dIssue", "dDebt", "Cashflow", "Other", "Assets"]
 WINS_VARS_STD = ["Cash", "dCash", "dIssue", "dDebt", "dDebtCP", "dDebtLP", "Other", "Dividends"]
 
-src = spark.table(f"{catalog}.silver.mclean_firm_year")
+src = (
+    spark.table(f"{catalog}.silver.mclean_firm_year")
+    .where(F.col("fiscal_year") <= MAX_FISCAL_YEAR)
+)
 
 # Step 1: aggregates
 src = (
@@ -63,11 +74,19 @@ for col in ["ativo_total", "cash", "debt_total", "debt_cp", "debt_lp", "patrimon
     src = src.withColumn(f"{col}_lag", F.lag(F.col(col)).over(w))
 
 # Step 3: McLean variables
+# IMPORTANT: compute dCash BEFORE Cash. Spark SQL is case-insensitive by
+# default, so `withColumn("Cash", ...)` overwrites the lowercase `cash` raw
+# BRL column — any subsequent `F.col("cash")` then resolves to the freshly-
+# computed Cash ratio (≈0.05), not the original ~10⁹ BRL value. Computing
+# dCash first locks in the raw `cash` reading; Cash then overwrites safely
+# because no later expression in this block touches `cash` again. (Discovered
+# May 2026 when post-refactor `dCash ≈ -Cash` everywhere — see the b25d526
+# diag + the side-by-side query in diag-mclean.yml for the trail.)
 AT_lag = F.col("ativo_total_lag")
 src = (
     src
-    .withColumn("Cash",      F.col("cash") / F.col("ativo_total"))
     .withColumn("dCash",     (F.col("cash")  - F.col("cash_lag"))  / AT_lag)
+    .withColumn("Cash",      F.col("cash") / F.col("ativo_total"))
     .withColumn(
         "dIssue",
         ((F.col("patrimonio_liquido") - F.col("patrimonio_liquido_lag"))

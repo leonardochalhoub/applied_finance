@@ -165,6 +165,63 @@ jobs:
             ORDER BY fiscal_year
           "
 
+          # (NEW) Side-by-side firm_year vs clean — for the same firm-years,
+          # compare cash, cash_lag, and the computed dCash between the two
+          # silver tables. If silver.mclean_clean's dCash diverges from a
+          # freshly-computed LAG-based dCash over silver.mclean_firm_year for
+          # the same (cd_cvm, fiscal_year), the bug is inside the
+          # silver/mclean_clean.py transformation (likely lag-vs-filter order
+          # or a self-referencing withColumn). If they match but the
+          # distribution is still inverted, the bug is in the winsorization or
+          # in selection bias from the row filters.
+          run_sql "
+            WITH fy AS (
+              SELECT
+                cd_cvm, fiscal_year,
+                cash AS fy_cash,
+                LAG(cash)        OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS fy_cash_lag,
+                LAG(ativo_total) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS fy_at_lag,
+                (cash - LAG(cash) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year))
+                  / LAG(ativo_total) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS fy_dcash
+              FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+              WHERE cd_cvm IN ('009512', '014109', '022187')
+            )
+            SELECT
+              fy.cd_cvm, fy.fiscal_year,
+              fy.fy_cash, fy.fy_cash_lag, fy.fy_dcash,
+              c.cash AS clean_cash, c.cash_lag AS clean_cash_lag, c.dCash AS clean_dcash
+            FROM fy
+            LEFT JOIN ${DATABRICKS_CATALOG}.silver.mclean_clean c
+              ON fy.cd_cvm = c.cd_cvm AND fy.fiscal_year = c.fiscal_year
+            WHERE fy.fiscal_year BETWEEN 2019 AND 2024
+            ORDER BY fy.cd_cvm, fy.fiscal_year
+          "
+
+          # (NEW2) Distribution comparison: how does the dCash distribution in
+          # silver.mclean_clean differ from a fresh LAG-based dcash_raw on
+          # silver.mclean_firm_year for the EXACT same (cd_cvm, fiscal_year)
+          # set? If they differ, silver/mclean_clean.py is computing dCash
+          # against a different upstream than what we think.
+          run_sql "
+            WITH fy AS (
+              SELECT cd_cvm, fiscal_year,
+                (cash - LAG(cash) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year))
+                  / LAG(ativo_total) OVER (PARTITION BY cd_cvm ORDER BY fiscal_year) AS dcash_recomputed
+              FROM ${DATABRICKS_CATALOG}.silver.mclean_firm_year
+            )
+            SELECT
+              COUNT(*) AS n_joined,
+              SUM(CASE WHEN ABS(fy.dcash_recomputed - c.dCash) < 1e-6 THEN 1 ELSE 0 END) AS n_match,
+              SUM(CASE WHEN ABS(fy.dcash_recomputed - c.dCash) >= 1e-6 THEN 1 ELSE 0 END) AS n_mismatch,
+              PERCENTILE_APPROX(fy.dcash_recomputed, 0.50) AS recomputed_p50,
+              PERCENTILE_APPROX(c.dCash, 0.50)              AS clean_p50,
+              PERCENTILE_APPROX(fy.dcash_recomputed, 0.99) AS recomputed_p99,
+              PERCENTILE_APPROX(c.dCash, 0.99)              AS clean_p99
+            FROM ${DATABRICKS_CATALOG}.silver.mclean_clean c
+            JOIN fy ON c.cd_cvm = fy.cd_cvm AND c.fiscal_year = fy.fiscal_year
+            WHERE c.fiscal_year BETWEEN 2010 AND 2024
+          "
+
           # (6) Per-firm 2024→2025 cash ratio. If the MIL flag broke on the
           # 2025 zip, ratio (cash_2025 / cash_2024) will cluster around 0.001
           # for most firms. If ratios cluster ~1 with normal dispersion, the

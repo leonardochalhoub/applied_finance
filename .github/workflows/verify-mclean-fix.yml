@@ -1,0 +1,185 @@
+name: Verify · mclean case-collision fix
+
+# One-off validation: simulates silver/mclean_clean.py with the Spark
+# case-collision fix applied, then runs the actual pooled OLS regression
+# (statsmodels) for the 2010-2024 window across full/unconstrained/
+# constrained samples — without touching prod silver.mclean_clean or the
+# gold cascade. Queries silver.mclean_firm_year (which is unaffected by the
+# bug) for raw account values, then reconstructs McLean variables in pandas
+# where column names ARE case-sensitive.
+#
+# Expected result if the fix is correct:
+#   ΔIssue   β ≈ +0.10  (paper +0.087)
+#   ΔDebt    β ≈ +0.12  (paper +0.095)
+#   Cashflow β ≈ +0.07  (paper +0.083)
+#
+# Anything close to those numbers proves the case-collision was the root
+# cause and clears the production push.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST:    ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN:   ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_CATALOG: finance_prd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install --quiet pandas numpy statsmodels requests
+
+      - name: Pull silver.mclean_firm_year + cad → run OLS
+        run: |
+          python - <<'PY'
+          import json, os, sys, time
+          import urllib.request
+
+          host    = os.environ["DATABRICKS_HOST"].rstrip("/")
+          token   = os.environ["DATABRICKS_TOKEN"]
+          catalog = os.environ["DATABRICKS_CATALOG"]
+
+          # ── Find a running (or any) SQL warehouse ─────────────────────
+          req = urllib.request.Request(
+              f"{host}/api/2.0/sql/warehouses",
+              headers={"Authorization": f"Bearer {token}"},
+          )
+          whs = json.loads(urllib.request.urlopen(req).read())["warehouses"]
+          wh  = next((w for w in whs if w["state"] == "RUNNING"), whs[0])
+          wh_id = wh["id"]
+          print(f"Using warehouse: {wh_id} ({wh['state']})")
+
+          def run_sql(stmt: str) -> list[list[str]]:
+              body = json.dumps({"warehouse_id": wh_id, "statement": stmt,
+                                 "wait_timeout": "50s", "disposition": "INLINE"}).encode()
+              r = urllib.request.Request(
+                  f"{host}/api/2.0/sql/statements",
+                  data=body,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"},
+              )
+              resp = json.loads(urllib.request.urlopen(r).read())
+              # Wait if PENDING/RUNNING
+              while resp.get("status", {}).get("state") in ("PENDING", "RUNNING"):
+                  sid = resp["statement_id"]
+                  time.sleep(2)
+                  rr = urllib.request.Request(
+                      f"{host}/api/2.0/sql/statements/{sid}",
+                      headers={"Authorization": f"Bearer {token}"},
+                  )
+                  resp = json.loads(urllib.request.urlopen(rr).read())
+              if resp.get("status", {}).get("state") != "SUCCEEDED":
+                  print(json.dumps(resp, indent=2))
+                  sys.exit(f"SQL failed: {resp.get('status')}")
+              data = resp.get("result", {}).get("data_array", []) or []
+              return data
+
+          # ── 1. Pull silver.mclean_firm_year ──────────────────────────
+          print("\n[1/4] Fetching silver.mclean_firm_year …")
+          rows = run_sql(f"""
+            SELECT cd_cvm, fiscal_year,
+                   ativo_total, cash, debt_cp, debt_lp,
+                   patrimonio_liquido, reserva_lucros, lucros_acumulados,
+                   venda_imobilizado, dividendos_pagos,
+                   lucro_liquido, deprec_amort, sector
+            FROM {catalog}.silver.mclean_firm_year
+            WHERE fiscal_year BETWEEN 2009 AND 2024
+            ORDER BY cd_cvm, fiscal_year
+          """)
+          import pandas as pd, numpy as np
+          cols = ["cd_cvm","fiscal_year","ativo_total","cash","debt_cp","debt_lp",
+                  "patrimonio_liquido","reserva_lucros","lucros_acumulados",
+                  "venda_imobilizado","dividendos_pagos","lucro_liquido",
+                  "deprec_amort","sector"]
+          df = pd.DataFrame(rows, columns=cols)
+          numerics = [c for c in cols if c not in ("cd_cvm","sector","fiscal_year")]
+          df["fiscal_year"] = df["fiscal_year"].astype(int)
+          df[numerics] = df[numerics].apply(pd.to_numeric, errors="coerce")
+          print(f"  rows: {len(df):,} | years: "
+                f"{df['fiscal_year'].min()}–{df['fiscal_year'].max()}")
+
+          # ── 2. Reconstruct McLean variables WITH the case-fix ────────
+          print("\n[2/4] Computing McLean vars (case-sensitive, pandas) …")
+          df["debt_total"]      = df["debt_cp"].fillna(0)      + df["debt_lp"].fillna(0)
+          df["reserva_plus_la"] = df["reserva_lucros"].fillna(0) + df["lucros_acumulados"].fillna(0)
+          df["cashflow_raw"]    = df["lucro_liquido"].fillna(0) + df["deprec_amort"].fillna(0)
+
+          df = df.sort_values(["cd_cvm","fiscal_year"]).reset_index(drop=True)
+          g = df.groupby("cd_cvm", sort=False)
+          for c in ["ativo_total","cash","debt_total","debt_cp","debt_lp",
+                    "patrimonio_liquido","reserva_plus_la"]:
+              df[f"{c}_lag"] = g[c].shift(1)
+
+          AT_lag = df["ativo_total_lag"]
+          df["Cash"]     = df["cash"] / df["ativo_total"]                    # ← was overwriting raw `cash`
+          df["dCash"]    = (df["cash"]  - df["cash_lag"])  / AT_lag           # ← now uses raw `cash` cleanly
+          df["dIssue"]   = ((df["patrimonio_liquido"] - df["patrimonio_liquido_lag"])
+                          - (df["reserva_plus_la"]    - df["reserva_plus_la_lag"])) / AT_lag
+          df["dDebt"]    = (df["debt_total"] - df["debt_total_lag"]) / AT_lag
+          df["Cashflow"] = df["cashflow_raw"] / AT_lag
+          df["Other"]    = df["venda_imobilizado"].fillna(0) / AT_lag
+          df["Assets"]   = np.log(df["ativo_total"].where(df["ativo_total"] > 0))
+          df["dAT_pct"]  = (df["ativo_total"] - AT_lag) / AT_lag
+
+          # ── 3. Apply paper filters + winsorize (pooled, 2010-2024) ───
+          print("\n[3/4] Applying filters + winsorize …")
+          FINANCIALS = {"Bancos","Intermediação Financeira","Arrendamento Mercantil",
+                        "Securitização de Recebíveis","Seguradoras e Corretoras",
+                        "Crédito Imobiliário"}
+          core = ["dCash","dIssue","dDebt","Cashflow","Other","Assets"]
+          df = df[df["fiscal_year"].between(2010, 2024)]
+          df = df[~df["sector"].isin(FINANCIALS)]
+          df = df[(df["ativo_total"] > 200_000) & (df["ativo_total_lag"] > 200_000)]
+          df = df[df["dAT_pct"] <= 1.0]
+          df = df.dropna(subset=core).copy()
+          print(f"  post-filter rows: {len(df):,} | firms: {df['cd_cvm'].nunique():,}")
+
+          def wins(s, lo, hi):
+              return s.clip(s.quantile(lo), s.quantile(1 - hi))
+          for v in ["Cash","dCash","dIssue","dDebt","Other"]:
+              df[v] = wins(df[v], 0.01, 0.01)
+          df["Cashflow"] = wins(df["Cashflow"], 0.025, 0.01)
+
+          # ── 4. Pooled OLS — full, unconstrained, constrained ─────────
+          print("\n[4/4] Running pooled OLS …")
+          import statsmodels.api as sm
+          reg = ["dIssue","dDebt","Cashflow","Other","Assets"]
+
+          def kirch_class(d):
+              d = d.copy()
+              d["sector"] = d["sector"].fillna("Sem Setor")
+              cs = d.groupby(["sector","fiscal_year"])["cd_cvm"].transform("count")
+              d["pct"] = d.groupby(["sector","fiscal_year"])["ativo_total_lag"].rank(pct=True)
+              d["grp"] = "middle"
+              d.loc[(d["pct"] <= 0.30) & (cs >= 5), "grp"] = "constrained"
+              d.loc[(d["pct"] >= 0.70) & (cs >= 5), "grp"] = "unconstrained"
+              return d
+
+          dfc = kirch_class(df)
+          for name, sub in [
+              ("full",          dfc),
+              ("unconstrained", dfc[dfc["grp"] == "unconstrained"]),
+              ("constrained",   dfc[dfc["grp"] == "constrained"]),
+          ]:
+              y = sub["dCash"]
+              X = sm.add_constant(sub[reg])
+              fit = sm.OLS(y, X).fit(cov_type="HC1")
+              print(f"\n── pooled OLS [{name}]  n={int(fit.nobs):>5}  R²={fit.rsquared:.4f}")
+              for v in ["const"] + reg:
+                  c, t, p = fit.params[v], fit.tvalues[v], fit.pvalues[v]
+                  sig = "***" if p < 0.01 else "**" if p < 0.05 else "*" if p < 0.10 else ""
+                  print(f"  {v:>10} β={c:>+8.4f}  t={t:>+6.2f}  p={p:>8.4f} {sig}")
+
+          print("\n── paper Table 3 (Chalhoub-Kirch-Terra 2015) ──")
+          print("  dIssue   β=+0.087 ***  | dDebt β=+0.095 *** | Cashflow β=+0.083 ***")
+          PY

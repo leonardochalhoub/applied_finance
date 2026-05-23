@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 # COMMAND ----------
+from pyspark.sql import Window
 from pyspark.sql import functions as F
 
 dbutils.widgets.text("catalog", "finance_prd")
@@ -59,10 +60,36 @@ DIRECT_PULLS = [
 ]
 
 lines = spark.table(f"{catalog}.bronze.cvm_dfp_lines")
-# Restrict to ÚLTIMO (current-year value) — PENÚLTIMO is used only as a
-# fallback for cross-validation in the original bronze; here we want the
-# definitive value for each (cd_cvm, fiscal_year).
-last = lines.where(F.col("ordem_exerc") == "ÚLTIMO")
+
+# Authoritative-row filter — each fiscal_year value can come from two places:
+#   (a) ÚLTIMO row in the matching-year zip  → source_year_file == fiscal_year
+#   (b) PENÚLTIMO row in the next-year zip   → source_year_file == fiscal_year + 1
+# Anything else is a restated/back-published row that may carry a different
+# `vl_norm` than the firm's definitive filing; pinning to (a)/(b) prevents
+# later zips from silently overwriting authoritative earlier-year values.
+# Including (b) also lets us recover fy=YEAR_MIN-1 (e.g. fy=2009 from the 2010
+# zip) so the lag-based dCash for fy=YEAR_MIN survives downstream — otherwise
+# the earliest fiscal year is always dropped for lack of a prior observation.
+authoritative = lines.where(
+    ((F.col("ordem_exerc") == "ÚLTIMO")    & (F.col("source_year_file") == F.col("fiscal_year"))) |
+    ((F.col("ordem_exerc") == "PENÚLTIMO") & (F.col("source_year_file") == F.col("fiscal_year") + 1))
+)
+
+# Dedupe within (cd_cvm, fiscal_year, statement, cd_conta) — prefer ÚLTIMO over
+# PENÚLTIMO (firm's definitive filing wins), break ties by highest VERSAO
+# (latest restatement). `last` is the deduped frame consumed below.
+_pref = F.when(F.col("ordem_exerc") == "ÚLTIMO", 0).otherwise(1)
+_w_dedup = Window.partitionBy("cd_cvm", "fiscal_year", "statement", "cd_conta").orderBy(
+    _pref.asc(),
+    F.col("versao").desc_nulls_last(),
+    F.col("ingested_at").desc(),
+)
+last = (
+    authoritative
+    .withColumn("_rn", F.row_number().over(_w_dedup))
+    .where(F.col("_rn") == 1)
+    .drop("_rn")
+)
 
 # Build one column per (statement, cd_conta) value via filtered aggregation.
 acc_exprs = [F.col("cd_cvm"), F.col("fiscal_year")]
