@@ -73,12 +73,25 @@ export function recomputeStatsForWindow(
     const lastIdx = cleanIdx[cleanIdx.length - 1];
     const first = segment[firstIdx]!;
     const last = segment[lastIdx]!;
-    // Compute window log return; guard against extreme outliers caused by
-    // dirty upstream prices (e.g. UGPA3 has spurious 3.3M close in 2007).
-    // |log return| > 3 implies >20x change over the window — almost always
-    // a data error rather than legitimate performance; treat as null.
-    let retWindow: number | null = first > 0 ? Math.log(last / first) : null;
-    if (retWindow != null && Math.abs(retWindow) > 3) retWindow = null;
+    // Compute window log return.
+    //
+    // Require BOTH endpoints positive: silver.b3_ohlcv_adjusted occasionally
+    // ships negative normalized closes for bankruptcy survivors (e.g. OIBR4
+    // ends at ~-0.0015 in the deployed snapshot — a Yahoo split-adjustment
+    // artifact). Math.log(negative) returns NaN which silently propagates
+    // through every downstream guard and renders as "—" without warning.
+    //
+    // Cap only the POSITIVE tail: legitimate -99% losses (bankrupt issuers
+    // like OIBR3: 100 → 0.0025 over 24y, log return = -10.6) must survive
+    // since they're real performance, not data corruption. The old
+    // symmetric `Math.abs > 3` guard was wiping every catastrophic-loss
+    // ticker from sector detail panels. The positive side keeps a generous
+    // > 8 ceiling (~3000x gain) to still trap obvious data errors like
+    // UGPA3's spurious R$3.3M close artifact, while passing through
+    // legitimate biotech / IPO multibaggers.
+    let retWindow: number | null =
+      first > 0 && last > 0 ? Math.log(last / first) : null;
+    if (retWindow != null && retWindow > 8) retWindow = null;
 
     // Daily log returns over the window. Drop |daily log ret| > 0.5
     // (~65% one-day change) as data artifacts: real splits/dividends are
