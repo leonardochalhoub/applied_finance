@@ -272,7 +272,11 @@ export function HomeShell({ kpis, sectors, ibov, prices, closes, cdi }: Props) {
           </div>
           <a href={withBase("/setores/")} className="nav-link">ver tabela →</a>
         </div>
-        <SectorPanels sectors={filteredSectors} prices={prices} />
+        <SectorPanels
+          sectors={filteredSectors}
+          prices={prices}
+          tickerStats={windowedStats}
+        />
       </section>
 
       {/* ── Líderes e retardatários (window-recomputed) ───────────────────── */}
