@@ -2,7 +2,7 @@
 """Build gold.mclean_descriptives — Table 1 stats per (window, sample, variable).
 
 Materializes the descriptive statistics that feed the McLean replication app
-tab. Two windows (full=2010–2025, original=2010–2013) × three sub-samples
+tab. Two windows (full=2010–2024, original=2010–2013) × three sub-samples
 (full, unconstrained, constrained) × seven variables = 42 rows.
 
 The constrained/unconstrained classification follows Kirch et al (2014):
@@ -25,7 +25,7 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.gold")
 
 DESC_VARS = ["Cash", "dCash", "dIssue", "dDebt", "Cashflow", "Other", "Assets"]
 WINDOWS = {
-    "full":     (2010, 2025),
+    "full":     (2010, 2024),
     "original": (2010, 2013),
 }
 

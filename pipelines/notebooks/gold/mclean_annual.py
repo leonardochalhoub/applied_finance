@@ -29,7 +29,7 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.gold")
 REG_VARS = ["dIssue", "dDebt", "Cashflow", "Other", "Assets"]
 MIN_OBS_PER_YEAR = 20
 WINDOWS = {
-    "full":     (2010, 2025),
+    "full":     (2010, 2024),
     "original": (2010, 2013),
 }
 

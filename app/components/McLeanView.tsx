@@ -39,8 +39,8 @@ const SAMPLE_LABELS: Record<SampleKey, string> = {
 const WINDOW_LABELS: Record<WindowKey, { short: string; long: string; tooltip: string }> = {
   full: {
     short:   "Máxima",
-    long:    "2010–2025",
-    tooltip: "Resultados na janela máxima disponível na CVM (16 anos).",
+    long:    "2010–2024",
+    tooltip: "Resultados na janela máxima disponível na CVM (15 anos).",
   },
   original: {
     short:   "Original",
@@ -330,7 +330,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
         <div className="border-b border-border px-5 py-3">
           <div className="eyebrow">Tabela 1 — Estatísticas descritivas</div>
           <div className="mt-1 text-xs text-muted">
-            Lado a lado: replicação (2010–2025) × paper original (1995–2013, amostra completa).
+            Lado a lado: replicação (2010–2024) × paper original (1995–2013, amostra completa).
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -559,7 +559,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
             <ul className="mt-2 space-y-2 text-body">
               <li>
                 <strong>As janelas mal se sobrepõem.</strong> Paper cobre 1995–2013; réplica cobre
-                2010–2025. Apenas quatro anos em comum. A janela moderna inclui ciclos da Selic
+                2010–2024. Apenas quatro anos em comum. A janela moderna inclui ciclos da Selic
                 pós-2015, hoarding de liquidez na COVID e retração do BNDES — regime macro
                 materialmente diferente. Coeficientes maiores em ΔIssue/ΔDebt na réplica são
                 consistentes com isso, mas <em>não permitem atribuir o delta à metodologia</em> sem
@@ -599,7 +599,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
               Narrativa defensável
             </div>
             <p className="mt-2 text-body">
-              O mecanismo de cash savings documentado em 2015 segue operando em 2010–2025:
+              O mecanismo de cash savings documentado em 2015 segue operando em 2010–2024:
               firmas brasileiras continuam retendo parcela significativa de cada real captado via
               emissão, dívida ou caixa operacional. No entanto, a{" "}
               <strong>assimetria precaucionária entre restritas e não-restritas não se replica
