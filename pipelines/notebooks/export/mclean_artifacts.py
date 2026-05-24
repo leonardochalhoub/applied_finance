@@ -125,7 +125,7 @@ def _window_meta(window: str) -> dict:
     n_firms = 0
     # We don't carry n_firms in any gold table — but we can derive it from the
     # silver.mclean_clean filtered for the same window. Cheap enough:
-    yrs = {"full": (2010, 2024), "original": (2010, 2013)}[window]
+    yrs = {"full": (2010, 2025), "original": (2010, 2013)}[window]
     nf = (
         spark.table(f"{catalog}.silver.mclean_clean")
         .where(f"fiscal_year BETWEEN {yrs[0]} AND {yrs[1]}")

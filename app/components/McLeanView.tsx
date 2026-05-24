@@ -39,8 +39,8 @@ const SAMPLE_LABELS: Record<SampleKey, string> = {
 const WINDOW_LABELS: Record<WindowKey, { short: string; long: string; tooltip: string }> = {
   full: {
     short:   "Máxima",
-    long:    "2010–2024",
-    tooltip: "Resultados na janela máxima disponível na CVM (15 anos).",
+    long:    "2010–2025",
+    tooltip: "Resultados na janela máxima disponível na CVM (16 anos).",
   },
   original: {
     short:   "Original",
@@ -330,7 +330,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
         <div className="border-b border-border px-5 py-3">
           <div className="eyebrow">Tabela 1 — Estatísticas descritivas</div>
           <div className="mt-1 text-xs text-muted">
-            Lado a lado: replicação (2010–2024) × paper original (1995–2013, amostra completa).
+            Lado a lado: replicação (2010–2025) × paper original (1995–2013, amostra completa).
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -559,7 +559,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
             <ul className="mt-2 space-y-2 text-body">
               <li>
                 <strong>As janelas mal se sobrepõem.</strong> Paper cobre 1995–2013; réplica cobre
-                2010–2024. Apenas quatro anos em comum. A janela moderna inclui ciclos da Selic
+                2010–2025. Apenas quatro anos em comum. A janela moderna inclui ciclos da Selic
                 pós-2015, hoarding de liquidez na COVID e retração do BNDES — regime macro
                 materialmente diferente. Coeficientes maiores em ΔIssue/ΔDebt na réplica são
                 consistentes com isso, mas <em>não permitem atribuir o delta à metodologia</em> sem
@@ -569,14 +569,14 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
                 <strong>A assimetria precaucionária inverte.</strong> No paper, firmas restritas
                 poupam <em>mais</em> dos recursos externos — núcleo do argumento de 2015. Na
                 réplica, os coeficientes do grupo <em>não restrito</em> superam os do restrito em
-                todas as três fontes (ΔIssue 0,124 vs. 0,081; ΔDebt 0,147 vs. 0,086; CashFlow
-                0,097 vs. 0,065). Dois drivers prováveis: (a) acumulação de caixa por grandes
+                todas as três fontes (ΔIssue 0,112 vs. 0,080; ΔDebt 0,136 vs. 0,088; CashFlow
+                0,090 vs. 0,063). Dois drivers prováveis: (a) acumulação de caixa por grandes
                 firmas pós-COVID infla o lado não-restrito; (b) o proxy por decil de Ativo Total
                 dentro de setor-ano classifica de forma distinta em uma B3 moderna mais concentrada.
                 Esse achado <em>é, em si, um resultado</em> — não uma falha do código.
               </li>
               <li>
-                <strong>Other (0,112**) é frágil.</strong> 75% das firmas-ano são zero (p25 =
+                <strong>Other (0,112***) é frágil.</strong> 75% das firmas-ano são zero (p25 =
                 mediana = p75 = 0); a significância depende de uma cauda curta de eventos de venda
                 de ativo permanente. Tratar como ruído, não como achado.
               </li>
@@ -599,7 +599,7 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
               Narrativa defensável
             </div>
             <p className="mt-2 text-body">
-              O mecanismo de cash savings documentado em 2015 segue operando em 2010–2024:
+              O mecanismo de cash savings documentado em 2015 segue operando em 2010–2025:
               firmas brasileiras continuam retendo parcela significativa de cada real captado via
               emissão, dívida ou caixa operacional. No entanto, a{" "}
               <strong>assimetria precaucionária entre restritas e não-restritas não se replica

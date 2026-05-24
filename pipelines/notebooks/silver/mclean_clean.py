@@ -28,13 +28,14 @@ from pyspark.sql import Window
 from pyspark.sql import functions as F
 
 dbutils.widgets.text("catalog", "finance_prd")
-# Cap silver to the last FULLY-FILED fiscal year. 2025 zips ship while many
-# firms are still mid-filing — the partial cohort skews the winsorization
-# quantiles (Cashflow flipped sign, dCash collapsed near 0 in the May 2026
-# refresh after the panel was extended to 2025). The downstream gold notebooks
-# already cap their regression window at this value; the filter here keeps the
-# winsorization quantiles consistent with what gold actually sees.
-dbutils.widgets.text("max_fiscal_year", "2024")
+# Cap silver to the last fiscal year carried by the gold regression windows.
+# The May-2026 Cashflow-sign-flip incident that triggered the temporary cap
+# was caused by the case-collision bug in this same notebook (dCash ≈ -Cash
+# at every firm-year), not by partial 2025 filings — see commit dc43295.
+# With the collision fixed, 2025 can re-enter the panel. ~413 firms have
+# filed for fy=2025 vs ~451 for fy=2024 (≈8% lower coverage); not a partial-
+# cohort hazard for pooled OLS. Bump back to 2025 to match the gold windows.
+dbutils.widgets.text("max_fiscal_year", "2025")
 catalog          = dbutils.widgets.get("catalog")
 MAX_FISCAL_YEAR  = int(dbutils.widgets.get("max_fiscal_year"))
 

@@ -32,7 +32,7 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.gold")
 
 REG_VARS = ["dIssue", "dDebt", "Cashflow", "Other", "Assets"]
 WINDOWS = {
-    "full":     (2010, 2024),
+    "full":     (2010, 2025),
     "original": (2010, 2013),
 }
 

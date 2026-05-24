@@ -6,7 +6,7 @@ export const dynamic = "force-static";
 export const metadata = {
   title: "McLean (2011) — Replicação | Applied Finance",
   description:
-    "Replicação do modelo de Chalhoub, Kirch & Terra (2015, RBFin) sobre as fontes de caixa retido das firmas listadas na BM&FBovespa, usando dados abertos da CVM (2010–2024).",
+    "Replicação do modelo de Chalhoub, Kirch & Terra (2015, RBFin) sobre as fontes de caixa retido das firmas listadas na BM&FBovespa, usando dados abertos da CVM (2010–2025).",
 };
 
 export default async function McLeanPage() {
