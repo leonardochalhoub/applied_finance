@@ -18,6 +18,10 @@ name: Verify · mclean case-collision fix
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "fix/mclean-**"
+      - "verify/mclean-**"
 
 permissions:
   contents: read
