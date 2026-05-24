@@ -85,8 +85,21 @@ jobs:
 
       - name: Seed app/public/data with artifacts for build-time fs reads
         run: |
+          # Wipe the seed dir first so previous-run residue (e.g., a
+          # `data/data/...` nest that landed via a buggy assemble step,
+          # or an obsolete artifact that's no longer in _artifacts/) can't
+          # leak into the build. mclean_results.json is preserved if it
+          # was committed in the repo (hand-maintained override pattern).
           mkdir -p app/public/data
-          cp -r _artifacts/data/* app/public/data/ 2>/dev/null || true
+          if git show HEAD:app/public/data/mclean_results.json > /tmp/mclean_repo.json 2>/dev/null; then
+            cp /tmp/mclean_repo.json /tmp/mclean_override.json
+          fi
+          rm -rf app/public/data
+          mkdir -p app/public/data
+          cp -r _artifacts/data/. app/public/data/
+          if [ -f /tmp/mclean_override.json ]; then
+            cp /tmp/mclean_override.json app/public/data/mclean_results.json
+          fi
           ls -la app/public/data/ || true
 
       - name: Build frontend
@@ -107,7 +120,22 @@ jobs:
           rm -rf _site
           mkdir -p _site
           if [ -d app/out ]; then cp -r app/out/* _site/; fi
+          # `cp -r SRC DEST` NESTS when DEST exists as a directory —
+          # and `_site/data` already exists (Next.js exported
+          # app/public/data → app/out/data). Without this rm, every
+          # refresh-pipelines run added one more level to gh-pages:
+          # data/data/data/data/data/kpis_per_ticker.json (5 levels
+          # deep on 2026-05-24, with the freshest copy buried and the
+          # top-level `/data/kpis_per_ticker.json` frozen at the
+          # OLDEST commit). The frontend reads top-level, so the site
+          # was stuck on the pre-IRBR 50-ticker artifact.
+          rm -rf _site/data
           cp -r _artifacts/data _site/data
+          # Mirror the deploy-pages McLean override so a force-push
+          # from refresh-pipelines doesn't wipe a pending hand-fix.
+          if git show HEAD:app/public/data/mclean_results.json > /tmp/mclean_repo.json 2>/dev/null; then
+            cp /tmp/mclean_repo.json _site/data/mclean_results.json
+          fi
           # GitHub Pages defaults to Jekyll, which strips every directory
           # whose name starts with "_" — including `_next/`, where every
           # Next.js bundled CSS and JS chunk lives. Without this sentinel

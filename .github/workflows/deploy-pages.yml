@@ -38,16 +38,35 @@ jobs:
       - name: Seed app/public/data so build-time fs reads find the artifacts
         run: |
           mkdir -p app/public/data
-          # `cp -rn` (no-clobber): repo-committed artifacts ALWAYS win over
-          # gh-pages copies; gh-pages only fills gaps for files the repo
-          # doesn't carry. Without this, a buggy refresh-pipelines run that
-          # ships bad data to gh-pages stays stuck on the live site even
-          # after the fix is committed to main — because the next
-          # deploy-pages run would copy the bad gh-pages file over the good
-          # repo file before building. (Hit 2026-05-23: McLean dCash
-          # case-collision shipped pre-fix, then sat on gh-pages because
-          # every deploy reseeded with the broken copy.)
-          if [ -d _existing/data ]; then cp -rn _existing/data/* app/public/data/ 2>/dev/null || true; fi
+          # gh-pages is the source of truth for CI-managed artifacts.
+          # Copy everything FRESH on every deploy so the Next.js static
+          # export bundles match what refresh-pipelines just published.
+          #
+          # Why not `cp -rn` (no-clobber, the old behavior): it gave repo
+          # files priority forever. A one-time committed snapshot of
+          # kpis_per_ticker.json (50 tickers, 2026-05-21) silently capped
+          # the deployed universe at 50 tickers for 4 days post-IRBR fix
+          # — every refresh-pipelines run successfully pushed a fresh
+          # 290-ticker artifact, and every subsequent deploy-pages run
+          # rebuilt the static export from the stale repo copy. CI
+          # artifacts are now .gitignored (see `.gitignore`); the ONE
+          # exception is `mclean_results.json` (hand-maintained override
+          # for shipping McLean fixes before the next refresh runs),
+          # which we restore from the repo AFTER the gh-pages seed below.
+          if [ -d _existing/data ]; then
+            cp -r _existing/data/. app/public/data/
+          fi
+          # Defensive cleanup: legacy refresh-pipelines / deploy-pages
+          # runs nested `data/data/data/...` into gh-pages (see commit
+          # message of the fix that introduced this comment). Strip any
+          # nested `data/` subdir so we don't propagate the nesting.
+          rm -rf app/public/data/data
+          # Restore the repo-committed McLean override (if present),
+          # winning over whatever's on gh-pages.
+          if git show HEAD:app/public/data/mclean_results.json > /tmp/mclean_repo.json 2>/dev/null; then
+            cp /tmp/mclean_repo.json app/public/data/mclean_results.json
+          fi
+          ls -la app/public/data/ | head -20
 
       - name: Build frontend
         working-directory: app
@@ -66,7 +85,15 @@ jobs:
           rm -rf _site
           mkdir -p _site
           cp -r app/out/* _site/
-          if [ -d _existing/data ]; then cp -r _existing/data _site/data; fi
+          # Replace `_site/data` (came from app/out/data, which is whatever
+          # Next.js copied from app/public/data at build time) with the
+          # canonical, freshly-seeded copy. `cp -r SRC DEST` when DEST
+          # exists as a directory NESTS src into dest (creating data/data),
+          # so we rm first. This is the root cause of the
+          # `data/data/data/data/data/kpis_per_ticker.json` mess on
+          # gh-pages — every deploy added one more level.
+          rm -rf _site/data
+          if [ -d app/public/data ]; then cp -r app/public/data _site/data; fi
           # CRITICAL: tell GitHub Pages to skip Jekyll processing.
           # Without .nojekyll, Jekyll strips every directory starting with "_"
           # (including _next/static/chunks/), 404'ing all CSS and JS bundles.
