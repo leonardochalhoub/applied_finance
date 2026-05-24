@@ -428,6 +428,63 @@ export function McLeanView({ data }: { data: McLeanArtifact }) {
             </tbody>
           </table>
         </div>
+
+        {/* Plain-Portuguese reading of the coefficients */}
+        <div className="border-t border-border bg-[color:var(--bg-subtle)] px-5 py-4 text-xs">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-strong">
+            Como ler os coeficientes
+          </div>
+          <p className="mt-2 text-body">
+            Como todas as variáveis de fluxo estão normalizadas por{" "}
+            <InlineMath tex={String.raw`\text{Ativo Total}_{i,\,t-1}`} />, cada β é{" "}
+            <strong>adimensional</strong> e pode ser lido como{" "}
+            <em>centavos de caixa retidos por R$ 1,00 captado naquela fonte</em>. Exemplo: β
+            <sub>ΔIssue</sub> = {fmt4(pooled.dIssue.coef)} significa que, em média, para cada
+            R$ 1,00 que a firma capta via emissão líquida de ações no ano <em>t</em>,
+            aproximadamente <strong>R$ {(pooled.dIssue.coef).toFixed(2).replace(".", ",")}</strong>{" "}
+            (≈ {(pooled.dIssue.coef * 100).toFixed(1).replace(".", ",")} centavos) acabam parados
+            no caixa ao final do mesmo ano — mantendo ΔDebt, CashFlow, Other e tamanho da firma
+            constantes.
+          </p>
+          <ul className="mt-3 space-y-1.5 text-body">
+            <li>
+              <strong>ΔIssue {fmt4(pooled.dIssue.coef)}{pooled.dIssue.sig && ` ${pooled.dIssue.sig}`}</strong>{" "}
+              — de cada R$ 1,00 captado via emissão líquida de ações, cerca de{" "}
+              <strong>{(pooled.dIssue.coef * 100).toFixed(1).replace(".", ",")} centavos</strong>{" "}
+              ficam retidos como caixa.
+            </li>
+            <li>
+              <strong>ΔDebt {fmt4(pooled.dDebt.coef)}{pooled.dDebt.sig && ` ${pooled.dDebt.sig}`}</strong>{" "}
+              — de cada R$ 1,00 de dívida nova líquida (CP + LP), cerca de{" "}
+              <strong>{(pooled.dDebt.coef * 100).toFixed(1).replace(".", ",")} centavos</strong>{" "}
+              ficam retidos como caixa.
+            </li>
+            <li>
+              <strong>CashFlow {fmt4(pooled.Cashflow.coef)}{pooled.Cashflow.sig && ` ${pooled.Cashflow.sig}`}</strong>{" "}
+              — de cada R$ 1,00 de fluxo de caixa operacional (lucro líquido + D&A), cerca de{" "}
+              <strong>{(pooled.Cashflow.coef * 100).toFixed(1).replace(".", ",")} centavos</strong>{" "}
+              ficam retidos como caixa.
+            </li>
+            <li>
+              <strong>Other {fmt4(pooled.Other.coef)}{pooled.Other.sig && ` ${pooled.Other.sig}`}</strong>{" "}
+              — de cada R$ 1,00 recebido pela venda de ativo permanente, cerca de{" "}
+              <strong>{(pooled.Other.coef * 100).toFixed(1).replace(".", ",")} centavos</strong>{" "}
+              ficam retidos. Estimativa ruidosa: 75% das firmas-ano têm Other = 0.
+            </li>
+            <li>
+              <strong>ln(AT) {fmt4(pooled.Assets.coef)}{pooled.Assets.sig && ` ${pooled.Assets.sig}`}</strong>{" "}
+              — tamanho da firma (em log) não tem efeito incremental sobre o caixa retido
+              uma vez controladas as quatro fontes acima.
+            </li>
+          </ul>
+          <p className="mt-3 text-[11px] text-muted">
+            Em outras palavras: o mecanismo central de McLean (2011) é que firmas{" "}
+            <strong>não gastam imediatamente</strong> todo R$ captado — uma fração
+            estatisticamente significativa de cada fonte permanece como caixa,
+            consistente com motivos precaucionários (oportunidades de investimento futuras,
+            choques de liquidez).
+          </p>
+        </div>
       </section>
 
       {/* Annual coefficients chart — Figure 1 replication */}
