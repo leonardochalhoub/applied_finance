@@ -38,7 +38,16 @@ jobs:
       - name: Seed app/public/data so build-time fs reads find the artifacts
         run: |
           mkdir -p app/public/data
-          if [ -d _existing/data ]; then cp -r _existing/data/* app/public/data/ 2>/dev/null || true; fi
+          # `cp -rn` (no-clobber): repo-committed artifacts ALWAYS win over
+          # gh-pages copies; gh-pages only fills gaps for files the repo
+          # doesn't carry. Without this, a buggy refresh-pipelines run that
+          # ships bad data to gh-pages stays stuck on the live site even
+          # after the fix is committed to main — because the next
+          # deploy-pages run would copy the bad gh-pages file over the good
+          # repo file before building. (Hit 2026-05-23: McLean dCash
+          # case-collision shipped pre-fix, then sat on gh-pages because
+          # every deploy reseeded with the broken copy.)
+          if [ -d _existing/data ]; then cp -rn _existing/data/* app/public/data/ 2>/dev/null || true; fi
 
       - name: Build frontend
         working-directory: app
