@@ -6,6 +6,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -17,6 +19,10 @@ import {
 import type { CdiArtifact, IbovArtifact, PricesArtifact } from "@/lib/data";
 import { fmtAxisNum, fmtNum2, fmtPctAA, signedClass } from "@/lib/format";
 import { runIllusionExperiment, type IllusionResult, type NamedPortfolio } from "@/lib/illusion";
+import {
+  runRollingPersistenceExperiment,
+  type RollingPersistenceResult,
+} from "@/lib/persistence";
 import { buildCoterminalReturns, tightenUniverseForHistory } from "@/lib/universe";
 
 type Props = {
@@ -101,6 +107,29 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
       trainDays: trainYears * 252,
       testDays: testYears * 252,
       nRandom,
+    });
+  }, [built, trainYears, testYears, nRandom, rf, tightening.kept]);
+
+  // Rolling persistence experiment — the Kahneman-correct test that asks:
+  // "does Markowitz's percentile (vs concentrated random K-bets) repeat
+  // across non-overlapping windows?" This is the analog of Kahneman's
+  // 1984 year-pair correlation. Cheaper nRandom per window since we run
+  // it once per window. Uses the same trainYears / testYears UI controls
+  // but a step of (testYears * 252) so windows are non-overlapping.
+  const persistenceResult: RollingPersistenceResult | null = useMemo(() => {
+    if (!built) return null;
+    const trainDays = trainYears * 252;
+    const testDays = testYears * 252;
+    if (built.X.length < trainDays + testDays + testDays) return null;
+    return runRollingPersistenceExperiment({
+      X: built.X,
+      dates: built.dates,
+      tickers: tightening.kept,
+      rf,
+      trainDays,
+      testDays,
+      stepDays: testDays, // non-overlapping windows
+      nRandom: Math.min(1000, nRandom),
     });
   }, [built, trainYears, testYears, nRandom, rf, tightening.kept]);
 
@@ -251,10 +280,57 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
             />
           </section>
 
+          <section className="card px-6 py-5 text-sm text-body">
+            <div className="eyebrow">Dois experimentos, duas perguntas distintas</div>
+            <ul className="mt-3 space-y-2">
+              <li>
+                <strong>Exp. 1 (a seguir) — viés de Kan-Smith em janela única</strong>:
+                quanto a Sharpe declarada pelo otimizador (ex-ante) infla a
+                Sharpe que efetivamente entrega (ex-post) numa janela específica?
+                Mede a magnitude do viés in-sample, formalizado por{" "}
+                <a
+                  href="https://www.jstor.org/stable/25470994"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-dotted underline-offset-2 hover:text-strong"
+                >
+                  Kan &amp; Smith (2008)
+                </a>
+                . É um teste de <em>otimismo amostral</em>, não da tese de
+                Kahneman propriamente dita.
+              </li>
+              <li>
+                <strong>Exp. 2 (logo abaixo do Exp. 1) — persistência de
+                Kahneman em janelas rolantes</strong>: a vantagem (ou
+                desvantagem) da Markowitz numa janela prediz a vantagem na
+                janela seguinte? Calcula a autocorrelação lag-1 do percentil
+                da Markowitz através de várias janelas não-sobrepostas. É a
+                versão portfolio do achado de{" "}
+                <a
+                  href="https://www.nobelprize.org/prizes/economic-sciences/2002/kahneman/facts/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-dotted underline-offset-2 hover:text-strong"
+                >
+                  Kahneman
+                </a>{" "}
+                (1984/2011): correlação ano-a-ano ≈ 0,01 entre gestores ativos.
+                Se a autocorrelação aqui ficar próxima de zero, é o mesmo
+                resultado empírico: skill aparente em uma janela não se
+                repete na próxima.
+              </li>
+            </ul>
+            <p className="mt-3 text-xs text-muted">
+              Os dois experimentos compartilham o mesmo universo, mesmo
+              pipeline (Ledoit-Wolf + Jorion + macro-anchor), mesma fonte
+              de rf. Diferem apenas no <em>arranjo</em> da janela.
+            </p>
+          </section>
+
           <section className="card overflow-hidden">
             <div className="border-b border-border px-5 py-3">
               <span className="eyebrow">
-                Distribuição de Sharpe realizada · {result.nRandom.toLocaleString("pt-BR")} carteiras sorteadas
+                Exp. 1 · Distribuição de Sharpe realizada (Kan-Smith em janela única) · {result.nRandom.toLocaleString("pt-BR")} carteiras sorteadas
               </span>
               <p className="mt-1 text-xs text-muted">
                 Cada barra é uma <em>faixa de Sharpe</em>; a altura é o número
@@ -388,6 +464,10 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
           <SharpeNumberLine result={result} />
 
           <ConcentratedNullPanel result={result} />
+
+          {persistenceResult ? (
+            <RollingPersistencePanel result={persistenceResult} />
+          ) : null}
 
           <GeometricReadingPanel result={result} />
 
@@ -1176,6 +1256,220 @@ function ConcentratedNullPanel({ result }: { result: IllusionResult }) {
           desta se&ccedil;&atilde;o compara peras com peras — &eacute; o
           n&uacute;mero que devemos citar quando perguntarmos &ldquo;a Markowitz
           tem skill no sentido de Kahneman?&rdquo;.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** Rolling-window persistence panel: the actual Kahneman test.
+ *  Shows the Markowitz percentile (in the concentrated-K null) over a
+ *  sequence of non-overlapping rolling windows, plus the lag-1
+ *  autocorrelation and Jaccard pick-similarity. Kahneman's claim is
+ *  empirically supported when autocorrelation ≈ 0 (no persistence). */
+function RollingPersistencePanel({ result }: { result: RollingPersistenceResult }) {
+  const chartData = result.windows.map((w) => ({
+    label: w.testStart.slice(0, 7),
+    percentile: w.percentileConcentrated * 100,
+    percentileDir: w.percentileDirichlet * 100,
+    illusion: w.sharpeExAnte - w.sharpeExPost,
+    sharpe: w.sharpeExPost,
+    range: `${w.testStart} → ${w.testEnd}`,
+  }));
+
+  const autocorr = result.percentileLag1Autocorr;
+  const jaccard = result.jaccardAdjacentMean;
+  const meanPercentile = result.percentileConcentratedMean;
+  const persistenceVerdict =
+    Math.abs(autocorr) < 0.20
+      ? "no-persistence"
+      : autocorr > 0
+      ? "positive-persistence"
+      : "negative-persistence";
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="border-b border-border px-5 py-3">
+        <span className="eyebrow">
+          Teste Kahneman propriamente dito · persistência em janelas rolantes ({result.windows.length} janelas não-sobrepostas)
+        </span>
+        <p className="mt-1 text-xs text-muted">
+          O experimento {" "}
+          <em>histograma + null concentrada</em> acima testa apenas{" "}
+          <strong>uma única janela</strong> — não consegue detectar
+          persistência de skill (a tese formal de Kahneman, 1984). Aqui
+          repetimos o teste em <strong>{result.windows.length} janelas
+          consecutivas não-sobrepostas</strong> (cada uma com{" "}
+          <span className="mono">{result.trainDays}d treino + {result.testDays}d teste</span>
+          ) e olhamos a <strong>autocorrelação lag-1</strong> do percentil
+          da Markowitz. Se a autocorrelação for ≈ 0, o percentil de uma
+          janela não prediz o percentil da próxima — performance pura
+          oscilação, ausência de skill no sentido de Kahneman.
+        </p>
+      </div>
+
+      <div className="p-4">
+        <div style={{ width: "100%", height: 280 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 36 }}>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10, fill: "var(--muted)" }}
+                stroke="var(--border)"
+                angle={-30}
+                textAnchor="end"
+                height={56}
+                label={{ value: "Início da janela de teste", position: "insideBottom", offset: -22, style: { fontSize: 11, fill: "var(--muted)" } }}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--muted)" }}
+                stroke="var(--border)"
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}º`}
+                width={48}
+                label={{ value: "Percentil concentrado", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "var(--muted)" } }}
+              />
+              <ReferenceLine
+                y={50}
+                stroke="var(--strong)"
+                strokeDasharray="4 4"
+                label={{ value: "50º = mediana (sorte)", position: "insideTopRight", style: { fontSize: 10, fill: "var(--strong)" } }}
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as {
+                    label: string;
+                    percentile: number;
+                    percentileDir: number;
+                    illusion: number;
+                    sharpe: number;
+                    range: string;
+                  };
+                  return (
+                    <div
+                      style={{
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        fontSize: 11,
+                      }}
+                    >
+                      <div className="mb-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                        {p.range}
+                      </div>
+                      <div className="tabular text-strong">
+                        ex-post Sharpe = {fmtNum2(p.sharpe)}
+                      </div>
+                      <div className="tabular text-body">
+                        p concentrado = {p.percentile.toFixed(0)}º
+                      </div>
+                      <div className="tabular text-muted">
+                        p Dirichlet = {p.percentileDir.toFixed(0)}º
+                      </div>
+                      <div className="tabular text-muted">
+                        ilusão = +{fmtNum2(p.illusion)}
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="percentile"
+                stroke="var(--accent)"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: "var(--accent)" }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 border-t border-border px-5 py-4 md:grid-cols-3">
+        <div className="rounded-md border border-border px-3 py-2">
+          <div className="eyebrow">Autocorrelação lag-1 do percentil</div>
+          <div className={`mt-1 text-2xl tabular font-bold ${signedClass(autocorr - 0.2)}`}>
+            {autocorr >= 0 ? "+" : ""}
+            {autocorr.toFixed(3)}
+          </div>
+          <p className="mt-1 text-[10px] text-muted">
+            {persistenceVerdict === "no-persistence"
+              ? "≈ 0 → percentil de t não prediz t+1 — sem skill (Kahneman vindicado)"
+              : persistenceVerdict === "positive-persistence"
+              ? "&gt; 0,2 → algum sinal de persistência — possível conteúdo informacional"
+              : "&lt; -0,2 → percentil oscila sistematicamente — instabilidade"}
+          </p>
+        </div>
+        <div className="rounded-md border border-border px-3 py-2">
+          <div className="eyebrow">Jaccard médio dos picks</div>
+          <div className="mt-1 text-2xl tabular font-bold text-strong">{fmtNum2(jaccard)}</div>
+          <p className="mt-1 text-[10px] text-muted">
+            {jaccard < 0.3
+              ? "Picks mudam radicalmente entre janelas — MV chasing noise"
+              : jaccard > 0.7
+              ? "Picks muito estáveis — MV tem worldview consistente (ou regime fixo)"
+              : "Picks parcialmente estáveis"}
+          </p>
+        </div>
+        <div className="rounded-md border border-border px-3 py-2">
+          <div className="eyebrow">Percentil concentrado médio</div>
+          <div className={`mt-1 text-2xl tabular font-bold ${signedClass(meanPercentile - 0.5)}`}>
+            {(meanPercentile * 100).toFixed(0)}º
+          </div>
+          <p className="mt-1 text-[10px] text-muted">
+            Média sobre as {result.windows.length} janelas. Distante de 50 ⇒ MV tem viés sistemático; próximo de 50 ⇒ MV ≈ aleatório.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2 border-t border-border px-5 py-4 text-sm">
+        <p className="font-semibold text-strong">Veredito Kahneman</p>
+        <p className="text-muted">
+          {persistenceVerdict === "no-persistence" ? (
+            <>
+              <strong>Persistência ≈ zero.</strong> A Markowitz não mantém
+              o mesmo nível de outperformance entre janelas consecutivas; o
+              percentil sobe e desce sem padrão preditivo. <em>É exatamente
+              o achado de Kahneman (1984)</em>: a aparente skill numa janela
+              é luck idiossincrática que não se repete na próxima.
+              Markowitz é remunerado por uma habilidade que não existe além
+              do regime de cada período.
+            </>
+          ) : persistenceVerdict === "positive-persistence" ? (
+            <>
+              <strong>Persistência moderada</strong> (lag-1 autocorrelação ={" "}
+              {autocorr.toFixed(2)}). Janelas em que MV venceu tendem a ser
+              seguidas por janelas em que MV vence de novo — sinal de
+              persistência, possivelmente regime ou possivelmente skill
+              estrutural (e.g., MV consistentemente identifica setores
+              dominantes em mercados de momentum). Não invalida Kahneman
+              num sentido literal (ele observou correlação ≈ 0,01 entre
+              gestores ativos individuais — sample diferente), mas mostra
+              que a aplicação mecânica do método tem persistência.
+            </>
+          ) : (
+            <>
+              <strong>Anti-persistência</strong> (lag-1 = {autocorr.toFixed(2)}).
+              Janelas em que MV venceu são frequentemente seguidas por
+              janelas em que MV perde — sinal de instabilidade ou regime-shift.
+              MV não é remunerado por skill nem oscila aleatoriamente, mas
+              <em> reverte</em>: indicação de overfitting periódico ao
+              regime do treino que se inverte no teste.
+            </>
+          )}
+        </p>
+        <p className="text-xs text-muted">
+          <strong>Disclaimer estatístico</strong>: com apenas{" "}
+          {result.windows.length} janelas não-sobrepostas, a estimativa da
+          autocorrelação tem alto erro padrão (≈ 1/√n ≈{" "}
+          {(1 / Math.sqrt(result.windows.length - 1)).toFixed(2)}). Para um
+          teste com poder estatístico maior, seria necessário expandir o
+          histórico coterminal — o que requer um universo menor (top-10
+          IBOV) ou janelas mais curtas (1y/1y).
         </p>
       </div>
     </section>
