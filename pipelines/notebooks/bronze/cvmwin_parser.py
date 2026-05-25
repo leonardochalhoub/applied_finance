@@ -1,21 +1,53 @@
 # Databricks notebook source
-"""CVMWIN binary parser for pre-2010 CVM filings (.DFM/.DFL/.ITM/.ITL/.IAN).
+"""CVMWIN parser for pre-2010 CVM filings (.DFM/.DFL/.ITM/.ITL/.IAN).
 
 PoC SCAFFOLD — Layout NOT YET DECODED.
 
-The published layout spec lives at
-    https://sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp
-and the DESIGN doc (Decision 4) cited speculative byte offsets that were
-NOT retrieved from the spec page. Phase 0 PoC step 2 is: fetch the spec,
-decode the layout, populate `_RECORD_LAYOUTS` below, and verify against
-the 2010-2013 Dados Abertos overlap.
+Public-info recovery (commit d3e4a528 follow-up) established two key facts:
 
-Until that work is done, `parse_*` functions raise `LayoutNotDecodedError`
-so callers fail loudly instead of silently returning empty iterators.
+1. Pre-2010 filings use the **Clipper database engine** — the reader
+   software (`Consulta.zip` v2.4 at
+   sistemas.cvm.gov.br/download/sep/pub/programas/RelatCias24/Consulta.zip)
+   has `set clipper=F:200` in its DOS autoexec.bat, which is the Clipper
+   memory directive. This means the `.DFM/.DFL/.ITM/.ITL` extensions are
+   almost certainly **standard dBase III/IV / Clipper DBF databases** with
+   a rename, NOT a proprietary binary format.
+
+   → Phase 0 step 2 should try `dbfread` (pure Python, well-maintained,
+   handles Clipper variants via `lowernames=True` + `char_decode_errors`)
+   before any custom parser. Anticipated parser implementation:
+
+       import dbfread
+       for record in dbfread.DBF(file_path, lowernames=True, encoding='cp850'):
+           yield CvmwinAccountLine(
+               cd_conta=record['cd_conta'],   # actual field name TBD
+               ds_conta=record['ds_conta'],
+               vl_norm=record['vl_norm'],
+               ordem_exerc=record['ordem_exerc'],
+           )
+
+   The unknowns at this stage are:
+   - Actual column names in the DBF (cd_conta? CDCONTA? CD_CONT?)
+   - File encoding (cp850 DOS or cp1252 Windows-ANSI for Portuguese)
+   - Whether `.DFM` and `.DFL` use the same column structure (probably yes
+     since they both contain DFP variants — DFM = monetary "Mil",
+     DFL = "Livre"/free-form, just unit/scale difference)
+   - Whether multi-file filings (BPA + BPP + DRE + DOAR in same year)
+     are bundled inside one DBF or split across files
+
+2. The pre-2010 layout is NOT publicly documented at the
+   sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp
+   page (that page covers ENET 3.0 only, the current post-2010 format).
+   We will decode by experiment: download one real `.DFM` file via the
+   ASP-form scraper, open with `dbfread`, inspect columns, write a
+   minimal smoke test, then commit a fixture for the test suite.
+
+Until layout is decoded against a real file, `parse_*` functions raise
+`LayoutNotDecodedError` so callers fail loudly instead of silently
+returning empty iterators.
 """
 from __future__ import annotations
 
-import struct
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -46,70 +78,99 @@ class CvmwinAccountLine:
     ordem_exerc: str  # 'ÚLTIMO' or 'PENÚLTIMO'
 
 
-_VERSION_MAGIC = {
-    # Layout per spec page — TBD. Placeholder until Phase 0 decode complete.
-    # Populating this dict is part of A-002 validation.
+# File-extension → statement type. Anticipated based on CVM naming
+# conventions; verify against a real Phase 0 sample.
+_EXT_TO_STATEMENT = {
+    ".dfm": "DFP",   # Demonstração Financeira Padronizada (monetary scale)
+    ".dfl": "DFP",   # Demonstração Financeira Padronizada (livre / free unit)
+    ".itm": "ITR",   # Informações Trimestrais (monetary)
+    ".itl": "ITR",   # Informações Trimestrais (livre)
+    ".ian": "IAN",   # Informações Anuais
 }
 
 
-_RECORD_LAYOUTS: dict[str, dict] = {
-    # Keyed by (statement_type, version). Each value is a dict describing
-    # field offsets and widths for record-row parsing. Populated by Phase 0.
-    #
+# DBF column-name mapping per statement type. Populated in Phase 0 step 2
+# after inspecting a real file with `dbfread.DBF(path).field_names`.
+# Most likely shape: cd_conta / ds_conta / vl_norm / ordem_exerc names will
+# be in uppercase without underscores in DBF (Clipper convention: max 10
+# chars per field name, no underscores in older dialects). Common guesses:
+#   - "CD_CONTA" or "CONTA" or "COD"
+#   - "DS_CONTA" or "DESCRICAO" or "DESC"
+#   - "VL_NORM" or "VALOR" or "VL"
+#   - "ORDEM" or "ORD_EX"
+_DBF_FIELD_MAP: dict[str, dict[str, str]] = {
     # Example shape once decoded:
-    #   ("BPA", 9): {
-    #       "header_size": <int>,
-    #       "record_size": <int>,
-    #       "fields": {
-    #           "record_type":  (offset, width, encoding),
-    #           "cd_conta":     (offset, width, "cp1252"),
-    #           "ds_conta":     (offset, width, "cp1252"),
-    #           "vl_norm":      (offset, 8, "double_le"),
-    #           "ordem_exerc":  (offset, 2, "ascii_enum"),
-    #       },
+    #   "DFP": {
+    #       "cd_conta": "CD_CONTA",     # actual DBF field name
+    #       "ds_conta": "DS_CONTA",
+    #       "vl_norm":  "VL_CONTA",
+    #       "ordem_exerc": "ORDEM_EXER",
     #   }
 }
 
 
-def detect_version(blob: bytes) -> int:
-    """Inspect the first bytes of a CVMWIN file and return its format version.
+def detect_dbf(blob: bytes) -> bool:
+    """Return True if the first byte of `blob` matches a known dBase/Clipper
+    file-header signature.
 
-    Raises:
-        UnsupportedVersionError: if the header magic doesn't match a known
-            version.
+    dBase III/IV/Clipper header byte values:
+        0x03 = dBase III (no memo)
+        0x83 = dBase III with .DBT memo
+        0xF5 = Foxpro/Clipper with memo
+        0xFB = dBase IV with memo
 
-    PoC TODO: confirm magic-byte location and values from the spec page.
-    Tentative values from web research only — verify against a sample file
-    fetched during Phase 0.
+    If the byte doesn't match any of those, raise UnsupportedVersionError —
+    the file is either ENET 3.0 (post-2010) or an unknown format.
+
+    PoC TODO: verify against a real downloaded .DFM file. The byte values
+    above are the documented Clipper / dBase family; should hold for any
+    1990s CVM filing.
     """
-    if len(blob) < 4:
-        raise UnsupportedVersionError("file too short to read version magic")
-    magic = struct.unpack("<I", blob[:4])[0]
-    if magic in _VERSION_MAGIC:
-        return _VERSION_MAGIC[magic]
+    if len(blob) < 1:
+        raise UnsupportedVersionError("file too short to read dBase header byte")
+    header = blob[0]
+    if header in (0x03, 0x83, 0xF5, 0xFB, 0x30):  # 0x30 = Visual FoxPro
+        return True
     raise UnsupportedVersionError(
-        f"unknown CVMWIN magic 0x{magic:08x} — populate _VERSION_MAGIC after spec decode"
+        f"first byte 0x{header:02x} is not a known dBase/Clipper header — "
+        "file may be ENET 3.0 (post-2010) or unknown format"
     )
 
 
 def _parse_records(blob: bytes, statement: str) -> Iterator[CvmwinAccountLine]:
-    version = detect_version(blob)
-    key = (statement, version)
-    if key not in _RECORD_LAYOUTS:
+    """Iterate CvmwinAccountLine records from a CVMWIN .DFM/.DFL/.ITM/.ITL/.IAN
+    blob.
+
+    Implementation (once layout is decoded in Phase 0 step 2):
+        from io import BytesIO
+        import dbfread
+        detect_dbf(blob)  # raise early if not a Clipper/dBase file
+        fmap = _DBF_FIELD_MAP[statement]  # raises LayoutNotDecodedError if absent
+        table = dbfread.DBF(filename=None, filedata=BytesIO(blob),
+                            encoding='cp850', lowernames=True)
+        for record in table:
+            yield CvmwinAccountLine(
+                cd_conta=str(record[fmap['cd_conta']]).strip(),
+                ds_conta=str(record[fmap['ds_conta']]).strip(),
+                vl_norm=float(record[fmap['vl_norm']] or 0.0),
+                ordem_exerc=str(record[fmap['ordem_exerc']]).strip(),
+            )
+
+    Until `_DBF_FIELD_MAP` is populated, raises LayoutNotDecodedError.
+    """
+    detect_dbf(blob)  # raises UnsupportedVersionError if not dBase
+    if statement not in _DBF_FIELD_MAP or not _DBF_FIELD_MAP[statement]:
         raise LayoutNotDecodedError(
-            f"layout for {statement!r} v{version} not yet decoded — "
-            "Phase 0 PoC step 2 must populate _RECORD_LAYOUTS first"
+            f"_DBF_FIELD_MAP[{statement!r}] not yet populated — "
+            "Phase 0 step 2 must inspect a real .DFM file with dbfread and "
+            "record the actual DBF column names"
         )
-    layout = _RECORD_LAYOUTS[key]
-    record_size = layout["record_size"]
-    offset = layout["header_size"]
-    while offset + record_size <= len(blob):
-        # Field-extraction stub — implementation lives behind the layout dict
-        # to keep this loop format-agnostic once layouts are populated.
-        raise LayoutNotDecodedError(
-            f"record extraction for {statement!r} v{version} not yet implemented"
-        )
-        offset += record_size
+    raise LayoutNotDecodedError(
+        f"record extraction for {statement!r} pending Phase 0 implementation; "
+        "see module docstring for the anticipated dbfread-based loop"
+    )
+    # The actual yield loop activates once the raises above are removed.
+    yield  # noqa: unreachable until layout decoded
 
 
 def parse_bpa(blob: bytes) -> Iterator[CvmwinAccountLine]:
@@ -147,7 +208,7 @@ __all__ = [
     "CvmwinParseError",
     "LayoutNotDecodedError",
     "UnsupportedVersionError",
-    "detect_version",
+    "detect_dbf",
     "parse_bpa",
     "parse_bpp",
     "parse_dfc",

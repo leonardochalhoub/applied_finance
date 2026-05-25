@@ -41,35 +41,47 @@ class TestParserInterface:
         assert callable(fn)
 
 
-class TestVersionDetection:
-    def test_short_blob_raises(self):
+class TestDbfDetection:
+    def test_empty_blob_raises(self):
         with pytest.raises(cwp.UnsupportedVersionError):
-            cwp.detect_version(b"\x00\x00")
+            cwp.detect_dbf(b"")
 
-    def test_unknown_magic_raises_with_helpful_message(self):
+    def test_non_dbf_first_byte_raises(self):
         blob = b"\xff\xff\xff\xff" + b"\x00" * 100
         with pytest.raises(cwp.UnsupportedVersionError) as exc:
-            cwp.detect_version(blob)
-        assert "populate _VERSION_MAGIC" in str(exc.value)
+            cwp.detect_dbf(blob)
+        assert "not a known dBase/Clipper header" in str(exc.value)
+
+    @pytest.mark.parametrize("header_byte", [0x03, 0x83, 0xF5, 0xFB, 0x30])
+    def test_known_dbf_headers_accepted(self, header_byte):
+        blob = bytes([header_byte]) + b"\x00" * 100
+        assert cwp.detect_dbf(blob) is True
 
 
 class TestParserScaffoldRaisesUntilDecoded:
-    """Until Phase 0 step 2 decodes the layout, every parse_* call should
-    raise LayoutNotDecodedError. This guards against silent empty iterators
-    that would mask the fact that the parser hasn't been built yet."""
+    """Until Phase 0 step 2 populates _DBF_FIELD_MAP for each statement,
+    every parse_* call should raise LayoutNotDecodedError on a dBase-shaped
+    blob — guards against silent empty iterators that mask incomplete work."""
 
     @pytest.fixture
-    def fake_blob(self):
-        # Use a magic that will eventually be valid, padded with zeros
-        return b"\x09\x00\x00\x00" + b"\x00" * 1000
+    def fake_dbf_blob(self):
+        # dBase III header byte (0x03) + zero-padding to fake a valid file
+        return b"\x03" + b"\x00" * 1000
 
     @pytest.mark.parametrize("fn,stmt", [
         (cwp.parse_bpa, "BPA"), (cwp.parse_bpp, "BPP"), (cwp.parse_dre, "DRE"),
         (cwp.parse_doar, "DOAR"), (cwp.parse_dfc, "DFC"), (cwp.parse_ian, "IAN"),
     ])
-    def test_each_parser_raises_layout_not_decoded(self, fn, stmt, fake_blob):
-        with pytest.raises((cwp.LayoutNotDecodedError, cwp.UnsupportedVersionError)):
-            list(fn(fake_blob))
+    def test_each_parser_raises_layout_not_decoded(self, fn, stmt, fake_dbf_blob):
+        with pytest.raises(cwp.LayoutNotDecodedError):
+            list(fn(fake_dbf_blob))
+
+    def test_non_dbf_blob_raises_version_error_not_layout_error(self):
+        # Sanity: an empty/garbage blob hits UnsupportedVersionError BEFORE
+        # the LayoutNotDecodedError check, so the failure mode is the most
+        # informative one (says "not dBase", not "layout missing").
+        with pytest.raises(cwp.UnsupportedVersionError):
+            list(cwp.parse_bpa(b"\xff" + b"\x00" * 100))
 
 
 class TestExceptionHierarchy:

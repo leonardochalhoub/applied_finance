@@ -102,11 +102,51 @@ Pytest: 18 passed
 
 | # | Blocker | Required Action | Owner |
 |---|---------|-----------------|-------|
-| B1 | **CVM Sistemas ASP URL pattern unknown** | Manually submit a known query at `sistemas.cvm.gov.br/port/ciasabertas` via browser, capture the network request, update `_build_url()` in `cvm_legacy_dfp.py`. ~30 minutes of work. | User (or someone with browser access to CVM portal) |
-| B2 | **CVMWIN binary layout not decoded** | Fetch `sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp`, transcribe the field offsets/widths for BPA/BPP/DRE/DOAR/DFC/IAN record types, populate `_VERSION_MAGIC` and `_RECORD_LAYOUTS` in `cvmwin_parser.py`. ~1-2 days of work + golden-file fixtures from a real CVM file. | User or @python-developer in Phase 0 |
+| B1 | **CVM Sistemas ASP URL pattern unknown** (partially investigated, see Public-Info Recovery below) | Manually submit a known query at `rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx` (modern post-2010 query form) AND `sistemas.cvm.gov.br/port/ciasabertas` (legacy portal) via browser, capture the network request, update `_build_url()` in `cvm_legacy_dfp.py`. ~30 minutes of work. | User (or someone with browser access to CVM portal) |
+| B2 | **CVMWIN file format reframed** — public-info recovery (see below) established the files are likely **Clipper / dBase databases**, not unknown proprietary binary. The parser now uses a dBase-detection-first approach and is wired to call `dbfread`. **Remaining work:** open one real `.DFM` file with `dbfread`, inspect field names, populate `_DBF_FIELD_MAP` in `cvmwin_parser.py`. Estimate revised from ~1-2 days of byte-level parsing to ~2-4 hours of column-name discovery. | User or @python-developer in Phase 0 |
 | B3 | **cd_cvm values in firm universe need verification** | The 10 cd_cvm codes in `data/mclean_firm_universe.csv` are my best-effort recollection. Verify against `bronze.cvm_cad_cia` (active firms) and the original 2015 paper's appendix (for delisted firms like Aracruz, Sadia, Telemar). ~15 minutes of SQL + cross-check. | User |
 | B4 | **Databricks workspace required to execute PoC** | Phase 0 PoC runs `cvm_legacy_dfp.py` as a Databricks notebook (the file uses `dbutils.widgets`, `spark.sql`, UC Volumes). Cannot run from this laptop session. | User (deploy via `databricks bundle deploy`) |
 | B5 | **CVM portal accessibility from Databricks egress IP** | Databricks workers must be able to reach `sistemas.cvm.gov.br` over HTTPS. Verify with a `curl` smoke test before the full scrape. | User (one-off check) |
+
+---
+
+## Public-Info Recovery (2026-05-25, post-initial-commit)
+
+After the first commit (`d3e4a528`), I attempted to unblock B1 + B2 by querying public CVM pages directly. Findings:
+
+### What was recovered
+
+1. **Pre-2010 file format is Clipper / dBase**, not unknown proprietary binary. Evidence: the legacy DOS reader (`sistemas.cvm.gov.br/download/sep/pub/programas/RelatCias24/Consulta.zip` v2.4) has `set clipper=F:200` in its autoexec.bat — the Clipper memory directive for the Clipper xBase compiler. The `.DFM/.DFL/.ITM/.ITL` extensions are almost certainly standard dBase III/IV / Clipper DBF files with a rename. This shifts the parser approach from "byte-level reverse engineering" (1-2 days) to "use `dbfread` Python library and discover column names" (2-4 hours).
+
+2. **File extension semantics confirmed**: M = "Mil" (monetary scale 000s), L = "Livre" (free unit). Same column structure within a statement type, different scale.
+
+3. **CVMWIN current version**: 9.2 (Windows); DIVEXT 9.2 (query/disclosure); DOS-era reader 2.4 (consultation). Pre-2010 filings span multiple CVMWIN versions but file format should be stable across them.
+
+4. **Empresas.NET / ENET 3.0** is the CURRENT (post-2010) format. The layout spec page at `sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp` documents only ENET 3.0 — pre-2010 CVMWIN/Clipper layouts are NOT publicly documented. We will decode-by-experiment.
+
+### What remained blocked
+
+1. **ASP URL pattern**: the public CVM query form at `rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx` accepts firm/year/type parameters but its submission endpoint isn't visible in static HTML — needs browser dev-tools / curl session capture.
+2. **Actual DBF column names**: confirms that we MUST download a real `.DFM` file to inspect via `dbfread.DBF(path).field_names`. This is the smallest unit of remaining unknown.
+3. **No existing OSS parser** for the legacy CVMWIN/Clipper format. `pycvm` and `brFinance` both stop at the post-2010 CSV format.
+
+### Code updates from these findings
+
+- **`pipelines/notebooks/bronze/cvmwin_parser.py` rewritten** (commit pending):
+  - Replaced speculative byte-offset stubs (`_VERSION_MAGIC`, `_RECORD_LAYOUTS`) with dBase-detection (`detect_dbf`) checking dBase III/IV / FoxPro / Clipper header bytes (`0x03, 0x83, 0xF5, 0xFB, 0x30`).
+  - Added `_DBF_FIELD_MAP` keyed by statement type (DFP/ITR/IAN) — to be populated once columns are inspected.
+  - Wrote the anticipated `dbfread` usage in the docstring as a guide for Phase 0 implementer.
+- **Tests rewritten** to match the new dBase-based detection: 24/24 still pass.
+
+### Revised effort estimates
+
+| Phase | Before recovery | After recovery |
+|---|---|---|
+| 0 step 2 (parser decode) | 1-2 days | 2-4 hours (column inspection via `dbfread`) |
+| Phase 1 (full parser + scrape) | 2-3 weeks | 1.5-2 weeks (parser scope shrunk) |
+| Total | 9-11 weeks | **~7-9 weeks** if the Clipper hypothesis holds |
+
+If `dbfread` opens a real `.DFM` cleanly, we save ~1-2 weeks of binary-parsing work. If it does NOT (e.g., the files turn out to be a Clipper-specific extension `dbfread` doesn't handle), fallback is the `dbf` library (handles more Clipper variants) or — worst case — `simpledbf` + manual column-offset detection.
 
 ---
 
