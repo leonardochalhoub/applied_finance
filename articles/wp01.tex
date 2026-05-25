@@ -34,7 +34,9 @@
 \Urlmuskip=0mu plus 1mu\relax
 \usepackage{float}
 \usepackage{amsmath}
-\usepackage{amssymb}
+% Note: amssymb intentionally NOT loaded — newtxmath already provides
+% the full AMS symbol set, and loading amssymb after newtxmath triggers
+% "Command \Bbbk already defined" in newer TeX Live (2026+).
 
 \onehalfspacing
 \setlength{\parindent}{1.25cm}
@@ -1309,7 +1311,7 @@ produz os números da tabela~\ref{tab:erc-stats}.
 \textbf{Estratégia} & \textbf{$\sigma$} & \textbf{HHI\_risco} & \textbf{max RC} & \textbf{min RC} \\
 \midrule
 ERC                & $17{,}84\%$ & $0{,}0667$ & $6{,}7\%$  & $6{,}7\%$ \\
-Inv-vol (Σ diag)   & $17{,}94\%$ & $0{,}0673$ & $7{,}8\%$  & $5{,}6\%$ \\
+Inv-vol ($\Sigma$ diag) & $17{,}94\%$ & $0{,}0673$ & $7{,}8\%$  & $5{,}6\%$ \\
 $1/N$              & $18{,}35\%$ & $0{,}0691$ & $9{,}2\%$  & $4{,}8\%$ \\
 Markowitz          & $22{,}99\%$ & $0{,}3178$ & $37{,}3\%$ & $0{,}0\%$ \\
 \bottomrule
