@@ -69,6 +69,55 @@ jobs:
           fi
           ls -la app/public/data/ | head -20
 
+      # ─── Install pnpm deps EARLY ─────────────────────────────────────
+      # The WP01 v2 exporter (next step) imports from app/lib/*, which
+      # has runtime deps. We also need the same node_modules for the
+      # `pnpm build` step later, so install once here and reuse.
+      - name: Install pnpm dependencies
+        working-directory: app
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
+
+      # ─── WP01 v2: export canonical numbers + dataset JSONs ───────────
+      # Runs the live TS pipeline (markowitz/illusion/persistence/BL/RP)
+      # against app/public/data/ and writes:
+      #   articles/numbers.tex   — \newcommand{KEY}{VALUE} (120 entries)
+      #   articles/data/*.json   — 6 dataset JSONs for matplotlib
+      # The paper does \input{numbers} so its text uses exactly the same
+      # numbers as the website (no paper/site drift).
+      - name: Export WP01 v2 numbers + data JSONs
+        if: ${{ hashFiles('articles/wp01.tex') != '' }}
+        working-directory: app
+        run: |
+          npx tsx scripts/export-wp01-data.ts
+          echo "─── articles/numbers.tex (head) ───"
+          head -20 ../articles/numbers.tex
+          echo "─── articles/data/ ───"
+          ls -la ../articles/data/
+
+      # ─── WP01 v2: generate matplotlib figures ────────────────────────
+      # Reads articles/data/*.json (from previous step) and writes 7 PDFs
+      # to articles/figures/. The paper does \graphicspath{{figures/}}
+      # and \includegraphics for each.
+      - name: Setup Python for figures
+        if: ${{ hashFiles('articles/figures/make_figures.py') != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate WP01 v2 figures
+        if: ${{ hashFiles('articles/figures/make_figures.py') != '' }}
+        working-directory: articles/figures
+        run: |
+          python -m pip install --upgrade pip
+          pip install matplotlib numpy
+          python make_figures.py
+          ls -la *.pdf
+
       # ─── compile-stamp.tex with CI timestamp + commit SHA ────────────
       # Each .tex file does \input{compile-stamp} and the cover page
       # prints "Compilada em DD/MM/YYYY às HH:MM (BRT) • <sha>".
@@ -118,11 +167,7 @@ jobs:
         env:
           GH_PAGES_BASE: /applied_finance
         run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
+          # pnpm install already ran in "Install pnpm dependencies".
           pnpm build
 
       - name: Assemble payload

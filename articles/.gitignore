@@ -5,6 +5,13 @@
 *.log
 *.out
 *.toc
+
+# CI-generated artifacts: numbers.tex (commands from TS export), data/*.json
+# (raw experiment results), figures/*.pdf (matplotlib outputs). All produced
+# fresh on every CI run; never committed.
+numbers.tex
+data/
+figures/*.pdf
 *.lof
 *.lot
 *.fls

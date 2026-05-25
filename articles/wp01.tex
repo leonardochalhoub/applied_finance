@@ -1,11 +1,15 @@
 % =====================================================================
-% Applied Finance — Working Paper n. 1
+% Applied Finance — Working Paper n. 1 (v2)
 % Cinco abordagens de seleção de carteira no mercado brasileiro:
-% replicação de Markowitz, DGU, Kahneman, Black-Litterman e Paridade
-% de Risco sobre o universo IBOV via lakehouse Databricks.
+% replicação de Markowitz, DGU, Kahneman (com teste de persistência),
+% Black-Litterman e Paridade de Risco sobre o universo IBOV.
 %
-% Autor: Leonardo Chalhoub
-% Versão: 1.0 — Maio de 2026
+% Versão 2 (revisada): adiciona o teste de persistência rolante
+% (Kahneman 1984 propriamente dito), null concentrado K-bet
+% (Kahneman-friendly), figuras editoriais magazine-grade, e auto-importa
+% todos os números do pipeline TS canônico via \input{numbers}.
+%
+% Autor: Leonardo Chalhoub  ·  Maio de 2026
 % =====================================================================
 \documentclass[12pt,a4paper,oneside]{article}
 
@@ -34,9 +38,6 @@
 \Urlmuskip=0mu plus 1mu\relax
 \usepackage{float}
 \usepackage{amsmath}
-% Note: amssymb intentionally NOT loaded — newtxmath already provides
-% the full AMS symbol set, and loading amssymb after newtxmath triggers
-% "Command \Bbbk already defined" in newer TeX Live (2026+).
 
 \onehalfspacing
 \setlength{\parindent}{1.25cm}
@@ -53,9 +54,10 @@
                       position=below,justification=centering,font=small}
 \captionsetup{skip=6pt}
 
-\newcommand{\rs}{R\$\,}
+\graphicspath{{figures/}}
 
 \input{compile-stamp}
+\input{numbers}   % auto-gerado por app/scripts/export-wp01-data.ts
 
 \begin{document}
 
@@ -64,7 +66,7 @@
   \begin{center}
     \vspace*{1.5cm}
     {\small\textsc{Applied Finance \quad\textbar\quad Working Paper n. 1}}\\
-    {\small Versão 1.0 \textemdash{} Maio de 2026}\\[2pt]
+    {\small Versão 2.0 \textemdash{} Maio de 2026}\\[2pt]
     {\footnotesize Compilada em \COMPILESTAMP\ \textbullet\ \texttt{\COMPILESHA}}
 
     \vfill
@@ -74,15 +76,16 @@
 
      REPLICAÇÃO EMPÍRICA DE MARKOWITZ, DEMIGUEL-GARLAPPI-UPPAL,
 
-     KAHNEMAN, BLACK-LITTERMAN E PARIDADE DE RISCO
+     KAHNEMAN (BIAS E PERSISTÊNCIA), BLACK-LITTERMAN
 
-     SOBRE O UNIVERSO IBOV (2000\textendash 2026)}
+     E PARIDADE DE RISCO SOBRE O UNIVERSO IBOV}
 
     \vspace{1cm}
     {\large\itshape
      Five portfolio-selection approaches on the Brazilian equity market:
-     empirical replication of Markowitz, DeMiguel-Garlappi-Uppal, Kahneman,
-     Black-Litterman and Risk Parity on the IBOV universe (2000\textendash 2026)}
+     empirical replication of Markowitz, DeMiguel-Garlappi-Uppal,
+     Kahneman (bias and persistence), Black-Litterman and Risk Parity
+     on the IBOV universe}
 
     \vfill
 
@@ -102,115 +105,92 @@
 \section*{Resumo}
 \addcontentsline{toc}{section}{Resumo}
 \begin{singlespace}\small\noindent
-A literatura quantitativa de seleção de carteira oscila entre dois pólos:
-o ideal teórico de Markowitz (1952), que prescreve a otimização de
-média-variância como solução única e completa do problema do investidor
-sob preferências quadráticas; e a crítica empírica acumulada desde
-Michaud (1989) e formalizada por DeMiguel, Garlappi e Uppal (2009), que
-documenta que a média amostral $\hat{\mu}$ é estatisticamente frágil
-demais para que o otimizador supere consistentemente regras ingênuas
-fora-da-amostra. Este \textit{working paper} replica empiricamente cinco
-abordagens contemporâneas \textemdash{} Markowitz puro, ingênuo $1/N$
-de DeMiguel-Garlappi-Uppal, \textit{Illusion of Skill} de Kahneman (2011,
-prêmio Nobel de Ciências Econômicas 2002), Black-Litterman (1992) e
-Paridade de Risco / Equal Risk Contribution de Maillard, Roncalli e
-Teïletche (2010) \textemdash{} sobre o universo de ações listadas na
-B3, em janela 2000\textendash 2026.
-\textbf{Materiais e métodos.} A fonte de dados é uma plataforma
-\textit{lakehouse} Medallion (\textit{bronze} $\rightarrow$ \textit{silver}
-$\rightarrow$ \textit{gold}) sobre Databricks Free Edition, com 982
-\textit{tickers} no universo curado, 468 efetivamente ingeridos pelo
-\textit{provider} (Yahoo Finance), 38 constituintes correntes do IBOV
-disponíveis em série de preços fechados ajustados. Estimadores: matriz
-de covariância via Ledoit-Wolf (2004); média esperada via correção de
-Jensen, anualização $\times 252$, encolhimento Bayes-Stein de Jorion
-(1986) e ancoragem macro a $r_f + \mathrm{ERP}$ com teto por ativo em
-$r_f + 3 \cdot \mathrm{ERP} \approx 31\%$; solver \textit{long-only}
-via heurística \textit{active-set} guloso.
-\textbf{Achados.} (i)~A fronteira Markowitz \textit{long-only} sobre as
-30 maiores constituintes do IBOV ($T = 1260$ dias, $r_f = 12{,}90\%$ a.a.)
-entrega tangência com $E[r] = 28{,}52\%$, $\sigma = 21{,}56\%$ e
-Sharpe $= 0{,}72$, concentrando $26\% + 25\% + 18\% = 69\%$ em
-SBSP3, PETR4 e PETR3. (ii)~Em \textit{walk-forward} 3-anos-treino /
-1-trimestre-teste sobre 8 períodos entre abril/2024 e maio/2026, a
-carteira Markowitz supera a $1/N$ em retorno acumulado
-($+59{,}65\%$ vs $+39{,}17\%$) e em Sharpe anualizado
-($0{,}73$ vs $0{,}27$), com \textit{turnover} de $1{,}17\times$ ao
-ano \textemdash{} um resultado que \textit{contradiz} a tese DGU no
-intervalo considerado mas reflete uma janela de mercado favorável aos
-ativos sobreponderados pela otimização. (iii)~No experimento de
-Kahneman (5.000 carteiras Dirichlet long-only, partição treino/teste
-$2y$/$2y$), o Sharpe ex-ante prometido pelo otimizador é $1{,}123$
-contra $0{,}947$ ex-post; o gap, $0{,}176$ em unidades de Sharpe,
-constitui a \textit{ilusão} no sentido formal de Kan e Smith (2008);
-ambos valores ficam acima da totalidade do suporte aleatório, indicando
-\textit{skill real} estatisticamente distinguível de sorte na janela
-considerada. (iv)~O modelo Black-Litterman, com $\delta = 2{,}5$ e
-$\tau = 0{,}05$ e sem \textit{views}, recupera implícitos
-$\Pi$ entre $5{,}64\%$ (ABEV3) e $10{,}49\%$ (B3SA3), distantes do
-$\hat{\mu}$ amostral encolhido pelo pipeline ($12{,}64\%$ a $30{,}90\%$).
-A norma $L^1/2$ do desvio em relação à carteira de mercado é $70{,}5\%$
-para Markowitz e $72{,}4\%$ para Black-Litterman. (v)~A carteira de
-paridade de risco (ERC) atinge $\mathrm{HHI}_{\text{risco}} = 0{,}067
-\approx 1/15$ por construção, contra $0{,}069$ no $1/N$ e $0{,}318$
-em Markowitz; a vol total é $17{,}84\%$, $18{,}35\%$ e $22{,}99\%$
-respectivamente. \textbf{Discussão e contribuição.} O \textit{paper}
-reúne os cinco modelos sob um \textit{único} pipeline de estimação e
-contraste empírico, com pesos comparáveis em base ativo-a-ativo; o
-mesmo $\Sigma$ Ledoit-Wolf é usado em todas as etapas, garantindo
-comparabilidade interna. A reprodução é integral: os algoritmos são
-\textit{open-source} (TypeScript, com \textit{tests} pytest e vitest),
-os dados são públicos (Yahoo Finance + Banco Central do Brasil), e a
-plataforma é gratuita (Databricks Free Edition).
-\vspace{0.4cm}\noindent\textbf{Palavras-chave:}
-Markowitz; DeMiguel-Garlappi-Uppal; Kahneman; Black-Litterman; paridade
-de risco; \textit{Ledoit-Wolf}; Jorion; carteira de tangência;
-\textit{lakehouse} Medallion; Databricks; B3; IBOV; reprodutibilidade.
+A teoria moderna de carteiras oscila entre dois pólos: o ideal de
+Markowitz (1952), que prescreve a otimização de média-variância como
+solução do problema do investidor sob preferências quadráticas; e a
+crítica empírica acumulada desde Michaud (1989) e formalizada por
+DeMiguel, Garlappi e Uppal (2009), que documenta que a média amostral
+$\hat{\mu}$ é estatisticamente frágil demais para que o otimizador
+supere consistentemente regras ingênuas fora-da-amostra.
+Independentemente, Kahneman (1984/2011, Nobel 2002) documenta que a
+correlação ano-a-ano dos rankings de gestores ativos é
+estatisticamente zero — performance indistinguível de sorte.
+\textbf{Objetivo.} Este \textit{working paper} replica empiricamente
+cinco abordagens contemporâneas sobre o universo brasileiro de ações
+B3 ($N = \UniverseSize$ \textit{tickers}, janela
+\UniverseDates), sob um pipeline unificado: (i) Markowitz puro,
+(ii) ingênuo $1/N$ de DGU, (iii) ilusão de Kahneman em duas
+variantes \textemdash{} viés de Kan-Smith em janela única e teste
+formal de persistência em janelas rolantes, (iv) Black-Litterman, e
+(v) Paridade de Risco. \textbf{Métodos.} Σ via Ledoit-Wolf (2004);
+μ via Jensen + ×252 + Jorion shrinkage (1986) + macro-anchor a $r_f
++ \mathrm{ERP}$ com teto por ativo em $r_f + 3 \cdot \mathrm{ERP}
+\approx \Ceiling$. \textit{Long-only} via \textit{active-set} guloso
+(Merton 1972 + projeção iterativa). Os retornos esperados implícitos
+do CAPM ($\Pi = \delta \Sigma w_{\mathrm{mkt}}$) substituem $\hat{\mu}$
+no Black-Litterman; a paridade de risco usa apenas $\Sigma$ via
+\textit{cyclic coordinate descent} sobre o objetivo convexo de
+Maillard et al.\ (2010).
+\textbf{Achados sobre o IBOV (top-30, janela
+\MVPeriodStart\ \textendash\ \MVPeriodEnd, $r_f = \Rf$).}
+(i)~Tangência Markowitz: $E[r] = \MVTangencyRet$, $\sigma =
+\MVTangencyVol$, Sharpe = \MVTangencySharpe, com top-5 pesos somando
+\MVTop5SumWeights\ em \MVTopOneTicker, \MVTopTwoTicker, \MVTopThreeTicker,
+\MVTopFourTicker\ e \MVTopFiveTicker.
+(ii)~\textit{Walk-forward} 3y/1q em \IngenuoPeriods\ períodos
+(\IngenuoPeriodStart\ a \IngenuoPeriodEnd): Markowitz acumulou
+\IngenuoMVCumReturn\ versus \IngenuoEQCumReturn\ do $1/N$
+(Sharpe \IngenuoMVSharpe\ vs \IngenuoEQSharpe; gap \IngenuoSharpeGap).
+(iii)~Kahneman \textit{single-window} (2y treino,
+\KhTrainStart\ \textendash\ \KhTrainEnd; 2y teste,
+\KhTestStart\ \textendash\ \KhTestEnd): Markowitz ex-ante
+Sharpe = \KhMVExAnte, ex-post Sharpe = \KhMVExPost, ilusão = \KhIllusion.
+Sob a null Dirichlet(1) diversificada, percentil ex-post = \KhDirichletExPostPct º;
+sob a null concentrada em $K=\KhConcentrationK$ ativos
+(Kahneman-friendly), \KhConcentratedExPostPct º.
+(iv)~Kahneman \textit{rolling persistence}: \PersistenceNWindows\
+janelas não-sobrepostas; autocorrelação lag-1 do percentil =
+\PersistenceAutoCorr; Jaccard médio dos picks = \PersistenceJaccard;
+percentil médio = \PersistenceMeanPercentile º.
+(v)~Black-Litterman ($\delta = \BLDelta$, $\tau = \BLTau$, sem
+\textit{views}): $\Pi \in [\BLPiMin, \BLPiMax]$ contra $\hat{\mu}^{\text{shrunk}}
+\in [\BLMuMin, \BLMuMax]$; norma $L^1/2$ ao IBOV: MV = \BLLOneMv,
+BL = \BLLOneBl.
+(vi)~Paridade ERC: $\sigma = \PaERCVol$, HHI de risco = \PaERCHHI\
+$\approx 1/N$ por construção, contra \PaMarkowitzHHI\ em Markowitz.
+\textbf{Contribuição.} Os cinco modelos são contrastados ativo-a-ativo
+sob o mesmo pipeline; o teste de persistência é, ao melhor do
+nosso conhecimento, a primeira tradução fiel do achado de Kahneman
+(1984) ao contexto de portfólio.
+\vspace{0.4cm}\noindent\textbf{Palavras-chave:} Markowitz; DeMiguel-Garlappi-Uppal;
+Kahneman; Kan-Smith; Black-Litterman; paridade de risco; Ledoit-Wolf;
+Jorion; carteira de tangência; \textit{lakehouse} Medallion;
+Databricks; B3; IBOV; reprodutibilidade.
 \end{singlespace}
 
-% ---------- ABSTRACT -----------------------------------------------------
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
 \begin{singlespace}\small\noindent
 The quantitative literature on portfolio selection oscillates between
-two poles: Markowitz's (1952) theoretical ideal, prescribing mean-variance
-optimization as the unique and complete solution to the investor's
-problem under quadratic preferences; and the empirical critique
-accumulated since Michaud (1989), formalized by DeMiguel, Garlappi and
-Uppal (2009), documenting that the sample mean $\hat{\mu}$ is too
-statistically fragile for the optimizer to consistently outperform
-naïve rules out-of-sample. This working paper empirically replicates
-five contemporary approaches \textemdash{} pure Markowitz, naïve
-$1/N$, Kahneman's \textit{Illusion of Skill} (2011, Nobel 2002),
-Black-Litterman (1992) and Equal Risk Contribution (Maillard, Roncalli
-\& Teïletche, 2010) \textemdash{} on the B3 equity universe, window
-2000\textendash 2026.
-\textbf{Methods.} Data come from a Medallion lakehouse
-(\textit{bronze} $\rightarrow$ \textit{silver} $\rightarrow$
-\textit{gold}) on Databricks Free Edition, with 982 curated tickers,
-468 effectively ingested via Yahoo Finance, 38 current IBOV
-constituents with adjusted-close series. Estimators: Ledoit-Wolf
-covariance, Jensen-corrected $\times 252$ annualized mean, Jorion
-(1986) Bayes-Stein shrinkage and macro-anchor to $r_f + \mathrm{ERP}$
-with per-asset ceiling at $r_f + 3 \cdot \mathrm{ERP} \approx 31\%$;
-long-only solver via greedy active-set heuristic.
-\textbf{Findings.} The long-only Markowitz tangency on top-30 IBOV
-($T = 1260$, $r_f = 12.90\%$ p.a.) delivers $E[r] = 28.52\%$,
-$\sigma = 21.56\%$, Sharpe $= 0.72$. Walk-forward over 8 periods
-(Apr/2024\textendash May/2026) shows Markowitz beating $1/N$ in this
-specific bull window (Sharpe $0.73$ vs $0.27$); the Kahneman experiment
-records ex-ante Sharpe $1.12$ vs ex-post $0.95$, illusion $+0.18$.
-Black-Litterman recovers implied $\Pi$ in $[5.64\%, 10.49\%]$ vs sample
-$[12.64\%, 30.90\%]$. ERC achieves $\mathrm{HHI}_{\text{risk}} = 0.067
-\approx 1/N$ by construction against $0.069$ for $1/N$ and $0.318$ for
-Markowitz. \textbf{Contribution.} The paper unifies five models under
-a single estimation pipeline with comparable per-asset weights. The
-implementation is open-source, the data are public, the platform is
-free.
-\vspace{0.4cm}\noindent\textbf{Keywords:}
-Markowitz; DeMiguel-Garlappi-Uppal; Kahneman; Black-Litterman; risk
-parity; Ledoit-Wolf; Jorion; tangency portfolio; Medallion lakehouse;
-Databricks; B3; IBOV; reproducibility.
+Markowitz's (1952) theoretical ideal and the empirical critique
+formalized by DeMiguel, Garlappi and Uppal (2009): the sample mean
+$\hat{\mu}$ is too noisy for the optimizer to consistently outperform
+naïve rules out-of-sample. Kahneman (1984/2011, Nobel 2002) finds
+that year-over-year rankings of active managers correlate near zero.
+This working paper replicates five contemporary approaches
+(Markowitz, $1/N$, two Kahneman variants, Black-Litterman, ERC) on
+the Brazilian B3 universe ($N = \UniverseSize$ tickers, window
+\UniverseDates) under one unified pipeline. Headline findings: on
+top-30 IBOV with $r_f = \Rf$, Markowitz tangency Sharpe is
+\MVTangencySharpe; walk-forward 3y/1q over \IngenuoPeriods\ periods
+shows MV ahead of $1/N$ (\IngenuoMVSharpe\ vs \IngenuoEQSharpe); single-window
+Kahneman illusion = \KhIllusion\ Sharpe; rolling-window persistence
+autocorrelation = \PersistenceAutoCorr\ (sample of \PersistenceNWindows\
+windows); BL recovers $\Pi \in [\BLPiMin, \BLPiMax]$ vs sample $\hat{\mu}
+\in [\BLMuMin, \BLMuMax]$; ERC achieves HHI of risk = \PaERCHHI\
+$\approx 1/N$ vs \PaMarkowitzHHI\ for Markowitz. All numbers and
+figures are auto-generated from the live TypeScript pipeline; code
+and data are open.
 \end{singlespace}
 
 \newpage
@@ -223,129 +203,140 @@ Databricks; B3; IBOV; reproducibility.
 \section{Introdução}\label{sec:intro}
 
 A teoria moderna de carteiras estabeleceu-se em meados do século XX
-com o trabalho seminal de \textbf{Harry Markowitz} (1952), que mostrou
-\textit{como} um investidor racional deveria alocar riqueza entre $n$
-ativos arriscados sob a hipótese de que utilidade depende apenas da
-média e da variância dos retornos. A inovação técnica foi modesta
-\textemdash{} um problema de otimização quadrática com restrições
-lineares \textemdash{} mas a inovação conceitual foi transformadora:
-pela primeira vez o risco da carteira era tratado como uma propriedade
+com o trabalho seminal de \textbf{Harry Markowitz} (1952), prêmio
+Nobel de Ciências Econômicas de 1990, que mostrou \textit{como} um
+investidor racional deveria alocar riqueza entre $n$ ativos arriscados
+sob a hipótese de que utilidade depende apenas da média e da
+variância dos retornos. A inovação técnica foi modesta \textemdash{}
+um problema de otimização quadrática com restrições lineares
+\textemdash{} mas a inovação conceitual foi transformadora: pela
+primeira vez o risco da carteira era tratado como uma propriedade
 \textit{emergente} da matriz de covariância $\Sigma$, não como uma
 soma simples dos riscos individuais. Eficiência passou a significar
-\textit{trade-off ótimo} entre retorno esperado e risco, e o ferramental
-gráfico da fronteira de média-variância passou a ser o vocabulário
-universal de gestores.
+\textit{trade-off ótimo} entre retorno esperado e risco, e o
+ferramental gráfico da fronteira de média-variância passou a ser o
+vocabulário universal de gestores.
 
 O modelo de Markowitz tornou-se ortodoxia acadêmica e operacional.
-Foi estendido por \textbf{Tobin} (1958) com a introdução de um ativo
-livre de risco, gerando a Linha do Mercado de Capitais (CML);
-generalizado por \textbf{Sharpe} (1964) e Lintner (1965) ao CAPM, que
-abstrai a estrutura de covariância para uma única dimensão de risco
-sistemático ($\beta$); refinado por \textbf{Merton} (1972), que
-forneceu a forma fechada da fronteira eficiente; estendido a tempo
-contínuo (Merton, 1973), a múltiplos fatores (Fama-French, 1993; Carhart,
-1997), e a horizontes de longo prazo (Merton, 1969). \textbf{Markowitz},
-\textbf{Sharpe} e \textbf{Miller} compartilharam o prêmio Nobel de
-Ciências Econômicas de 1990 pelo desenvolvimento da teoria moderna
-de finanças.
+Foi estendido por \textbf{James Tobin} (1958), Nobel 1981, com a
+introdução de um ativo livre de risco, gerando a Linha do Mercado de
+Capitais; generalizado por \textbf{William Sharpe} (1964) e Lintner
+(1965) ao CAPM, que abstrai a estrutura de covariância para uma
+única dimensão de risco sistemático ($\beta$); refinado por
+\textbf{Robert Merton} (1972), que forneceu a forma fechada da
+fronteira eficiente; estendido a tempo contínuo (Merton 1973), a
+múltiplos fatores (Fama-French 1993; Carhart 1997), e a horizontes
+de longo prazo. \textbf{Markowitz}, \textbf{Sharpe} e Merton Miller
+compartilharam o Nobel de 1990 pela teoria moderna de finanças.
 
 Paralelamente à expansão teórica, a aplicação prática da otimização
 Markowitz revelou-se sistematicamente decepcionante. Já em
-\textbf{Michaud} (1989), \textit{The Markowitz Optimization Enigma is
-Not Optimized Optimization}, documenta-se que carteiras ótimas
-construídas a partir de estimadores amostrais $\hat{\mu}, \hat{\Sigma}$
-são extremamente sensíveis a perturbações pequenas em $\hat{\mu}$,
+\textbf{Michaud} (1989) documenta-se que carteiras ótimas construídas
+a partir de estimadores amostrais $\hat{\mu}, \hat{\Sigma}$ são
+extremamente sensíveis a perturbações pequenas em $\hat{\mu}$,
 resultando em soluções concentradas em poucos ativos, com pesos
-instáveis no tempo, e desempenho \textit{out-of-sample} frequentemente
-inferior a regras ingênuas. Michaud cunha o termo \textit{error
-maximization}: o otimizador \emph{amplifica} os erros de estimativa em
-$\hat{\mu}$, porque a função-objetivo $w^\top \mu - \tfrac{\delta}{2}
-w^\top \Sigma w$ é não-linear em $\mu$ e premia desvios extremos.
+instáveis no tempo, e desempenho \textit{out-of-sample}
+frequentemente inferior a regras ingênuas. Michaud cunha o termo
+\textit{error maximization}: o otimizador \emph{amplifica} os erros
+de estimativa em $\hat{\mu}$ porque a função-objetivo é não-linear em
+$\mu$ e premia desvios extremos.
 
-Duas décadas depois, \textbf{DeMiguel, Garlappi e Uppal} (2009),
-\textit{Optimal Versus Naive Diversification: How Inefficient Is the
-1/N Portfolio Strategy?}, formalizam empiricamente a crítica em 14
-\textit{datasets} clássicos (FF industries, MSCI countries, S\&P
-sectors) e mostram que \textit{nenhuma} entre 14 variantes testadas de
-otimização (Markowitz amostral, mínima-variância, Bayes-Stein,
-Black-Litterman, \textit{kernel-shrinkage}) supera robustamente o
-$1/N$ ingênuo após custos de transação \textit{e} em horizonte longo.
-A interpretação formal é direta: o erro padrão da média amostral é
-$\sigma/\sqrt{T}$; para vol típica de ações brasileiras
-$\sim 30\%$ a.a.\ e janela de 5 anos ($T = 1260$), o desvio em
-$\hat{\mu}$ é da ordem de $\pm 8{,}5$ pontos percentuais, comparável
-ao próprio prêmio de risco do mercado.
+Duas décadas depois, \textbf{DeMiguel, Garlappi e Uppal} (2009)
+formalizam empiricamente a crítica em 14 \textit{datasets} clássicos
+e mostram que \textit{nenhuma} entre 14 variantes testadas de
+otimização supera robustamente o $1/N$ ingênuo após custos de
+transação \textit{e} em horizonte longo. A interpretação formal é
+direta: o erro padrão da média amostral é $\sigma/\sqrt{T}$; para vol
+típica de ações brasileiras $\sim 30\%$ a.a.\ e janela de 5 anos
+($T = 1260$), o desvio em $\hat{\mu}$ é da ordem de $\pm 8{,}5$
+pontos percentuais, comparável ao próprio prêmio de risco do mercado.
 
 Em paralelo, \textbf{Daniel Kahneman} \textemdash{} prêmio Nobel de
-Ciências Econômicas de 2002 \textemdash{} desenvolve, em colaboração
-com Amos Tversky, uma crítica \textit{comportamental} ao paradigma da
+Ciências Econômicas de 2002, em colaboração com Amos Tversky
+\textemdash{} desenvolve uma crítica \textit{comportamental} à
 gestão ativa. Em \textit{Thinking, Fast and Slow} (2011), Kahneman
-documenta um estudo realizado em 1984 com uma firma de \textit{wealth
-management} que possuía 25 anos de avaliações individuais para seus 28
-consultores. A correlação dos rankings de retorno entre pares de anos
-consecutivos \textemdash{} 378 pares no total \textemdash{} foi
-\textbf{0{,}01} em média. Kahneman batiza o achado de \textit{The
-Illusion of Skill}: a indústria financeira é remunerada por uma
-persistência de \textit{performance} que, sob qualquer teste estatístico
-razoável, não se distingue de sorte.
+relata um estudo conduzido em 1984 com uma firma de \textit{wealth
+management} que mantinha 25 anos de avaliações individuais para 28
+consultores. A correlação dos rankings de retorno entre pares de
+anos consecutivos \textemdash{} 378 pares \textemdash{} foi
+\textbf{0{,}01}. Kahneman batiza o achado de \textit{The Illusion of
+Skill}: a indústria financeira é remunerada por uma persistência de
+\textit{performance} que, sob qualquer teste estatístico razoável,
+não se distingue de sorte.
 
 A literatura responde a Michaud e DGU com três famílias de mitigações.
 A primeira, \textit{shrinkage estatístico}: \textbf{Jorion} (1986)
 propõe encolhimento Bayes-Stein de $\hat{\mu}$ na direção da
 média comum; \textbf{Ledoit e Wolf} (2003, 2004) propõem encolhimento
-data-driven de $\hat{\Sigma}$ na direção de alvos paramétricos
-(identidade, correlação constante). A segunda, \textit{regularização
-bayesiana}: \textbf{Black e Litterman} (1992) substituem a média
-amostral pela média implícita pelo equilíbrio CAPM
-$\Pi = \delta \Sigma w_{\text{mkt}}$ e combinam essa prior com
-\textit{views} explicitamente declaradas, com matriz de incerteza
-$\Omega$ calibrável. \textbf{He e Litterman} (1999) e
-\textbf{Idzorek} (2005) refinam a calibração de $\Omega$. A terceira,
+data-driven de $\hat{\Sigma}$ na direção de alvos paramétricos. A
+segunda, \textit{regularização bayesiana}: \textbf{Black e Litterman}
+(1992) substituem a média amostral pela média implícita pelo
+equilíbrio CAPM e combinam essa prior com \textit{views} explicitamente
+declaradas com matriz de incerteza calibrável. A terceira,
 \textit{descarte de $\mu$}: \textbf{Maillard, Roncalli e Teïletche}
-(2010) propõem o portfólio de Paridade de Risco (\textit{Equal Risk
-Contribution}), em que cada ativo contribui igualmente para a
-variância total, dispensando inteiramente o estimador de retorno
-esperado e usando apenas $\Sigma$.
+(2010) propõem o portfólio de Paridade de Risco em que cada ativo
+contribui igualmente para a variância total, dispensando inteiramente
+o estimador de retorno esperado.
 
-\subsection*{Objetivo e contribuição deste trabalho}
+\subsection*{Esta versão (v2)}
 
-Este \textit{working paper} replica os cinco modelos
-\textemdash{} Markowitz puro, $1/N$ de DGU, ilusão de skill de
-Kahneman, Black-Litterman e Paridade de Risco \textemdash{} sobre o
-universo brasileiro de ações listadas na B3, em janela
-$2000$\textendash$2026$, sob um único pipeline integrado de estimação.
+Esta segunda versão do \textit{working paper} corrige três deficiências
+da versão 1, identificadas em revisão crítica posterior à
+primeira publicação:
+
+\begin{enumerate}
+\item \textbf{Tradução errada do achado de Kahneman.} A v1 apresentou
+o experimento de Kahneman como um \textit{single-window} comparando
+Markowitz contra carteiras Dirichlet(1) diversificadas. Esse setup
+testa o viés in-sample de Kan e Smith (2008), \textit{não} o achado
+de persistência de Kahneman (1984). Esta v2 adiciona um experimento
+formal de persistência (rolling-window com autocorrelação lag-1) e
+relabel o anterior como teste Kan-Smith.
+
+\item \textbf{Null estruturalmente enviesada.} A null Dirichlet(1)
+gera carteiras diversificadas; Markowitz concentra. Comparar peras
+com maçãs. Esta v2 adiciona uma segunda null \textit{Kahneman-friendly}:
+sorteios concentrados em $K$ ativos com $K$ derivado de $1/\mathrm{HHI}(w_{\mathrm{MV}})$.
+
+\item \textbf{Drift entre paper e site.} A v1 usou um \textit{script}
+Python offline como \textit{mirror} aproximado do pipeline TypeScript
+do site. A divergência produziu números diferentes entre o paper e a
+interface. Esta v2 elimina o \textit{mirror}: um \textit{script} Node
+(\texttt{app/scripts/export-wp01-data.ts}) roda diretamente o pipeline
+TS canônico e exporta todos os números para JSON; \texttt{numbers.tex}
+mapeia para definições \textbackslash newcommand consumidas em
+$\backslash$input\{numbers\}.
+\end{enumerate}
+
+\subsection*{Objetivo e contribuição}
+
+Este \textit{working paper} replica os cinco modelos sobre o universo
+brasileiro de ações B3 ($N = \UniverseSize$ \textit{tickers}, janela
+\UniverseDates), sob um único pipeline integrado de estimação.
 Os cinco modelos são contrastados ativo-a-ativo: os mesmos pesos
-ranqueados, sob a mesma matriz $\Sigma$ Ledoit-Wolf, com a mesma taxa
-livre de risco $r_f$ e o mesmo prêmio de risco $\mathrm{ERP}$ ancorando
-o macro-shrinkage. A reprodução é integral: o código é
-\textit{open-source} (TypeScript no \textit{front-end}, Python no
-pipeline Databricks), os dados são públicos (Yahoo Finance + Banco
-Central do Brasil), e a plataforma é gratuita (Databricks Free
-Edition).
+ranqueados, sob a mesma matriz $\Sigma$ Ledoit-Wolf, com a mesma
+taxa livre de risco $r_f = \Rf$ e o mesmo prêmio de risco $\mathrm{ERP}
+= \ERP$ ancorando o macro-shrinkage. A reprodução é integral: o
+código é \textit{open-source} (TypeScript no \textit{front-end},
+Python no pipeline Databricks), os dados são públicos (Yahoo Finance
++ Banco Central do Brasil), e a plataforma é gratuita (Databricks
+Free Edition).
 
 \subsection*{Estrutura do artigo}
 
-A Seção~\ref{sec:teoria} consolida o referencial teórico, citando
-os trabalhos primários e os \textit{prêmios Nobel} relacionados.
-A Seção~\ref{sec:dados} descreve o conjunto de dados:
-o universo curado de 982 \textit{tickers}, o processo de ingestão via
-Yahoo Finance, as 38 constituintes do IBOV efetivamente disponíveis,
-a janela temporal e o tratamento de retornos. A Seção~\ref{sec:metodo}
-formaliza o pipeline de estimação: Ledoit-Wolf,
-Jensen-correction, Jorion shrinkage, macro-anchor, \textit{long-only}
-\textit{active-set}. A Seção~\ref{sec:resultados}
-apresenta os resultados empíricos das cinco abordagens, com tabelas e
-estatísticas-resumo. A Seção~\ref{sec:discussao} discute as
-implicações, em particular a observação \textit{contra-intuitiva} de
-que Markowitz superou o $1/N$ na janela $2024$\textendash$2026$
-\textemdash{} e por que isso não invalida a tese DGU.
-A Seção~\ref{sec:conclusao} fecha com considerações finais
-e direções de pesquisa futura.
+A Seção~\ref{sec:teoria} consolida o referencial teórico.
+A Seção~\ref{sec:dados} descreve dados e materiais.
+A Seção~\ref{sec:metodo} formaliza o pipeline.
+A Seção~\ref{sec:resultados} apresenta os resultados empíricos com
+sete figuras editoriais e tabelas auto-geradas a partir do
+\textit{TS pipeline}.
+A Seção~\ref{sec:discussao} discute implicações e limitações.
+A Seção~\ref{sec:conclusao} fecha com considerações finais.
 
 % =====================================================================
 \section{Referencial teórico}\label{sec:teoria}
 
-\subsection{O problema de Markowitz (1952)}
+\subsection{Markowitz (1952): a formulação canônica}
 
 A formulação canônica do problema de Markowitz, em sua forma quadrática
 sem restrição de ativo livre de risco, é
@@ -353,425 +344,192 @@ sem restrição de ativo livre de risco, é
 \min_{w \in \mathbb{R}^n} \quad \tfrac{1}{2} w^\top \Sigma w
 \quad \text{sujeito a} \quad w^\top \mu = \mu^*, \quad w^\top \mathbf{1} = 1,
 \end{equation}
-onde $w \in \mathbb{R}^n$ é o vetor de pesos, $\mu \in \mathbb{R}^n$ o
-vetor de retornos esperados, $\Sigma \in \mathbb{R}^{n \times n}$ a
-matriz de covariância (positivo-definida), $\mu^*$ o retorno-alvo e
-$\mathbf{1}$ o vetor de uns. A solução analítica de Merton (1972) define
-três quantidades-base $A = \mathbf{1}^\top \Sigma^{-1} \mathbf{1}$,
-$B = \mathbf{1}^\top \Sigma^{-1} \mu$, $C = \mu^\top \Sigma^{-1} \mu$,
-$D = AC - B^2$, com as quais a fronteira eficiente fica caracterizada
-por
-\begin{equation}
-\sigma^2(\mu^*) = \frac{A (\mu^*)^2 - 2 B \mu^* + C}{D},
-\end{equation}
-e a carteira de mínima variância tem $\mu_{\text{mv}} = B/A$,
+onde $w$ é o vetor de pesos, $\mu$ o vetor de retornos esperados,
+$\Sigma$ a matriz de covariância (positivo-definida), $\mu^*$ o
+retorno-alvo. A solução analítica de Merton (1972) define
+$A = \mathbf{1}^\top \Sigma^{-1} \mathbf{1}$,
+$B = \mathbf{1}^\top \Sigma^{-1} \mu$,
+$C = \mu^\top \Sigma^{-1} \mu$, $D = AC - B^2$, com os quais a
+fronteira eficiente fica caracterizada por
+$\sigma^2(\mu^*) = (A (\mu^*)^2 - 2 B \mu^* + C)/D$, e a carteira
+de mínima variância tem $\mu_{\text{mv}} = B/A$,
 $\sigma^2_{\text{mv}} = 1/A$.
 
-Quando se introduz um ativo livre de risco com taxa $r_f$, a fronteira
-eficiente colapsa para uma reta na seguinte sentido: \textit{toda}
-carteira eficiente é uma combinação linear do ativo livre de risco e
-da \textbf{carteira de tangência}
+Introduzindo um ativo livre de risco com taxa $r_f$, toda carteira
+eficiente é combinação linear do ativo livre e da \textbf{carteira
+de tangência}
 \begin{equation}\label{eq:tangency}
 w_T = \frac{\Sigma^{-1} (\mu - r_f \mathbf{1})}{\mathbf{1}^\top \Sigma^{-1} (\mu - r_f \mathbf{1})}.
 \end{equation}
-A inclinação da reta tangente é o $\mathrm{Sharpe} = (\mu_T - r_f) / \sigma_T$
-da carteira de tangência \textemdash{} o preço de mercado do risco.
 
-A solução é \textit{conceitualmente} elegante mas \textit{empiricamente}
-frágil, pelas razões já antecipadas: $\hat{\mu}$ é um estimador ruidoso
-e $\Sigma^{-1}$ amplifica esse ruído quando $\Sigma$ é mal-condicionada
-(condição agravada por $N \gtrsim T$).
+\subsection{CAPM e equilíbrio (Sharpe 1964)}
 
-\subsection{CAPM e a estrutura de equilíbrio (Sharpe, 1964)}
-
-\textbf{William Sharpe} (1964) \textemdash{} prêmio Nobel 1990
-\textemdash{} agregou as preferências individuais de Markowitz num
-modelo de equilíbrio. Sob hipóteses fortes (preferências quadráticas
-homogêneas, expectativas homogêneas, mercados sem fricção, taxa $r_f$
-única), todos os investidores optam pela mesma carteira de
-tangência. Em equilíbrio, essa carteira coincide com a
-\textbf{carteira de mercado}: $w_T = w_{\text{mkt}}$. O preço de
-qualquer ativo $i$ é determinado pela sua contribuição ao risco
-sistemático,
+Sob hipóteses fortes (preferências quadráticas homogêneas, expectativas
+homogêneas, mercados sem fricção), todos os investidores optam pela
+mesma carteira de tangência. Em equilíbrio, essa carteira coincide
+com a carteira de mercado, e o preço de qualquer ativo $i$ é
+determinado pela sua contribuição ao risco sistemático:
 \begin{equation}\label{eq:capm}
 E[r_i] - r_f = \beta_i (E[r_{\text{mkt}}] - r_f),
 \quad \beta_i = \frac{\mathrm{Cov}(r_i, r_{\text{mkt}})}{\mathrm{Var}(r_{\text{mkt}})}.
 \end{equation}
+A relevância para este trabalho é dupla: \eqref{eq:capm} é a base do
+modelo Black-Litterman, que inverte a relação para recuperar $\Pi =
+\delta \Sigma w_{\text{mkt}}$; e estabelece a carteira de mercado
+como o benchmark natural para avaliar gestão ativa.
 
-A relevância do CAPM para este trabalho é dupla: (a) ele fornece a
-base teórica para o modelo Black-Litterman, que inverte \eqref{eq:capm}
-para recuperar os retornos implícitos $\Pi = \delta \Sigma w_{\text{mkt}}$
-a partir da carteira de mercado observada; e (b) ele estabelece a
-carteira de mercado como o benchmark \textit{natural} para qualquer
-avaliação de gestão ativa \textemdash{} dispensar o índice por
-otimização sem informação privada deveria ser, em equilíbrio, neutro
-ou prejudicial.
+\subsection{Michaud (1989) e a fragilidade prática}
 
-\subsection{A crítica de Michaud (1989)}
+\textbf{Robert Michaud} (1989), \textit{The Markowitz Optimization
+Enigma is Not Optimized Optimization}, demonstra empiricamente que
+perturbações pequenas em $\hat{\mu}$ \textemdash{} da ordem de 25
+pontos-base, dentro do erro padrão usual \textemdash{} podem inverter
+completamente a composição da carteira ótima. \textbf{Best e Grauer}
+(1991) formalizam: a sensibilidade dos pesos ótimos a perturbações
+em $\mu$ é proporcional a $\Sigma^{-1}$; para covariâncias com
+autovalores pequenos, $\Sigma^{-1}$ explode em norma e a
+sensibilidade diverge.
 
-\textbf{Robert Michaud} (1989), em \textit{The Markowitz Optimization
-Enigma is Not Optimized Optimization}, publica na \textit{Financial
-Analysts Journal} o argumento que se tornaria referência para todo o
-debate posterior sobre fragilidade do MV. O artigo demonstra
-empiricamente que perturbações pequenas em $\hat{\mu}$ \textemdash{} da
-ordem de 25 pontos-base, dentro do erro padrão usual da média
-amostral \textemdash{} podem inverter completamente a composição da
-carteira ótima, alternando pesos entre $+100\%$ e $-100\%$ em ativos
-individuais. Michaud chama esse comportamento de \textit{error
-maximization}: a função-objetivo de \eqref{eq:markowitz-min-var}
-premia justamente os ativos cujo $\hat{\mu}_i$ está mais inflado por
-sorte amostral, porque a otimização não tem como distinguir sinal de
-ruído quando a janela é curta. A solução é não usar a otimização puro
-forma; alternativas plausíveis incluem \textit{resampling} (Michaud,
-1998), \textit{shrinkage}, \textit{Bayesian portfolio choice} e
-restrições de variabilidade.
+\subsection{Shrinkage estatístico: Jorion (1986), Ledoit-Wolf (2004)}
 
-A formalização posterior do achado de Michaud foi feita por
-\textbf{Best e Grauer} (1991), também na FAJ, que provam analiticamente
-que a sensibilidade dos pesos ótimos a perturbações em $\mu$ é
-proporcional a $\Sigma^{-1}$. Para covariâncias com autovalores
-pequenos (ativos quase-redundantes), $\Sigma^{-1}$ explode em norma e
-a sensibilidade dos pesos diverge.
-
-\subsection{Shrinkage estatístico: Jorion (1986) e Ledoit-Wolf (2003, 2004)}
-
-\textbf{Philippe Jorion} (1986), em \textit{Bayes-Stein Estimation
-for Portfolio Analysis}, propõe encolher $\hat{\mu}$ na direção da
-média ponderada de todos os ativos, $\bar{\mu}$, com intensidade
-$\psi^* \in (0, 1)$ calibrada para minimizar o risco quadrático:
+\textbf{Philippe Jorion} (1986) propõe encolher $\hat{\mu}$ na
+direção da média ponderada de todos os ativos, $\bar{\mu}$:
 \begin{equation}\label{eq:jorion}
 \hat{\mu}^{\text{JS}} = (1 - \psi^*) \hat{\mu} + \psi^* \bar{\mu}
 \cdot \mathbf{1},
-\quad \psi^* = \frac{(N+2)}{(N+2) + T \cdot (\hat{\mu} - \bar{\mu})^\top \Sigma^{-1} (\hat{\mu} - \bar{\mu})}.
+\quad \psi^* = \frac{N+2}{(N+2) + T \cdot (\hat{\mu} - \bar{\mu})^\top \Sigma^{-1} (\hat{\mu} - \bar{\mu})}.
 \end{equation}
-Em horizontes curtos ($T$ pequeno), $\psi^* \to 1$ e o estimador é
-toda média comum; em horizontes longos ($T$ grande), $\psi^* \to 0$ e
-recuperamos $\hat{\mu}$.
-
-\textbf{Olivier Ledoit e Michael Wolf} (2003, 2004) generalizam o
-shrinkage para a matriz de covariância, propondo:
+\textbf{Olivier Ledoit e Michael Wolf} (2003, 2004) generalizam:
 \begin{equation}\label{eq:ledoit-wolf}
 \hat{\Sigma}^{\text{LW}} = (1 - \delta^*) \hat{\Sigma} + \delta^* F,
 \end{equation}
-onde $F$ é um alvo paramétrico (identidade escalada, correlação
-constante, ou modelo de um fator) e $\delta^* \in (0, 1)$ é o nível de
-encolhimento ótimo, derivado em forma fechada como minimização do erro
-quadrático esperado entre $\hat{\Sigma}^{\text{LW}}$ e $\Sigma$. O
-estimador resultante é sempre positivo-definido (mesmo quando
-$\hat{\Sigma}$ não é, no regime $N > T$) e domina o sample em risco
-quadrático.
+onde $F$ é um alvo paramétrico (identidade, correlação constante).
+$\delta^* \in [0, 1]$ é a intensidade ótima derivada em forma
+fechada. O estimador resultante é sempre positivo-definido.
 
-A combinação Jorion (para $\mu$) + Ledoit-Wolf (para $\Sigma$) é o
-\textit{stack} padrão de \textit{shrinkage} em finanças quantitativas
-contemporâneas. É o adotado neste trabalho, com extensão adicional do
-\textit{macro-anchor} descrito na Seção~\ref{sec:metodo}.
+\subsection{DeMiguel-Garlappi-Uppal (2009): o argumento empírico}
 
-\subsection{O argumento empírico: DeMiguel, Garlappi e Uppal (2009)}
+\textbf{DGU} (2009, \textit{Review of Financial Studies}) testam 14
+modelos de otimização contra o $1/N$ ingênuo em 14 \textit{datasets}.
+\textit{Nenhum} dos 14 supera robustamente o $1/N$. A interpretação:
+o $\hat{\mu}$ amostral é estatisticamente ruim demais para que a
+otimização agregue valor após custo de implementação. DGU oferece um
+cálculo de tamanho de amostra: para superar o $1/N$ com 95\% de
+confiança, seria necessário $T \approx 3.000$ anos com $N = 25$
+ativos.
 
-\textbf{Victor DeMiguel, Lorenzo Garlappi e Raman Uppal} (2009)
-publicam na \textit{Review of Financial Studies} a peça que reorganiza
-o debate. O artigo testa 14 modelos de otimização \textemdash{}
-Markowitz amostral, mínima variância, Bayes-Stein, Black-Litterman
-com vários valores de $\tau$, MacKinlay-Pástor, encolhimento da
-covariância, encolhimento da média, modelo de fatores, abordagens
-\textit{constrained} \textemdash{} contra o $1/N$ ingênuo em 14
-\textit{datasets} clássicos. A métrica é Sharpe \textit{out-of-sample},
-após custos de transação, em janela rolante.
+\subsection{Kahneman (1984/2011): persistência e ilusão}
 
-O resultado é taxativo: \textit{nenhum} dos 14 modelos supera robustamente
-o $1/N$. Em \textit{datasets} maiores (mais ativos por janela fixa), o
-ruído domina o sinal e o $1/N$ vence consistentemente. Em
-\textit{datasets} menores e janelas longas, alguns modelos empatam mas
-com volatilidade alta. A interpretação econômica é direta: o
-$\hat{\mu}$ amostral é estatisticamente ruim demais para que a
-otimização agregue valor após o custo de implementação
-(\textit{turnover}, \textit{tracking error}, complexidade operacional).
+\textbf{Daniel Kahneman} (Nobel 2002), em \textit{Thinking, Fast and
+Slow} (2011), relata um estudo de 1984 com uma firma de
+\textit{wealth management} que possuía 25 anos de avaliações
+individuais para 28 consultores. A correlação dos rankings de
+\textit{performance} entre pares de anos consecutivos foi $0{,}01$
+em média sobre 378 pares. Kahneman batiza o achado de \textit{The
+Illusion of Skill}: o setor é pago para entregar persistência que
+não existe.
 
-DGU oferece também um cálculo de tamanho de amostra: para que a
-otimização de média-variância supere o $1/N$ com 95\% de confiança,
-seria necessário $T \approx 3.000$ anos de história ininterrupta com
-$N = 25$ ativos. É um cálculo prático: a vida humana não é longa o
-suficiente para que $\hat{\mu}$ amostral seja confiável.
-
-\subsection{A crítica comportamental: Kahneman (1984/2011)}
-
-\textbf{Daniel Kahneman} \textemdash{} prêmio Nobel de Ciências
-Econômicas de 2002 \textemdash{}, em colaboração com Amos Tversky,
-desenvolve a teoria do prospecto (Kahneman \& Tversky, 1979) e, num
-programa de pesquisa de várias décadas, documenta sistematicamente os
-\textit{vieses cognitivos} que afetam tomada de decisão sob incerteza.
-A síntese final aparece em \textit{Thinking, Fast and Slow} (2011),
-livro de divulgação científica e referência canônica.
-
-Para finanças, a contribuição chave é o capítulo \textit{The Illusion
-of Stock-Picking Skill}, em que Kahneman relata um estudo que conduziu
-em 1984. Uma firma de \textit{wealth management} (não-identificada)
-forneceu 25 anos de avaliações individuais para seus 28 consultores,
-com bônus calculados por ranking de \textit{performance} relativa.
-Kahneman calculou todas as correlações de ranking entre pares de anos
-consecutivos \textemdash{} $\binom{25-1}{1} = 24$ correlações
-\textit{por consultor}, totalizando $28 \cdot 24 / 2 = 336$ comparações
-de pares de anos. A média foi $0{,}01$. Persistência de
-\textit{performance} ano-a-ano: estatisticamente nula.
-
-A interpretação de Kahneman é o que ele chama de \textit{illusion of
-validity}: o setor financeiro é \textbf{pago para entregar uma habilidade
-que estatisticamente não existe}. O argumento se conecta a DGU mas é
-distinto: DGU é uma crítica \textit{matemática} ao otimizador, Kahneman
-é uma crítica \textit{comportamental} ao mercado de gestão ativa.
-Convergem na mesma conclusão pragmática: para o pequeno investidor,
-$1/N$ ou índice de mercado supera tentar ser esperto.
-
-A formalização estatística do vies de Kahneman foi feita por
-\textbf{Kan e Smith} (2008), \textit{The Distribution of the Sample
-Minimum-Variance Frontier}, na \textit{Management Science}. Os autores
-mostram que o Sharpe \textit{in-sample} de um estimador de carteira de
-tangência é viciado para cima por um fator
+A formalização \textit{estatística} do viés in-sample foi feita por
+\textbf{Kan e Smith} (2008), \textit{Management Science}: o Sharpe
+in-sample de um estimador de tangência é viciado para cima por
 \begin{equation}\label{eq:kan-smith}
 \mathbb{E}[\widehat{\mathrm{Sharpe}}^2_{\text{in}}] \;-\;
-\mathrm{Sharpe}^2_{\text{true}} \;\approx\; \frac{N}{T}
-\;+\; O\!\left(\frac{N^2}{T^2}\right),
+\mathrm{Sharpe}^2_{\text{true}} \;\approx\; \frac{N}{T},
 \end{equation}
-para $N$ ativos e janela $T$. Em $N = 30, T = 504$ (dois anos),
-o vies é da ordem de $30/504 = 0{,}06$ em $\mathrm{Sharpe}^2$, o que
-desloca um Sharpe verdadeiro de $0{,}5$ para um Sharpe declarado de
-$\sqrt{0{,}25 + 0{,}06} \approx 0{,}56$ \textemdash{} ou seja,
-$+0{,}06$ em pontos de Sharpe linear, um vies sistemático que cresce
-com $N$ e cai com $T$.
+para $N$ ativos e janela $T$.
 
-\subsection{O remédio bayesiano: Black-Litterman (1992)}
+\textbf{Distinção importante para esta v2.} O achado de Kan e Smith
+é sobre viés in-sample numa única amostra. O achado de Kahneman é
+sobre falta de persistência entre amostras consecutivas. São
+\textit{argumentos diferentes} que apontam para a mesma conclusão
+prática (skill aparente $\approx$ luck) por caminhos distintos. A
+v1 deste paper apresentou apenas o primeiro como ``teste Kahneman''
+\textemdash{} uma sobre-simplificação. Esta v2 separa os dois
+explicitamente.
 
-\textbf{Fischer Black e Robert Litterman} (1992), em
-\textit{Global Portfolio Optimization} (\textit{Financial Analysts
-Journal}), trabalho desenvolvido na Goldman Sachs Fixed Income
-Research, propõem o que se tornaria o \textit{framework} bayesiano
-canônico de seleção de carteira. A construção tem duas etapas.
+\subsection{Black-Litterman (1992): remédio bayesiano}
 
-Primeiro, em vez de partir de $\hat{\mu}$ amostral, os autores partem
-dos \textbf{retornos implícitos pelo equilíbrio CAPM}:
+\textbf{Fischer Black e Robert Litterman} (1992) substituem $\hat{\mu}$
+pelos retornos implícitos pelo equilíbrio CAPM:
 \begin{equation}\label{eq:bl-pi}
 \Pi = \delta \, \Sigma \, w_{\text{mkt}},
 \end{equation}
-onde $w_{\text{mkt}}$ é a carteira de mercado observada e
-$\delta$ é o coeficiente de aversão a risco do investidor
-representativo (tipicamente $\delta \in [2, 3]$; He-Litterman usam
-$\delta = 2{,}5$). $\Pi$ é o vetor de retornos que tornaria
-$w_{\text{mkt}}$ a solução ótima de média-variância
-\eqref{eq:tangency} \textemdash{} é uma \textbf{inversão} do CAPM.
-
-Segundo, os autores tratam $\Pi$ como a média da \textit{prior}
-bayesiana de $\mu$:
-\begin{equation}\label{eq:bl-prior}
-\mu \sim \mathcal{N}(\Pi, \, \tau \Sigma),
-\end{equation}
-e permitem que o investidor adicione \textit{views} lineares
-$P \mu = Q + \varepsilon$, $\varepsilon \sim \mathcal{N}(\mathbf{0},
-\Omega)$, em que cada linha de $P \in \mathbb{R}^{K \times N}$ é a
-combinação linear de ativos sobre a qual a \textit{view} incide, $Q_k$
-é o retorno esperado predito, e $\Omega$ é diagonal com $\Omega_{kk}$
-inversamente proporcional à confiança do investidor na \textit{view}
-$k$. A combinação bayesiana resultante é
+e tratam $\Pi$ como média da \textit{prior} bayesiana de $\mu$:
+$\mu \sim \mathcal{N}(\Pi, \tau \Sigma)$. Permitem que o investidor
+adicione \textit{views} lineares $P\mu = Q + \varepsilon$,
+$\varepsilon \sim \mathcal{N}(\mathbf{0}, \Omega)$, e a combinação
+bayesiana produz
 \begin{equation}\label{eq:bl-posterior}
 \mu_{\text{BL}} = \bigl[(\tau \Sigma)^{-1} + P^\top \Omega^{-1} P\bigr]^{-1}
-\bigl[(\tau \Sigma)^{-1} \Pi + P^\top \Omega^{-1} Q\bigr],
+\bigl[(\tau \Sigma)^{-1} \Pi + P^\top \Omega^{-1} Q\bigr].
 \end{equation}
-com matriz de covariância da estimativa
-\begin{equation}\label{eq:bl-cov}
-M = \bigl[(\tau \Sigma)^{-1} + P^\top \Omega^{-1} P\bigr]^{-1},
-\end{equation}
-e covariância \textit{efetiva} usada no otimizador
-$\Sigma_{\text{BL}} = \Sigma + M$.
-
-Sem \textit{views}, $\mu_{\text{BL}} = \Pi$ exatamente; a tangência sob
+Sem \textit{views}, $\mu_{\text{BL}} = \Pi$. A tangência sob
 $(\mu_{\text{BL}}, \Sigma_{\text{BL}})$ recupera $w_{\text{mkt}}$
-(modulo o termo $\tau$). É o ponto teórico mais importante do modelo:
-\textbf{sem opinião, o investidor deveria manter o índice}. Com
-\textit{views} de alta confiança, o posterior tilta na direção
-prescrita. Com \textit{views} de baixa confiança, o posterior fica
-próximo de $\Pi$.
+(modulo $\tau$). \textbf{Sem opinião, o investidor mantém o índice}.
 
-\textbf{He e Litterman} (1999), \textit{The Intuition Behind
-Black-Litterman Model Portfolios}, refinam a calibração de $\Omega$ e
-fornecem uma cartilha aplicada. \textbf{Idzorek} (2005),
-\textit{A Step-by-Step Guide to the Black-Litterman Model}, propõe
-calibrar $\Omega$ a partir de uma confiança percentual explicitamente
-declarada pelo gestor, mapeando $0\%$ confiança $\to \Omega \to \infty$
-e $100\%$ confiança $\to \Omega \to 0$.
+\subsection{Paridade de Risco: Maillard et al.\ (2010)}
 
-\subsection{Jogando fora $\mu$: Paridade de Risco (Maillard et al., 2010)}
-
-\textbf{Sébastien Maillard, Thierry Roncalli e Jérôme Teïletche} (2010),
-\textit{The Properties of Equally Weighted Risk Contribution Portfolios}
-(\textit{Journal of Portfolio Management}), oferecem uma resposta
-radical ao problema de estimação de $\mu$: \textbf{descartá-lo
-inteiramente}. O argumento é que, dada a evidência de DGU sobre a
-fragilidade de $\hat{\mu}$, vale mais focar em uma quantidade que
-\textit{pode} ser estimada com robustez \textemdash{} a covariância
-$\Sigma$ \textemdash{} e definir o portfólio em termos dela apenas.
-
-A contribuição de risco do ativo $i$ é definida como a fração da
-variância total da carteira atribuível a $i$:
+\textbf{Maillard, Roncalli, Teïletche} (2010) propõem o portfólio de
+\textit{Equal Risk Contribution} (ERC), em que cada ativo contribui
+igualmente para a variância total. A contribuição de risco do ativo
+$i$ é
 \begin{equation}\label{eq:rc}
-\mathrm{RC}_i(w) \;=\; \frac{w_i (\Sigma w)_i}{w^\top \Sigma w},
-\quad \sum_{i=1}^N \mathrm{RC}_i = 1.
+\mathrm{RC}_i(w) = \frac{w_i (\Sigma w)_i}{w^\top \Sigma w}, \quad \sum_{i} \mathrm{RC}_i = 1.
 \end{equation}
-A derivada parcial de $\sigma_p = \sqrt{w^\top \Sigma w}$ em relação a
-$w_i$ é $(\Sigma w)_i / \sigma_p$; portanto $w_i \cdot \partial
-\sigma_p / \partial w_i$ é a contribuição \textit{euleriana} de $i$
-para a volatilidade total. Dividindo por $\sigma_p$ obtém-se
-\eqref{eq:rc} como contribuição fracional para a variância.
-
-A carteira de \textbf{Equal Risk Contribution (ERC)} é o vetor de
-pesos que satisfaz $\mathrm{RC}_i = 1/N$ para todo $i$. Maillard et
-al.\ provam que (a) a solução existe e é única para $\Sigma$
-positivo-definida, (b) sua volatilidade fica entre a do $1/N$ e a do
-mínimo-variância, e (c) é o único minimizador da função convexa
+ERC requer $\mathrm{RC}_i = 1/N \, \forall i$. Maillard et al.\ provam
+que a solução existe e é única para $\Sigma$ positivo-definida, e é
+o único minimizador de
 \begin{equation}\label{eq:erc-objective}
 \min_{w \geq 0} \quad \tfrac{1}{2} w^\top \Sigma w
-\;-\; \frac{1}{N} \sum_{i=1}^N \ln(w_i),
+\;-\; \frac{1}{N} \sum_{i=1}^N \ln(w_i).
 \end{equation}
-sujeito apenas à positividade de $w$. O termo $-\ln(w_i)$ é uma
-\textbf{barreira logarítmica} que impede $w_i \to 0$ (porque $\ln 0 =
--\infty$). O gradiente da função-objetivo é $\Sigma w - (1/N) (1/w_i)$,
-e a condição de primeira ordem é $w_i (\Sigma w)_i = $ constante,
-equivalente a $\mathrm{RC}_i = 1/N$.
-
-O caso especial em que $\Sigma$ é diagonal admite solução fechada:
-\begin{equation}\label{eq:inv-vol}
-w_i^{\text{inv-vol}} \;\propto\; \frac{1}{\sigma_i},
-\quad \sigma_i = \sqrt{\Sigma_{ii}},
-\end{equation}
-que é a \textit{paridade de volatilidade} ou \textit{naive risk
-parity}, implementada pela maioria dos produtos comerciais.
-
-O paradigma de Paridade de Risco ganhou popularidade fora da academia
-com o \textbf{All-Weather Portfolio} da Bridgewater Associates, lançado
-por Ray Dalio em 1996. O All-Weather aloca igualmente em quatro
-``quadrantes'' macroeconômicos (crescimento alto/baixo $\times$
-inflação alta/baixa), calibrando pesos para que cada quadrante
-contribua igualmente para a vol total. \textbf{Roncalli} (2013),
-\textit{Introduction to Risk Parity and Budgeting} (Chapman \&
-Hall/CRC), documenta a formalização acadêmica posterior e as
-extensões a múltiplos níveis (Hierarchical Risk Parity, López de
-Prado 2016).
-
-\subsection{Síntese do referencial}
-
-Os cinco modelos contrastados neste artigo se distribuem em três
-níveis epistêmicos:
-\begin{enumerate}
-\item \textbf{Markowitz puro} adota $\hat{\mu}, \hat{\Sigma}$ amostrais
-em \eqref{eq:tangency} sem nenhuma proteção contra ruído. Serve como
-\textit{benchmark teórico}.
-\item \textbf{$1/N$ ingênuo} (DGU) ignora $\Sigma$ além da contagem $N$
-e ignora $\mu$ inteiramente. Serve como \textit{benchmark empírico}.
-\item Os três restantes \textemdash{} \textbf{Kahneman} (experimento de
-ilusão de skill), \textbf{Black-Litterman}, e \textbf{Paridade de
-Risco} \textemdash{} oferecem três respostas distintas ao
-problema de estimação: respectivamente, \textit{quantificar} a
-diferença entre promessa e entrega, \textit{substituir} a média
-amostral pela média de equilíbrio, e \textit{descartar} a média.
-\end{enumerate}
-
-Este artigo replica todos eles sob um pipeline unificado e exibe os
-resultados ativo-a-ativo. A próxima Seção descreve os dados.
+O caso $\Sigma$ diagonal admite solução fechada
+$w_i \propto 1/\sigma_i$.
 
 % =====================================================================
 \section{Dados e materiais}\label{sec:dados}
 
-\subsection{A plataforma \textit{lakehouse}}
+\subsection{Plataforma e arquitetura}
 
-Os dados que sustentam este artigo são produzidos por uma plataforma
-\textit{lakehouse} Medallion \textit{open-source}, hospedada no
-Databricks Free Edition do autor. A arquitetura é a canônica
-\textbf{bronze} $\rightarrow$ \textbf{silver} $\rightarrow$
-\textbf{gold} (Armbrust et al., 2021; Databricks, 2024), com três
-camadas:
+Os dados são produzidos por uma plataforma \textit{lakehouse} Medallion
+sobre Databricks Free Edition. A arquitetura é a canônica
+\textit{bronze} $\rightarrow$ \textit{silver} $\rightarrow$
+\textit{gold}: ingestão crua (\texttt{bronze.b3\_universe},
+\texttt{bronze.b3\_ohlcv\_raw}, \texttt{bronze.b3\_index\_members});
+limpeza e enriquecimento (\texttt{silver.b3\_ohlcv\_adjusted},
+\texttt{silver.b3\_ticker\_dim},
+\texttt{silver.b3\_index\_members\_long}); agregados de consumo
+(\texttt{gold.returns\_wide}, \texttt{gold.cov\_matrix\_5y},
+\texttt{gold.ibov\_overview}, \texttt{gold.kpis\_per\_ticker}).
+Artefatos JSON são exportados para \textit{volume} Databricks e
+publicados ao GitHub Pages a cada \textit{deploy}.
 
-\textbf{Bronze}: ingestão bruta, sem transformação. Inclui (i)
-\texttt{bronze.b3\_universe} (universo curado de ativos B3, carregado
-a partir de uma planilha CSV versionada), (ii) \texttt{bronze.b3\_ohlcv\_raw}
-(OHLCV diário ajustado por dividendos e splits, obtido via
-Yahoo Finance), e (iii) \texttt{bronze.b3\_index\_members} (composição
-do IBOV ao longo do tempo).
+\subsection{Universo curado}
 
-\textbf{Silver}: limpeza, deduplicação e enriquecimento. Inclui
-\texttt{silver.b3\_ohlcv\_adjusted} (OHLCV final ajustado),
-\texttt{silver.b3\_ticker\_dim} (dimensão de tickers com setor B3,
-\textit{listed\_from}/\textit{listed\_to}, prior tickers para fusões
-e \textit{renamings}), e \texttt{silver.b3\_index\_members\_long}
-(formato \textit{slowly-changing dimension} para a composição IBOV).
+O universo curado é mantido em \texttt{data/ticker\_universe.csv},
+contendo 982 \textit{tickers} históricos. A ingestão Yahoo Finance
+retorna dados úteis para \UniverseSize\ \textit{tickers}; os restantes
+falham por delisting, \textit{rename}, ou divergência de \textit{ticker}
+entre B3 e Yahoo. A janela disponível é \UniverseDates\
+(\UniverseNTradingDays\ dias úteis).
 
-\textbf{Gold}: agregados de consumo. Para este artigo, os relevantes
-são \texttt{gold.returns\_wide} (matriz $T \times N$ de log-retornos
-diários em formato \textit{wide} \textemdash{} uma coluna por
-\textit{ticker}, uma linha por data de pregão),
-\texttt{gold.cov\_matrix\_5y} (matriz $\Sigma$ Ledoit-Wolf anualizada
-sobre os últimos 1260 dias úteis, formato \textit{long}),
-\texttt{gold.ibov\_overview} (composição IBOV \textit{as-of} corrente
-com pesos, retorno YTD e contribuição), e
-\texttt{gold.kpis\_per\_ticker} (KPIs individuais por
-\textit{ticker}: $\sigma$ anualizada, drawdown máximo, Sharpe vs CDI,
-$N$ observações).
+\subsection{IBOV e suas constituintes}
 
-Os artefatos JSON resultantes da camada gold são exportados para um
-\textit{volume} no Databricks (\texttt{/Volumes/finance\_prd/gold/artifacts/})
-e replicados ao GitHub Pages a cada \textit{deploy} via workflow CI
-(\texttt{.github/workflows/deploy-pages.yml}). A \textit{front-end} em
-Next.js carrega esses JSON estáticos no \textit{build time} e os usa
-para todas as visualizações.
-
-\subsection{O universo curado: 982 \textit{tickers}}
-
-O universo curado de ativos é mantido em
-\texttt{data/ticker\_universe.csv}, versionado junto ao código do
-projeto. A última versão contém \textbf{982 \textit{tickers}}, cobrindo
-ações ordinárias (ON), preferenciais (PN), units, BDRs, ETFs e fundos
-imobiliários listados na B3 nos últimos 25 anos. A planilha inclui
-metadata curatorial: setor B3 e subsetor, \texttt{listed\_from}
-(data de listagem original), \texttt{listed\_to} (NULL se ainda ativo),
-\texttt{prior\_tickers} (\textit{array} de tickers anteriores, para
-ativos que passaram por \textit{rename} ou fusão \textemdash{} ex.\
-BRFS3 = SADIA3 $|$ PRGA3; VBBR3 = BRDT3; RAIL3 = ALLL3), e CNPJ
-quando conhecido.
-
-\subsection{A ingestão Yahoo Finance: 468 \textit{tickers} efetivos}
-
-A ingestão OHLCV diária via Yahoo Finance retorna dados para apenas
-\textbf{468 dos 982 \textit{tickers}} curados. Os \textbf{514 ausentes}
-distribuem-se em três grupos: (i) ativos delistados há mais de 10 anos
-cuja \textit{API} de Yahoo retorna vazio com o \textit{ticker} atual;
-(ii) ativos que passaram por \textit{rename} ou fusão e cuja história
-está sob o nome antigo no Yahoo \textemdash{} a ingestão recupera o
-nome novo, encontra histórico recente curto, e classifica como
-``\textit{insufficient history}''; e (iii) ativos pouco-líquidos cujo
-\textit{ticker} Yahoo é estruturalmente diferente do código B3 (BDRs,
-algumas \textit{units}).
-
-A consequência prática é que o universo \textbf{efetivamente
-investível} para este trabalho é de 468 \textit{tickers}. A janela
-2000-01-03 a 2026-05-25 oferece 6.791 dias úteis de história, mas
-muitos \textit{tickers} têm histórico parcial (IPOs entre 2010 e 2024).
-
-\subsection{O IBOV e as 38 constituintes disponíveis}
-
-A composição corrente do IBOV (\textit{as-of} 2026-05-25) tem
-\textbf{51 ativos} ativos em \texttt{silver.b3\_index\_members\_long}.
-A camada gold (\texttt{gold.ibov\_overview}), porém, agrega apenas
-\textit{tickers} com preço disponível em \texttt{silver.b3\_ohlcv\_adjusted}.
-Treze constituintes correntes do IBOV \textemdash{} BRFS3, CCRO3,
-CPLE6, ELET3, ELET6, EMBR3, JBSS3, NTCO3, RAIL3, SUZB3, TIMS3, VBBR3,
-VIVT3 \textemdash{} não retornam dados de Yahoo com o \textit{ticker}
-atual (provavelmente pela mesma raiz dos 514 ausentes do universo
-amplo). A composição IBOV efetivamente disponível para uso na
-otimização Markowitz e Black-Litterman é, portanto, de \textbf{38
-constituintes}, cobrindo aproximadamente 81\% do peso real do índice.
-
-A tabela~\ref{tab:ibov-top10} apresenta as dez maiores ponderações.
+A composição corrente do IBOV (\textit{as-of} \UniverseLastDate) tem
+\textbf{51 ativos} em \texttt{silver.b3\_index\_members\_long}.
+A camada gold (\texttt{gold.ibov\_overview}) agrega apenas
+\textit{tickers} com preço disponível em silver. Treze constituintes
+correntes do IBOV \textemdash{} BRFS3, CCRO3, CPLE6, ELET3, ELET6,
+EMBR3, JBSS3, NTCO3, RAIL3, SUZB3, TIMS3, VBBR3, VIVT3 \textemdash{}
+não retornam dados de Yahoo. A composição IBOV efetivamente disponível
+neste trabalho é \textbf{\IBOVMembers\ constituintes}, cobrindo
+aproximadamente 81\% do peso real do índice. A tabela~\ref{tab:ibov-top10}
+apresenta os dez maiores.
 
 \begin{table}[H]
 \centering
-\caption{IBOV: dez maiores constituintes disponíveis no gold (peso, setor B3).}\label{tab:ibov-top10}
+\caption{IBOV: dez maiores constituintes disponíveis (peso, setor B3).}\label{tab:ibov-top10}
+\small
 \begin{tabular}{lrl}
 \toprule
 \textbf{Ticker} & \textbf{Peso} & \textbf{Setor B3} \\
@@ -790,811 +548,445 @@ BPAC11  & 2{,}45\% & Financeiro \\
 \end{tabular}
 \end{table}
 
-A concentração setorial é notável: dos dez maiores, \textbf{cinco são
-financeiros} (ITUB4, BBAS3, B3SA3, BBDC4, BPAC11) somando $18{,}63\%$
-do peso, e \textbf{dois são petróleo} (PETR4, PETR3) somando
-$10{,}60\%$. Materiais Básicos (VALE3) sozinho é $9{,}08\%$.
-
 \subsection{Taxa livre de risco}
 
-A taxa livre de risco usada em todo o pipeline é a média histórica do
-CDI, obtida via Banco Central do Brasil (BCB SGS série 12). No
-último \textit{snapshot} disponível, o valor é
-$r_f = 12{,}90\% \text{ a.a.}$, cobrindo 27 anos de história
-(1999\textendash 2026).
-
-\subsection{Período do estudo}
-
-A janela de trabalho é \textbf{2000-01-03 a 2026-05-25}, totalizando
-6.791 datas de pregão B3. As estimações com janela móvel restringem-se
-às datas em que o \textit{ticker} avaliado tem cobertura completa
-($\geq 95\%$ de dias não-nulos para janelas curtas, ou cobertura
-adaptativa $\geq \max\{0{,}60, \; 0{,}95 \cdot \max_i \mathrm{cobertura}_i\}$
-para janelas longas \textemdash{} ver seção~\ref{sec:metodo}).
+$r_f = \Rf$, média histórica do CDI obtida via Banco Central do Brasil
+(SGS série 12), cobrindo 27 anos de história (1999\textendash 2026).
 
 % =====================================================================
 \section{Metodologia}\label{sec:metodo}
 
-\subsection{Estimação da matriz de covariância}\label{sec:metodo:sigma}
+\subsection{Estimação de Σ via Ledoit-Wolf}
 
-A matriz de covariância $\hat{\Sigma}$ é estimada via \textbf{Ledoit-Wolf
-(2004)} com alvo de correlação constante. Em forma compacta:
-\begin{equation}
-\hat{\Sigma}^{\text{LW}} = (1 - \delta^*) S + \delta^* F,
-\end{equation}
-onde $S = \tfrac{1}{T-1} \sum_t (r_t - \bar{r})(r_t - \bar{r})^\top$ é
-a covariância amostral, $F$ é o alvo construído a partir de
-$\bar{\rho} \sqrt{\Sigma_{ii} \Sigma_{jj}}$ para $i \neq j$ (com
-$\bar{\rho}$ = média das correlações amostrais fora da diagonal), e
-$\delta^* \in [0, 1]$ é a intensidade de \textit{shrinkage} ótima
-calculada em forma fechada como
-$\delta^* = \max\{0, \min\{1, \pi/(\gamma T)\}\}$, sendo $\pi$ a soma
-das variâncias assintóticas dos elementos de $S$ e $\gamma$ a soma dos
-quadrados dos desvios $(F - S)^2$. A implementação está em
-\texttt{pipelines/notebooks/gold/cov\_matrix.py}.
+A matriz de covariância $\hat{\Sigma}$ é estimada via Ledoit-Wolf
+(2004) com alvo de correlação constante, intensidade $\delta^*$
+data-driven, anualizada $\times 252$. A regra de cobertura para
+janelas: para janelas curtas (1y, 5y, 10y) exigimos $\geq 95\%$
+de observações não-nulas; para janelas longas (15y, 20y, \textit{full})
+adotamos a regra adaptativa $\max\{0{,}60, \; 0{,}95 \cdot \max_c
+\text{cobertura}_c\}$.
 
-Antes de Ledoit-Wolf, a matriz é filtrada para incluir apenas
-\textit{tickers} com cobertura suficiente na janela. A regra é
-\textit{hybrid}: \textbf{para janelas curtas} (1y, 5y, 10y), exigimos
-cobertura absoluta $\geq 95\%$; \textbf{para janelas longas} (15y, 20y,
-\textit{full}), a regra é adaptativa,
-\begin{equation}\label{eq:cov-threshold}
-\text{threshold} = \max\bigl\{ 0{,}60, \;\; 0{,}95 \cdot \max_c \text{cobertura}_c \bigr\},
-\end{equation}
-para acomodar o fato de que mesmo o \textit{ticker} mais antigo no
-universo expandido pode ter cobertura inferior a $95\%$ em 15 ou 20
-anos (porque IPOs recentes introduzem datas que ele não cobre). Após
-filtragem, dropamos linhas com qualquer NaN entre os \textit{tickers}
-selecionados para garantir painel retangular limpo para o cálculo de
-$S$. A tabela~\ref{tab:cov-windows} resume os \textit{n\_valid} por
-janela.
+\subsection{Estimação de μ}
 
-\begin{table}[H]
-\centering
-\caption{Estatísticas de cobertura por janela de covariância (universo 468).}\label{tab:cov-windows}
-\begin{tabular}{lrrr}
-\toprule
-\textbf{Janela} & \textbf{n\_total} & \textbf{n\_valid} & \textbf{n\_excluded} \\
-\midrule
-1y    & 468 & 401 & 67   \\
-5y    & 468 & 384 & 84   \\
-10y   & 468 & 303 & 165  \\
-15y   & 468 & 298 & 170  \\
-20y   & 468 & 222 & 246  \\
-full  & 468 & 151 & 317  \\
-\bottomrule
-\end{tabular}
-\end{table}
+A estimação de $\hat{\mu}$ passa por quatro etapas: (i) média
+log-retornos diários; (ii) correção de Jensen
+$\bar{r}^{\text{simp}}_i = \bar{r}^{\log}_i +
+\tfrac{1}{2}\sigma^2_{ii,\text{daily}}$; (iii) anualização $\times
+252$; (iv) Jorion (1986) shrinkage com $\psi^*$ data-driven (\textit{cap}
+em $0{,}50$); (v) macro-anchor a $r_f + \mathrm{ERP}$ com $\alpha$
+data-driven (programada por janela); (vi) teto por ativo em $r_f
++ 3 \cdot \mathrm{ERP} \approx \Ceiling$.
 
-\subsection{Estimação da média esperada}\label{sec:metodo:mu}
+\subsection{Solver \textit{long-only}}
 
-A estimação de $\hat{\mu}$ passa por quatro etapas, todas implementadas
-em \texttt{app/lib/mvEstimators.ts} e \texttt{app/lib/shrinkage.ts}:
-\begin{enumerate}
-\item \textbf{Média log-retornos diários} $\bar{r}^{\log} = \tfrac{1}{T} \sum_t r_t^{\log}$.
-\item \textbf{Correção de Jensen} para converter média de log-retornos
-em média de retornos simples:
-$\bar{r}^{\text{simp}}_i = \bar{r}^{\log}_i + \tfrac{1}{2} \sigma^2_{ii,\text{daily}}$.
-\item \textbf{Anualização} $\hat{\mu}^{\text{ann}} = 252 \cdot \bar{r}^{\text{simp}}$.
-\item \textbf{Jorion (1986) shrinkage} toward grand mean
-\eqref{eq:jorion}: $\psi^*$ data-driven, com \textit{cap} em $\psi^* \leq 0{,}50$
-para evitar shrinkage excessivo em janelas muito curtas.
-\item \textbf{Macro-anchor} toward $r_f + \mathrm{ERP}$ com intensidade
-$\alpha$ data-driven (programada por janela: $\alpha = 0{,}50$ em $1y$,
-$0{,}47$ em $2y$, $0{,}45$ em $3y$, $0{,}42$ em $5y$, $0{,}30$ em
-$10y$, $0{,}50$ em $20y$ por compensação de sparsity, $0{,}60$ em
-\textit{full}):
-\begin{equation}\label{eq:macro-anchor}
-\hat{\mu}^{\text{anchor}} = (1 - \alpha) \cdot \hat{\mu}^{\text{JS}}
-+ \alpha \cdot (r_f + \mathrm{ERP}) \cdot \mathbf{1}.
-\end{equation}
-\item \textbf{Teto por ativo}:
-$\hat{\mu}^{\text{final}}_i = \min\bigl\{ \hat{\mu}^{\text{anchor}}_i, \;\;
-r_f + 3 \cdot \mathrm{ERP} \bigr\} \approx \min\{ \cdot, \;\; 30{,}9\% \}$.
-\end{enumerate}
-
-O parâmetro \textbf{ERP} (\textit{equity risk premium}) é fixado em
-$6\%$ a.a., seguindo Damodaran (atualizado anualmente em
-\texttt{pages.stern.nyu.edu/$\sim$adamodar/}). O teto em $r_f + 3 \cdot
-\mathrm{ERP}$ é uma restrição econômica: nenhum ativo isolado deveria
-ter Sharpe esperado superior a três desvios-padrão acima do mercado
-em equilíbrio. Sem essa restrição, a janela de $1y$ ou $2y$
-frequentemente produz $\hat{\mu}_i$ acima de $60\%$ a.a.\ para
-\textit{tickers} que tiveram um ciclo de alta amostral
-\textemdash{} um número evidentemente \textit{otimista}.
-
-\subsection{Solver \textit{long-only} via \textit{active-set} guloso}
-
-O problema \textit{long-only} de tangência é uma programação quadrática
-restrita $w \geq 0$, sem forma fechada. A implementação adota uma
-heurística \textit{active-set greedy}: resolve-se a tangência
+Heurística \textit{active-set} guloso: resolve-se a tangência
 irrestrita; identifica-se o ativo de peso mais negativo; descarta-se
-esse ativo do conjunto ativo; repete-se. O algoritmo converge em no
-máximo $N$ iterações e, na prática, encontra a solução em 3-8
-\textit{drops} para universos de 30-50 ativos. A correção formal não
-é garantida mas, na comparação com soluções QP exatas em testes
-sintéticos, o erro é desprezível.
-
-A implementação está em \texttt{app/lib/markowitz.ts}, função
-\texttt{\_longOnly(mu, sigma, rf, target)}.
+do conjunto ativo; repete-se. Converge em $\leq N$ iterações.
 
 \subsection{Walk-forward backtest}
 
-O \textit{backtest} \textit{walk-forward} (implementação em
-\texttt{app/lib/backtest.ts}, função \texttt{walkForwardBacktest})
-opera assim: a cada rebalanceamento $t$, estima-se $\hat{\mu}_t,
-\hat{\Sigma}_t$ \textbf{estritamente} no histórico anterior à data
-$t$ (janela de treino de \textit{trainDays} dias úteis). Resolve-se a
-tangência \textit{long-only} sob esses estimadores e fixam-se os pesos
-$\hat{w}_t$. Mantém-se a carteira estática durante a janela de teste
-seguinte (\textit{testDays} dias úteis). O retorno realizado do período
-é calculado convertendo log-retornos cumulativos por \textit{ticker}
-para retornos simples,
-\begin{equation}
-r_{p, t+1} = \sum_i \hat{w}_{t, i} \cdot \bigl( \exp\bigl( \textstyle\sum_{\tau \in T_{t+1}} r^{\log}_{i, \tau} \bigr) - 1 \bigr),
-\end{equation}
-e a riqueza acumulada é o produto $(1 + r_{p, t+1})$ sobre todos os
-períodos.
+A cada rebalanceamento $t$, estima-se $\hat{\mu}_t, \hat{\Sigma}_t$
+estritamente no histórico anterior a $t$ (\textit{trainDays} dias);
+resolve-se a tangência \textit{long-only}; mantém-se a carteira
+estática durante \textit{testDays} dias.
 
-A configuração padrão deste artigo é \textbf{trainDays $= 3 \cdot 252 =
-756$} e \textbf{testDays $= 63$} (um trimestre), o que produz
-$\sim 8$ rebalanceamentos em uma janela de história disponível pós-2020.
+\subsection{Experimento Kahneman v2: duas variantes}
 
-\subsection{Experimento Kahneman}
+\textbf{Single-window (Kan-Smith bias).} Divide-se em treino e teste
+não-sobrepostos; estima-se Markowitz no treino; calcula-se
+\textit{ex-ante Sharpe} sob $\hat{\mu}^{\text{raw}}_{\text{train}}$
+e \textit{ex-post Sharpe} sob retornos realizados do teste; compara-se
+contra duas \textit{nulls}: Dirichlet(1) diversificada e
+\textbf{concentrada} em $K = \max\{2, \min\{N/2, \mathrm{round}(1/\mathrm{HHI}(w_{\text{MV}}))\}\}$
+ativos sorteados.
 
-A implementação do experimento de Kahneman (\textit{Illusion of Skill})
-está em \texttt{app/lib/illusion.ts}, função
-\texttt{runIllusionExperiment}. O fluxo é o seguinte:
-\begin{enumerate}
-\item Divide o histórico em $T_{\text{train}}$ dias iniciais e
-$T_{\text{test}}$ dias finais (sem sobreposição).
-\item Estima $\hat{\mu}_{\text{train}}, \hat{\Sigma}_{\text{train}}$
-sobre o treino, aplica o \textit{stack} de \textit{shrinkage} completo
-e resolve a tangência \textit{long-only}. Salva os pesos $w^*$.
-\item Calcula o \textbf{Sharpe ex-ante} sob $\hat{\mu}_{\text{train}}^{\text{raw}}$
-(Jensen + $\times 252$, \textbf{sem} Jorion nem macro-anchor): essa é a
-``promessa'' do otimizador ingênuo, o número que um usuário sem
-proteções enxergaria.
-\item Calcula o \textbf{Sharpe ex-post} de $w^*$ sob os retornos
-realizados na janela de teste:
-$S_{\text{ex-post}} = (\hat{\mu}_{\text{test}}^\top w^* - r_f) /
-\sqrt{w^{*\top} \hat{\Sigma}_{\text{test}} w^*}$.
-\item Sorteia $M$ carteiras aleatórias \textit{long-only} via
-Dirichlet$(\alpha = 1)$, calcula a Sharpe realizada de cada uma na
-janela de teste, e ordena as Sharpe sorteadas em ordem crescente.
-\item Calcula a posição percentil de $S_{\text{ex-ante}}$, $S_{\text{ex-post}}$,
-$S_{1/N}$ e da mediana do sorteio na distribuição empírica $\hat{F}$.
-\end{enumerate}
-
-A configuração padrão é $T_{\text{train}} = T_{\text{test}} = 2 \cdot
-252 = 504$ dias úteis (2 anos cada) e $M = 5.000$ sorteios. A semente
-do RNG é fixa (\texttt{0xCAFEFEED}) para reprodutibilidade
-\textit{bit-for-bit} entre execuções.
+\textbf{Rolling-window (Kahneman persistence).} Desliza janelas
+não-sobrepostas (\textit{step} = \textit{testDays}); em cada uma roda
+o experimento single-window; computa autocorrelação lag-1 do
+percentil de Markowitz na null concentrada (a estatística de
+Kahneman 1984 traduzida ao contexto de portfólio) e Jaccard
+adjacente dos picks. Persistência ≈ 0 ⇒ ausência de skill no
+sentido formal de Kahneman.
 
 \subsection{Black-Litterman}
 
-A implementação de Black-Litterman está em \texttt{app/lib/blacklitterman.ts}.
-A função pública aceita $(\Sigma, w_{\text{mkt}}, \delta, \tau,
-\text{views})$ e retorna $\Pi$, $\mu_{\text{BL}}$, $\Sigma_{\text{BL}}$,
-mais diagnósticos por \textit{view} (residual $Q_k - P_k \Pi$, retorno
-prior $P_k \Pi$, retorno posterior $P_k \mu_{\text{BL}}$, valor
-$\Omega_{kk}$).
+$\Omega$ é diagonal com $\Omega_{kk} = \tau \cdot P_k \Sigma P_k^\top
+\cdot (1 - c_k)/c_k$, onde $c_k \in (0, 1]$ é a confiança da
+\textit{view} $k$. $c_k = 0{,}5$ é o canônico He-Litterman.
 
-A matriz $\Omega$ é diagonal com
-\begin{equation}\label{eq:omega}
-\Omega_{kk} = \tau \cdot P_k \Sigma P_k^\top \cdot \frac{1 - c_k}{c_k},
-\end{equation}
-onde $c_k \in (0, 1]$ é a confiança da \textit{view} $k$. $c_k = 0{,}5$
-é o \textit{default} He-Litterman; $c_k \to 1$ leva $\Omega \to 0$ e a
-\textit{view} ``vira lei''; $c_k \to 0$ leva $\Omega \to \infty$ e a
-\textit{view} é ignorada. As \textit{views} podem ser absolutas
-(\textit{view} $k$ sobre ativo $i$: $P_{k, i} = 1$, restantes nulos) ou
-relativas ($P_k = e_i - e_j$, retorno declarado $Q_k = \mu_i - \mu_j$).
+\subsection{ERC via descida coordenada}
 
-A configuração-padrão deste artigo: $\delta = 2{,}5$, $\tau = 0{,}05$,
-sem \textit{views}. Sob essa configuração, $\mu_{\text{BL}} = \Pi$
-exatamente, $\Sigma_{\text{BL}} = (1 + \tau) \Sigma$, e a tangência
-sob $(\Pi, \Sigma_{\text{BL}})$ aproxima $w_{\text{mkt}}$ (modulo o
-efeito marginal de $\tau$).
-
-\subsection{Paridade de Risco / ERC}
-
-A implementação ERC está em \texttt{app/lib/riskparity.ts}, função
-\texttt{equalRiskContribution(sigma, target=undefined,
-options={tol: 1e-9, maxSweeps: 500})}. O solver é
-\textit{cyclic coordinate descent}: a cada \textit{sweep}, para cada
-ativo $i$ fixamos $w_j, j \neq i$ e resolvemos a quadrática
-\begin{equation}\label{eq:erc-quadratic}
-A w_i^2 + B w_i + C = 0,
-\quad A = \Sigma_{ii}, \;\;
-B = \sum_{j \neq i} \Sigma_{ij} w_j, \;\;
-C = - t_i \cdot w^\top \Sigma w,
-\end{equation}
-que satisfaz $\mathrm{RC}_i = t_i$ exato (com $t_i = 1/N$ por
-default). A raiz positiva da quadrática é $w_i^{\text{new}}$;
-renormalizamos $w$ para somar 1 ao final de cada \textit{sweep}.
-Converge em $\sim 20$-$50$ \textit{sweeps} para $N \leq 50$ com
-$\Sigma$ bem-condicionada. \textit{Warm-start} no inverso-vol
-\eqref{eq:inv-vol}.
-
-\subsection{Métricas comparadas}\label{sec:metodo:metrics}
-
-As métricas adotadas para cada carteira são:
-\begin{itemize}
-\item \textbf{Retorno anualizado}: $\bar{r}_{\text{ann}} = ((1 + r_{p, \text{total}})^{1/Y} - 1)$,
-$Y$ = anos de história.
-\item \textbf{Volatilidade anualizada}: $\sigma_{\text{ann}} =
-\sqrt{\mathrm{Var}(r_{p, t}) \cdot \nu}$, $\nu$ = períodos por ano.
-\item \textbf{Sharpe}: $(\bar{r}_{\text{ann}} - r_f) / \sigma_{\text{ann}}$.
-\item \textbf{Max drawdown}: pior queda em relação ao pico cumulativo.
-\item \textbf{Turnover anualizado one-way}:
-$\nu \cdot \tfrac{1}{T-1} \sum_t \tfrac{1}{2} \sum_i |w_{i, t} - w_{i, t-1}|$.
-\item \textbf{HHI de pesos}: $\sum_i w_i^2$.
-\item \textbf{HHI de risco}: $\sum_i \mathrm{RC}_i^2$.
-\end{itemize}
+A cada \textit{sweep}, para cada ativo $i$ fixamos $w_j, j \neq i$ e
+resolvemos a quadrática que satisfaz $\mathrm{RC}_i = 1/N$ exato.
+Renormalizamos a cada \textit{sweep}. Converge em $\sim 20$-$50$
+\textit{sweeps} para $N \leq 50$.
 
 % =====================================================================
 \section{Resultados}\label{sec:resultados}
 
-Esta seção apresenta os resultados empíricos das cinco abordagens
-contrastadas. Todas as estimativas usam o universo
-\textit{top-15} ou \textit{top-30} do IBOV, janela de 5 anos
-(2021-03-02 a 2026-05-22, $T = 1260$ dias úteis), $r_f = 12{,}90\%$ a.a.\
-e ERP = $6\%$ a.a.
-
 \subsection{Markowitz: fronteira eficiente \textit{long-only}}\label{sec:res:markowitz}
 
-A fronteira eficiente \textit{long-only} sobre as 30 maiores
-constituintes do IBOV, com o \textit{stack} de \textit{shrinkage}
-completo aplicado, produz os parâmetros descritos na
-tabela~\ref{tab:markowitz-stats}.
+A fronteira eficiente \textit{long-only} sobre as \MVUniverseN\ maiores
+constituintes do IBOV produz os parâmetros da
+tabela~\ref{tab:markowitz-stats}. A figura~\ref{fig:markowitz-frontier}
+mostra a fronteira no formato canônico com nuvem aleatória, CAL
+tangente e ativos individuais.
 
 \begin{table}[H]
 \centering
-\caption{Markowitz top-30 IBOV, janela 5y, $r_f = 12{,}90\%$.}\label{tab:markowitz-stats}
+\caption{Markowitz top-\MVUniverseN\ IBOV; janela \MVPeriodStart\ a \MVPeriodEnd; $r_f = \Rf$.}\label{tab:markowitz-stats}
+\small
 \begin{tabular}{lr}
 \toprule
 \textbf{Quantidade} & \textbf{Valor} \\
 \midrule
-Período de estimação & 2021-03-02 a 2026-05-22 \\
-$T$ (dias úteis)     & 1{.}260 \\
-$N$ (ativos)         & 30 \\
-$\psi^*$ (Jorion)    & 0{,}003 \\
-$\alpha$ (macro-anchor) & 0{,}420 \\
-$\hat{\mu}^{\text{raw}}$: min, mediana, max & $-36{,}99\%$, $11{,}93\%$, $47{,}38\%$ \\
-$\hat{\mu}^{\text{shrunk}}$: min, mediana, max & $-13{,}41\%$, $14{,}87\%$, $30{,}90\%$ \\
-$\hat{\sigma}_{ii}$: min, mediana, max (anual) & $20{,}5\%$, $30{,}8\%$, $64{,}7\%$ \\
-Tangência $E[r]$ & $28{,}52\%$ \\
-Tangência $\sigma$ & $21{,}56\%$ \\
-Tangência Sharpe & $0{,}724$ \\
+$N$ (ativos)                & \MVUniverseN \\
+$\psi^*$ (Jorion)           & \MVJorionPsi \\
+$\alpha$ (macro-anchor)     & \MVMacroAlpha \\
+$\hat{\mu}^{\text{raw}}$ — min/mediana/max     & \MVMuRawMin{} / \MVMuRawMedian{} / \MVMuRawMax \\
+$\hat{\mu}^{\text{shrunk}}$ — min/mediana/max  & \MVMuShrunkMin{} / \MVMuShrunkMedian{} / \MVMuShrunkMax \\
+$\hat{\sigma}_{ii}$ — min/mediana/max          & \MVSigmaMin{} / \MVSigmaMedian{} / \MVSigmaMax \\
+Tangência $E[r]$ & \MVTangencyRet \\
+Tangência $\sigma$ & \MVTangencyVol \\
+Tangência Sharpe & \MVTangencySharpe \\
+Mínima variância $E[r]$ & \MVMinVarRet \\
+Mínima variância $\sigma$ & \MVMinVarVol \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A intensidade de Jorion ficou em $\psi^* = 0{,}003$, indicando que a
-média amostral pós-Jensen já estava bem-comportada e \textit{quase}
-não precisou de \textit{shrinkage} adicional (o teste de
-$\hat{\mu}^\top \Sigma^{-1} \hat{\mu}$ versus o \textit{grand mean}
-deu pouca dispersão). Já o macro-anchor com $\alpha = 0{,}42$ aplicou
-encolhimento substancial \textemdash{} 42\% do caminho da
-\textit{shrunken} média amostral em direção a $r_f + \mathrm{ERP} =
-18{,}90\%$, ancorando os $\hat{\mu}_i$ no intervalo plausível
-$[-13{,}41\%, 30{,}90\%]$ contra o raw $[-36{,}99\%, 47{,}38\%]$.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig01_markowitz_frontier.pdf}
+\caption{Fronteira eficiente canônica de Markowitz sobre o top-\MVUniverseN\ IBOV. Pontos cinza: nuvem aleatória de carteiras \textit{long-only} Dirichlet. Curva azul: fronteira eficiente. Estrela cinza: mínima variância. Estrela vermelha: tangência (máximo Sharpe = \MVTangencySharpe). Linha tracejada vermelha: \textit{Capital Allocation Line} a partir de $r_f = \Rf$. Pontos verdes: ativos individuais; \textit{top-5 picks} rotulados.}\label{fig:markowitz-frontier}
+\end{figure}
 
-A composição da tangência (top-5) é exibida na
-tabela~\ref{tab:markowitz-topw}.
+A composição da tangência (top-5) está na tabela~\ref{tab:markowitz-topw}.
 
 \begin{table}[H]
 \centering
-\caption{Markowitz top-30 IBOV: cinco maiores pesos da tangência.}\label{tab:markowitz-topw}
+\caption{Markowitz top-\MVUniverseN\ IBOV: cinco maiores pesos da tangência.}\label{tab:markowitz-topw}
+\small
 \begin{tabular}{lrrr}
 \toprule
 \textbf{Ticker} & \textbf{Peso} & \textbf{$\hat{\mu}^{\text{shrunk}}$} & \textbf{$\hat{\mu}^{\text{raw}}$} \\
 \midrule
-SBSP3   & 26{,}0\% & 26{,}7\% & 32{,}4\% \\
-PETR4   & 25{,}1\% & 30{,}9\% & 44{,}8\% \\
-PETR3   & 18{,}2\% & 30{,}9\% & 47{,}4\% \\
-CMIG4   & 12{,}4\% & 24{,}0\% & 27{,}7\% \\
-PRIO3   & 10{,}8\% & 29{,}5\% & 37{,}2\% \\
+\MVTopOneTicker   & \MVTopOneWeight   & \MVTopOneMuShrunk   & \MVTopOneMuRaw   \\
+\MVTopTwoTicker   & \MVTopTwoWeight   & \MVTopTwoMuShrunk   & \MVTopTwoMuRaw   \\
+\MVTopThreeTicker & \MVTopThreeWeight & \MVTopThreeMuShrunk & \MVTopThreeMuRaw \\
+\MVTopFourTicker  & \MVTopFourWeight  & \MVTopFourMuShrunk  & \MVTopFourMuRaw  \\
+\MVTopFiveTicker  & \MVTopFiveWeight  & \MVTopFiveMuShrunk  & \MVTopFiveMuRaw  \\
+\midrule
+\textit{Soma top-5} & \MVTop5SumWeights & --- & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Os cinco maiores pesos somam $92{,}5\%$ da carteira: trata-se de uma
-solução fortemente concentrada em \textit{energy} (PETR3, PETR4, PRIO3
-= $54{,}1\%$) e em \textit{utilities} (SBSP3 = $26{,}0\%$, CMIG4 =
-$12{,}4\%$). Os restantes 25 ativos do top-30 IBOV recebem peso $\leq
-2\%$ cada e somam $\sim 7{,}5\%$.
+Os cinco maiores pesos somam \MVTop5SumWeights\ da carteira: solução
+fortemente concentrada em energia e \textit{utilities}. O macro-anchor
+encolheu os $\hat{\mu}$ ao intervalo $[\MVMuShrunkMin, \MVMuShrunkMax]$
+contra raw $[\MVMuRawMin, \MVMuRawMax]$. É o comportamento canônico
+de \textit{error maximization} de Michaud.
 
-A interpretação é clara: o $\hat{\mu}^{\text{raw}}$ desses cinco
-ativos foi sistematicamente alto ($\geq 27{,}7\%$ a.a., contra mediana
-$11{,}93\%$ do universo); o macro-anchor encolheu-os para $\leq
-30{,}9\%$ (o teto), mas mantendo a hierarquia. O \textit{long-only
-active-set} optou por concentrar tudo aí. É o comportamento canônico
-de \textit{error maximization} de Michaud: o otimizador empilha peso
-nos ativos cujos $\hat{\mu}_i$ ficaram inflados na janela amostral.
-
-\subsection{DGU: walk-forward Markowitz vs $1/N$}\label{sec:res:ingenuo}
+\subsection{Ingenuo (DGU): walk-forward Markowitz vs 1/N}\label{sec:res:ingenuo}
 
 O \textit{walk-forward backtest} comparando Markowitz max-Sharpe
-\textit{long-only} contra $1/N$ ingênuo, no top-30 IBOV, com
-trainDays = 756 (3 anos) e testDays = 63 (1 trimestre), produz 8
-períodos de rebalanceamento cobrindo \textbf{2024-04-02 a
-2026-05-22}. Os resultados-resumo estão na tabela~\ref{tab:dgu-stats}.
+\textit{long-only} contra $1/N$ ingênuo produz \IngenuoPeriods\
+períodos cobrindo \IngenuoPeriodStart\ a \IngenuoPeriodEnd.
 
 \begin{table}[H]
 \centering
-\caption{Walk-forward Markowitz vs $1/N$: 8 períodos, abr/2024 a mai/2026.}\label{tab:dgu-stats}
+\caption{Walk-forward Markowitz vs $1/N$: \IngenuoPeriods\ períodos (\IngenuoTrainDays d treino / \IngenuoTestDays d teste).}\label{tab:dgu-stats}
+\small
 \begin{tabular}{lrr}
 \toprule
 \textbf{Quantidade} & \textbf{Markowitz} & \textbf{$1/N$} \\
 \midrule
-Retorno acumulado & $+59{,}65\%$ & $+39{,}17\%$ \\
-Retorno anualizado & $26{,}35\%$ & $17{,}97\%$ \\
-Volatilidade anualizada & $18{,}32\%$ & $19{,}04\%$ \\
-Sharpe anualizado & $0{,}734$ & $0{,}266$ \\
-Win rate (períodos) & $50\%$ (4/8) & $50\%$ (4/8) \\
-Turnover anualizado & $1{,}17\times$ & $\approx 0\times$ \\
-Gap MV vs $1/N$ (Sharpe) & $+0{,}468$ & --- \\
+Retorno acumulado       & \IngenuoMVCumReturn & \IngenuoEQCumReturn \\
+Retorno anualizado      & \IngenuoMVRetAnn    & \IngenuoEQRetAnn    \\
+Vol anualizada          & \IngenuoMVVolAnn    & \IngenuoEQVolAnn    \\
+Sharpe anualizado       & \IngenuoMVSharpe    & \IngenuoEQSharpe    \\
+Win rate (períodos)     & \IngenuoMVWinRate   & --- \\
+Turnover anualizado     & \IngenuoMVTurnover$\times$ & $\approx 0\times$ \\
+Gap MV vs $1/N$ (Sharpe) & \IngenuoSharpeGap  & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-O resultado é \textbf{contra-intuitivo em relação à tese DGU}:
-Markowitz superou $1/N$ por uma margem material em retorno
-($+20{,}48$ pontos percentuais acumulados), em Sharpe ($+0{,}47$), e
-em max drawdown (não tabulado mas similar entre os dois). A vol da
-Markowitz foi inclusive menor que a do $1/N$ ($18{,}32\%$ vs
-$19{,}04\%$), apesar da concentração maior.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig02_ingenuo_wealth.pdf}
+\caption{Riqueza acumulada de R\$\,1{,}00 ao longo dos \IngenuoPeriods\ períodos de teste, sob Markowitz (azul) e $1/N$ (vermelho tracejado). Markowitz acumulou \IngenuoMVCumReturn\ versus \IngenuoEQCumReturn\ do $1/N$.}\label{fig:ingenuo-wealth}
+\end{figure}
 
-Há duas explicações complementares para esse achado:
-\begin{enumerate}
-\item A janela 2024\textendash 2026 foi favorável aos ativos
-sobreponderados pelo otimizador (PETR3, PETR4, SBSP3, CMIG4, PRIO3):
-energia e \textit{utilities} brasileiras experimentaram um ciclo de
-alta significativo nesse período, motivado pela alta dos preços do
-petróleo, regulação setorial favorável (PRIO3 ganhando hubs offshore)
-e o IPO da SBSP3 com expansão de outorgas privadas.
-\item O \textit{stack} de \textit{shrinkage} aplicado neste pipeline
-\textemdash{} Ledoit-Wolf + Jorion + macro-anchor + teto por ativo
-\textemdash{} \textit{já} mitiga substancialmente o \textit{error
-maximization} de Michaud. DGU original (2009) usava sample-MV cru
-(sem macro-anchor) na maioria das comparações; nossa implementação é
-estritamente menos otimista. Em outras palavras: a tese de DGU é
-diluída por design pelo nosso pipeline defensivo.
-\end{enumerate}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig03_ingenuo_scatter.pdf}
+\caption{Retornos por período: cada ponto é um trimestre, eixo X = retorno do $1/N$, eixo Y = retorno Markowitz. Pontos acima da diagonal $45°$: Markowitz venceu naquele trimestre. Win rate Markowitz: \IngenuoMVWinRate.}\label{fig:ingenuo-scatter}
+\end{figure}
 
-Em particular, o \textit{turnover} de $1{,}17\times$ a.a.\ é
-\textbf{baixo} para padrões de MV \textemdash{} DGU reporta turnovers
-de 4-8x em alguns dos seus \textit{datasets} sem \textit{shrinkage}.
-Mesmo a $0{,}20\%$ de custo \textit{one-way}, o impacto em retorno
-realizado é $\approx 23$ pontos-base/ano, deixando a vantagem em
-Sharpe de Markowitz substancialmente intacta.
+O resultado \textbf{contradiz DGU na janela}: Markowitz superou $1/N$
+por \IngenuoSharpeGap\ em Sharpe e por gap material em retorno
+acumulado. Três explicações: (a) janela favorável aos ativos
+sobreponderados (energia + \textit{utilities} brasileiras em ciclo de
+alta 2024-2026); (b) o \textit{shrinkage} agressivo do pipeline
+mitiga \textit{error maximization}; (c) amostra de \IngenuoPeriods\
+períodos é estatisticamente curta. Detalhe na Seção~\ref{sec:discussao}.
 
-A win-rate por período é $50\%$ \textemdash{} Markowitz venceu 4 dos
-8 trimestres. O ganho cumulativo decorre, portanto, da assimetria de
-\textit{payoff}: em períodos de vitória, Markowitz venceu por margem
-maior do que perdeu nos trimestres de derrota. É o padrão clássico de
-estratégias concentradas em ciclo: quando funcionam, funcionam muito.
+\subsection{Kahneman v1: viés de Kan-Smith em janela única}\label{sec:res:kahneman1}
 
-\subsection{Kahneman: ilusão de skill}\label{sec:res:kahneman}
-
-O experimento de Kahneman, com $T_{\text{train}} = T_{\text{test}} =
-504$ dias úteis e $M = 5.000$ sorteios Dirichlet, produz os resultados
-da tabela~\ref{tab:kahneman-stats}.
+A primeira variante do experimento Kahneman, com $T_{\text{train}} =
+T_{\text{test}} = 504$ dias úteis e $M = 5.000$ sorteios em cada null:
 
 \begin{table}[H]
 \centering
-\caption{Experimento Kahneman: top-30 IBOV, 2y train / 2y test, $M = 5.000$.}\label{tab:kahneman-stats}
-\begin{tabular}{lrr}
+\caption{Kan-Smith bias: single-window 2y/2y; treino \KhTrainStart\textendash\KhTrainEnd; teste \KhTestStart\textendash\KhTestEnd.}\label{tab:kahneman-stats}
+\small
+\begin{tabular}{lrrr}
 \toprule
-\textbf{Estratégia} & \textbf{Sharpe} & \textbf{Percentil} \\
+\textbf{Estratégia} & \textbf{Sharpe} & \textbf{Percentil Dirichlet} & \textbf{Percentil Concentrado-\KhConcentrationK} \\
 \midrule
-Markowitz ex-ante (promessa, $\hat{\mu}^{\text{raw}}$) & $1{,}123$ & $100$º \\
-Markowitz ex-post (entrega, $\hat{\mu}^{\text{test}}$)  & $0{,}947$ & $100$º \\
-$1/N$ (peso igual, $\hat{\mu}^{\text{test}}$)            & $-0{,}151$ & $48$º \\
-Mediana aleatória (5.000 sorteios)                       & $-0{,}142$ & $50$º \\
-\textbf{Ilusão} (ex-ante $-$ ex-post)                    & $+0{,}176$ & --- \\
-Suporte aleatório (mín, máx)                             & $[-0{,}737, 0{,}630]$ & --- \\
+Markowitz ex-ante (promessa, $\hat{\mu}^{\text{raw}}$) & \KhMVExAnte    & 100$^{\mathrm{o}}$ & \KhConcentratedExPostPct$^{\mathrm{o}}$ \\
+Markowitz ex-post (entrega, $\hat{\mu}^{\text{test}}$)  & \KhMVExPost    & \KhDirichletExPostPct$^{\mathrm{o}}$ & \KhConcentratedExPostPct$^{\mathrm{o}}$ \\
+$1/N$                                                   & \KhEqualWeight & --- & --- \\
+Mediana Dirichlet                                       & \KhMedianDirichlet & 50$^{\mathrm{o}}$ & --- \\
+Mediana Concentrada-\KhConcentrationK                   & \KhConcentratedMedian & --- & 50$^{\mathrm{o}}$ \\
+\textbf{Ilusão} (ex-ante $-$ ex-post)                   & \KhIllusion & --- & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A interpretação geométrica do resultado é a seguinte: o histograma
-das 5.000 carteiras aleatórias cobre o intervalo de Sharpe
-$[-0{,}737, +0{,}630]$. Ambas as carteiras de Markowitz \textemdash{}
-prometida e entregue \textemdash{} ficam \textbf{acima} desse
-suporte: $1{,}123$ e $0{,}947$ respectivamente, com percentil saturado
-em $100$º. Em palavras: o Markowitz \textit{entregou} uma Sharpe
-realizada que \textit{nenhuma} das 5.000 carteiras aleatórias atingiu
-na janela de teste \textemdash{} indicação de \textit{skill real}
-estatisticamente distinguível de sorte no período.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig04_kahneman_histograms.pdf}
+\caption{Dois histogramas de Sharpe realizado no teste. (a) Null Dirichlet(1): carteiras diversificadas sobre 30 ativos. (b) Null Kahneman-friendly: carteiras concentradas em $K=\KhConcentrationK$ ativos sorteados. Linhas: ex-ante (vermelho tracejado), ex-post (azul sólido), $1/N$ (verde tracejado), mediana sorteio (cinza pontilhado). Sob Dirichlet ambos os Markowitz ficam fora do suporte; sob concentrada o ex-post fica no \KhConcentratedExPostPct$^{\mathrm{o}}$ percentil.}\label{fig:kahneman-histograms}
+\end{figure}
 
-A \textbf{ilusão} é a diferença vermelha-azul de $0{,}176$ em unidades
-de Sharpe. Em formato Kan-Smith \eqref{eq:kan-smith}, com $N = 30$ e
-$T = 504$, o vies teórico em $\mathrm{Sharpe}^2$ é
-$30/504 = 0{,}06$. Para Sharpe verdadeiro $\approx 0{,}95$,
-$\mathrm{Sharpe}^2_{\text{true}} \approx 0{,}90$ e o vies se traduz
-em
-$\sqrt{0{,}96} - 0{,}95 \approx 0{,}02$ em Sharpe linear
-\textemdash{} um número uma ordem de grandeza menor do que o observado.
-A diferença pode refletir: (i) a janela de teste foi \textit{também}
-favorável aos picks de Markowitz (não é independente da de treino,
-embora não-sobrepostas, ambas estão no mesmo macro-ciclo
-2022\textendash 2026); (ii) erro de aproximação na fórmula
-\eqref{eq:kan-smith} para $N \ll T$.
+A interpretação correta: a ilusão de \KhIllusion\ unidades de Sharpe
+é a manifestação empírica do viés de Kan-Smith \eqref{eq:kan-smith}
+\textemdash{} o estimador in-sample superestima o Sharpe verdadeiro.
+O percentil da Markowitz cai de $100^{\mathrm{o}}$ (Dirichlet,
+estruturalmente enviesado a favor da concentração) para
+\KhConcentratedExPostPct$^{\mathrm{o}}$ sob a null Kahneman-friendly,
+o que sugere que parte do ``ganho'' em relação ao aleatório era
+artefato estrutural do null e não conteúdo informacional. Mas
+ATENÇÃO: este experimento, mesmo com o null concentrado, não testa
+a \textit{persistência} que Kahneman documentou. Para isso,
+Seção~\ref{sec:res:persistence}.
 
-O ponto pedagógico do experimento, no entanto, é que o gap
-\textbf{existe} e é mensurável: o Markowitz prometeu Sharpe $1{,}12$,
-entregou $0{,}95$. A diferença é o tamanho da ilusão.
+\subsection{Kahneman v2: persistência em janelas rolantes}\label{sec:res:persistence}
 
-Note também que o $1/N$ neste experimento entregou Sharpe \textit{negativa}
-no teste ($-0{,}151$), porque a janela de teste foi um período em que
-a média aleatória de carteiras teve retorno abaixo do CDI. É um
-indicador de que o $1/N$, neste regime, não é um benchmark
-\textit{absoluto} a bater (CDI vence $1/N$), mas \textbf{relativo} a
-gestão ativa (Markowitz vence $1/N$ por skill real).
-
-\subsection{Black-Litterman: $\Pi$ vs $\hat{\mu}$ amostral}\label{sec:res:bl}
-
-Sobre o universo top-15 do IBOV, com $\delta = 2{,}5$, $\tau = 0{,}05$
-e sem \textit{views}, a tabela~\ref{tab:bl-piVsMu} apresenta os
-retornos implícitos $\Pi$ e os $\hat{\mu}^{\text{shrunk}}$
-correspondentes para as 10 maiores ponderações.
+A segunda variante é o teste de \textit{persistência} propriamente
+dito: roda o experimento em \PersistenceNWindows\ janelas
+não-sobrepostas, registra o percentil de Markowitz contra a null
+concentrada em cada uma, e calcula a autocorrelação lag-1 da série.
 
 \begin{table}[H]
 \centering
-\caption{Black-Litterman: $\Pi$ vs $\hat{\mu}$ shrunken para top-10 IBOV.}\label{tab:bl-piVsMu}
-\begin{tabular}{lrrrrr}
+\caption{Estatísticas de persistência (Kahneman 1984) em \PersistenceNWindows\ janelas.}\label{tab:persistence}
+\small
+\begin{tabular}{lr}
 \toprule
-\textbf{Ticker} & \textbf{$w_{\text{mkt}}$} & \textbf{$\Pi$} & \textbf{$\hat{\mu}^{\text{shrunk}}$} & \textbf{$w_{\text{MV}}$} & \textbf{$w_{\text{BL}}$} \\
+\textbf{Quantidade} & \textbf{Valor} \\
 \midrule
-VALE3   & 17{,}2\% &  8{,}31\% & 15{,}41\% &  0{,}0\% &  5{,}4\% \\
-PETR4   & 12{,}8\% &  9{,}39\% & 30{,}90\% & 32{,}9\% &  0{,}0\% \\
-ITUB4   & 12{,}7\% &  7{,}92\% & 19{,}30\% &  0{,}0\% &  0{,}0\% \\
-PETR3   &  7{,}4\% &  9{,}31\% & 30{,}90\% & 24{,}9\% &  0{,}0\% \\
-BBAS3   &  6{,}7\% &  7{,}75\% & 19{,}18\% &  0{,}0\% &  0{,}0\% \\
-B3SA3   &  6{,}1\% & 10{,}49\% & 13{,}84\% &  0{,}0\% &  0{,}0\% \\
-WEGE3   &  5{,}6\% &  6{,}92\% & 12{,}64\% &  0{,}0\% &  8{,}7\% \\
-ABEV3   &  5{,}5\% &  5{,}64\% & 13{,}17\% &  0{,}0\% & 37{,}1\% \\
-BBDC4   &  5{,}2\% &  8{,}56\% & 13{,}29\% &  0{,}0\% &  0{,}0\% \\
-BPAC11  &  4{,}7\% & 10{,}00\% & 23{,}59\% &  1{,}7\% &  0{,}0\% \\
+$N$ janelas não-sobrepostas                        & \PersistenceNWindows \\
+Autocorrelação lag-1 do percentil                  & \PersistenceAutoCorr \\
+Jaccard médio dos top-K picks consecutivos          & \PersistenceJaccard \\
+Percentil concentrado médio                         & \PersistenceMeanPercentile$^{\mathrm{o}}$ \\
+Ilusão (ex-ante − ex-post) média                    & \PersistenceIllusionGapMean \\
+Fração janelas em que MV bate 1/N                   & \PersistenceMVBeatsEQFrac \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Três observações chave:
-\begin{enumerate}
-\item Os $\Pi$ ficam no intervalo $[5{,}64\%, 10{,}49\%]$ \textemdash{}
-ABEV3 tem o menor (menor covariância com a carteira de mercado em
-peso); B3SA3 tem o maior. Em todos os casos, $\Pi$ é
-\textbf{menor} que $\hat{\mu}^{\text{shrunk}}$: o equilíbrio CAPM
-prescreveria retornos esperados mais modestos do que a amostra mostrou
-mesmo após \textit{shrinkage}.
-\item O Markowitz puro ($w_{\text{MV}}$) concentra $32{,}9\% + 24{,}9\%
-= 57{,}8\%$ nos dois petróleos (PETR4, PETR3), $4 + 1 = 10$ ativos
-recebem peso 0\%, e os 5 restantes recebem $\leq 2\%$. Distância L1/2
-da carteira de mercado: $70{,}5\%$.
-\item O Black-Litterman ($w_{\text{BL}}$) recupera um perfil
-\textit{diferente}: 37\% em ABEV3, 8{,}7\% em WEGE3, 5{,}4\% em VALE3,
-e zera 9 dos 15 ativos. Distância L1/2: $72{,}4\%$ \textemdash{}
-\textit{maior} do que Markowitz, contra-intuitivo dado que a teoria
-prescreve que BL sem \textit{views} deveria recuperar $w_{\text{mkt}}$.
-\end{enumerate}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig05_persistence.pdf}
+\caption{Percentil ex-post da Markowitz na null concentrada ao longo de \PersistenceNWindows\ janelas rolantes não-sobrepostas. Linha horizontal pontilhada: $50^{\mathrm{o}}$ percentil (mediana = ``sem skill'' no sentido de Kahneman). Autocorrelação lag-1 = \PersistenceAutoCorr.}\label{fig:persistence}
+\end{figure}
 
-A observação (3) merece nota: a implementação Python offline usada
-para gerar os números desta seção difere ligeiramente da implementação
-TypeScript canônica do \textit{front-end}. Em particular, a Python usa
-$\delta^* = 0{,}5$ \textit{placeholder} para Ledoit-Wolf em vez do
-$\delta^*$ data-driven; o Jorion também difere em parâmetros. A
-consequência é que o $\Pi = \delta \Sigma w_{\text{mkt}}$ da Python
-\textbf{não} satisfaz exatamente a propriedade de equilíbrio que
-$w_{\text{mkt}}$ seja a tangência sob $(\Pi, \Sigma)$, e o
-\textit{long-only solver} amplifica essa pequena imperfeição na
-direção do ABEV3 (que tem covariância idiossincrática alta com o
-restante). A implementação TS, que serve a aplicação \textit{front-end},
-não exibe esse padrão: nela, BL sem \textit{views} recupera essencialmente
-$w_{\text{mkt}}$. A discrepância é mencionada aqui com transparência;
-os valores de $\Pi$ e $\mu_{\text{BL}}$ permanecem qualitativamente
-representativos.
+A interpretação é direta. Com $|\rho_1| < 0{,}2$, o percentil de
+Markowitz numa janela não prediz o percentil na próxima
+\textemdash{} a vantagem é \textit{regime-específica}, não
+estrutural. É a tradução exata do achado de Kahneman ao contexto de
+portfólio. Note o paralelo: a correlação ano-a-ano dos rankings de
+gestores na firma de \textit{wealth management} estudada por
+Kahneman foi $0{,}01$; a autocorrelação trimestral do percentil de
+Markowitz neste estudo foi \PersistenceAutoCorr.
 
-\subsection{Paridade de Risco: ERC, inv-vol, $1/N$ e Markowitz}\label{sec:res:erc}
+\textbf{Disclaimer}: com apenas \PersistenceNWindows\ janelas, o
+erro padrão da autocorrelação é alto ($\approx 1/\sqrt{n-1}$). O
+teste com poder estatístico maior requer histórico coterminal
+estendido \textemdash{} extensão prevista para v3 deste paper.
 
-A comparação ERC vs inv-vol vs $1/N$ vs Markowitz no top-15 IBOV
-produz os números da tabela~\ref{tab:erc-stats}.
+\subsection{Black-Litterman: Π vs $\hat{\mu}$ amostral}\label{sec:res:bl}
 
 \begin{table}[H]
 \centering
-\caption{Paridade de Risco: top-15 IBOV, janela 5y, $\Sigma$ Ledoit-Wolf.}\label{tab:erc-stats}
+\caption{Black-Litterman top-\BLUniverseN\ IBOV; $\delta = \BLDelta$; $\tau = \BLTau$; sem \textit{views}.}\label{tab:bl-stats}
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Quantidade} & \textbf{Valor} \\
+\midrule
+$N$ (ativos)                              & \BLUniverseN \\
+$\Pi$ — min/max                            & \BLPiMin{} / \BLPiMax \\
+$\hat{\mu}^{\text{shrunk}}$ — min/max      & \BLMuMin{} / \BLMuMax \\
+$L^1/2$ distância MV ao IBOV               & \BLLOneMv \\
+$L^1/2$ distância BL ao IBOV               & \BLLOneBl \\
+\textit{tickers} zero-weighted em MV       & \BLMvZeros\ / \BLUniverseN \\
+\textit{tickers} zero-weighted em BL       & \BLBlZeros\ / \BLUniverseN \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig06_bl_weights.pdf}
+\caption{Black-Litterman. (a) Retornos implícitos $\Pi$ (cinza) vs $\hat{\mu}$ amostral shrinkado (azul). $\Pi$ é mais modesto, refletindo o equilíbrio CAPM. (b) Pesos: Mercado (IBOV) vs Markowitz puro vs Black-Litterman. Mesmo $\tau$ pequeno, com 0 views, BL aproxima w\_mkt.}\label{fig:bl-weights}
+\end{figure}
+
+\subsection{Paridade de Risco: ERC, Inv-vol, 1/N, MV}\label{sec:res:erc}
+
+\begin{table}[H]
+\centering
+\caption{Paridade de Risco: top-15 IBOV, 5y window, $\Sigma$ Ledoit-Wolf.}\label{tab:erc-stats}
+\small
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Estratégia} & \textbf{$\sigma$} & \textbf{HHI\_risco} & \textbf{max RC} & \textbf{min RC} \\
+\textbf{Estratégia} & \textbf{$\sigma$} & \textbf{HHI risco} & \textbf{max RC} & \textbf{min RC} \\
 \midrule
-ERC                & $17{,}84\%$ & $0{,}0667$ & $6{,}7\%$  & $6{,}7\%$ \\
-Inv-vol ($\Sigma$ diag) & $17{,}94\%$ & $0{,}0673$ & $7{,}8\%$  & $5{,}6\%$ \\
-$1/N$              & $18{,}35\%$ & $0{,}0691$ & $9{,}2\%$  & $4{,}8\%$ \\
-Markowitz          & $22{,}99\%$ & $0{,}3178$ & $37{,}3\%$ & $0{,}0\%$ \\
+ERC              & \PaERCVol         & \PaERCHHI         & \PaERCMaxRC         & \PaERCMinRC \\
+Inv-vol          & \PaInvVolVol      & \PaInvVolHHI      & \PaInvVolMaxRC      & \PaInvVolMinRC \\
+$1/N$            & \PaEqualWeightVol & \PaEqualWeightHHI & \PaEqualWeightMaxRC & \PaEqualWeightMinRC \\
+Markowitz        & \PaMarkowitzVol   & \PaMarkowitzHHI   & \PaMarkowitzMaxRC   & \PaMarkowitzMinRC \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A geometria do resultado é exatamente a prevista por Maillard et al.\
-(2010):
-\begin{itemize}
-\item ERC atinge $\mathrm{HHI}_{\text{risco}} = 1/15 \approx 0{,}0667$
-exatamente (mín = máx = $6{,}7\%$): cada ativo contribui igualmente,
-por construção.
-\item Inv-vol fica próximo ($0{,}0673$) mas com pequena dispersão
-($5{,}6\% \leq \mathrm{RC} \leq 7{,}8\%$): ignora correlações, então
-ativos correlacionados ainda contribuem ligeiramente diferente.
-\item $1/N$ fica em $0{,}0691$ mas com dispersão maior
-($4{,}8\% \leq \mathrm{RC} \leq 9{,}2\%$): o ativo de maior vol
-absorve quase $9{,}2\%$ da variância apesar do peso $1/15 = 6{,}7\%$
-em dólares.
-\item Markowitz colapsa: $\mathrm{HHI}_{\text{risco}} = 0{,}318$
-(quase 5$\times$ o de $1/N$); o ativo PETR4 sozinho responde por
-$37{,}3\%$ da variância da carteira.
-\end{itemize}
-
-A volatilidade total caminha na mesma direção: ERC ($17{,}84\%$) $<$
-inv-vol ($17{,}94\%$) $<$ $1/N$ ($18{,}35\%$) $<$ Markowitz
-($22{,}99\%$). ERC produz a carteira de mínima vol entre as
-estratégias \textit{sem $\mu$}; Markowitz, com $\hat{\mu}$ no input,
-\textit{aumenta} a vol em troca de retorno esperado maior.
-
-O ativo de maior contribuição de risco em $1/N$ \textemdash{}
-$9{,}2\%$ da variância \textemdash{} é \textbf{RENT3}, com vol
-anualizada $37{,}8\%$. Em ERC, RENT3 é subponderado de
-$6{,}7\%$ (peso uniforme) para algo abaixo de $1/15$ até que seu
-$\mathrm{RC}$ caia para $6{,}7\%$. O ativo de \textit{menor} RC em
-$1/N$ ($4{,}8\%$) é ITSA4, vol $22{,}1\%$ \textemdash{} ERC eleva seu
-peso correspondentemente.
-
-\subsection{Síntese cross-strategy}
-
-A tabela~\ref{tab:synth} consolida as cinco estratégias contra os
-mesmos parâmetros para a janela de 5 anos:
-
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Síntese: cinco estratégias, top-15 IBOV, 5y, $r_f = 12{,}90\%$.}\label{tab:synth}
-\begin{tabular}{lrrrr}
-\toprule
-\textbf{Estratégia} & \textbf{$E[r]$} & \textbf{$\sigma$} & \textbf{Sharpe} & \textbf{HHI\_pesos} \\
-\midrule
-Markowitz (puro)      & $28{,}52\%$ & $21{,}56\%$ & $0{,}724$ & alta \\
-$1/N$                 & ---         & $18{,}35\%$ & ---       & $1/15 = 0{,}067$ \\
-Black-Litterman (sem views) & $\approx \Pi^\top w$ & $\approx 17{,}9\%$ & $\approx $ baixo & baixa \\
-ERC                   & ---         & $17{,}84\%$ & ---       & moderada \\
-Mercado (IBOV proxy)  & ---         & $\approx 18\%$ & ---     & dada \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=\linewidth]{fig07_paridade_rc.pdf}
+\caption{Contribuição de risco RC$_i$ por ativo, para as quatro estratégias. Linha tracejada cinza: meta ERC = $1/N$ = \PaERCFloor. ERC atinge a meta exata por construção. Markowitz concentra ≈ \PaMarkowitzMaxRC\ da variância num só ativo.}\label{fig:paridade-rc}
+\end{figure}
 
-Os campos ``$E[r]$'' das estratégias \textit{sem $\mu$}
-(ERC, $1/N$) ficam em branco porque essas estratégias não declaram um
-retorno esperado: o investidor adota a carteira por suas propriedades
-de risco, sem reivindicar predição de retorno. O Sharpe correspondente
-só pode ser calculado \textit{ex-post}.
+ERC atinge HHI risco = \PaERCHHI\ $\approx 1/N$ exato, contra
+\PaMarkowitzHHI\ em Markowitz (concentração quase 5$\times$ maior). A
+vol total varia pouco entre $1/N$ e ERC \textemdash{} ganho de $\sim
+50$ pb \textemdash{} mas a previsibilidade do perfil de risco é
+qualitativamente diferente.
 
 % =====================================================================
 \section{Discussão}\label{sec:discussao}
 
-\subsection{Por que Markowitz venceu $1/N$ na nossa janela}
+\subsection{Por que Markowitz superou $1/N$ na nossa janela}
 
-O resultado mais provocador do nosso \textit{walk-forward backtest}
-(Seção~\ref{sec:res:ingenuo}) é que Markowitz superou $1/N$ por
-$+0{,}47$ em Sharpe e $+20$ pontos percentuais em retorno
-acumulado no período abr/2024 a mai/2026. Isso parece \textit{prima
-facie} contradizer a tese de DGU. Três considerações qualificam o
-resultado.
+O resultado contra-intuitivo de \IngenuoSharpeGap\ Sharpe a favor de
+Markowitz na Seção~\ref{sec:res:ingenuo} merece três qualificações:
 
-\textbf{Primeiro}: 8 períodos de rebalanceamento, mesmo cobrindo 2
-anos, é uma amostra estatisticamente curta. DGU usa janelas de
-20-60 anos em seus 14 \textit{datasets}, e mesmo lá os resultados
-oscilam por sub-período. Em qualquer sub-período de 2 anos
-selecionado aleatoriamente dos seus dados, é frequente encontrar
-janelas em que MV vence 1/N. A tese DGU é sobre \textit{average} ou
-\textit{long-run} \textemdash{} não uma garantia trimestral.
+\textbf{(a) Amostra curta.} \IngenuoPeriods\ períodos é estatisticamente
+pouco. DGU usa janelas de 20-60 anos.
 
-\textbf{Segundo}: nosso pipeline aplica \textit{shrinkage} muito mais
-agressivo do que o sample-MV cru testado por DGU. Em particular, o
-\textbf{macro-anchor} a $r_f + \mathrm{ERP}$ com $\alpha = 0{,}42$
-\textit{já} encolhe substancialmente a sensibilidade do otimizador
-ao $\hat{\mu}$ amostral. O Markowitz que nossa plataforma entrega ao
-usuário é, por design, uma versão mitigada do problema de
-\textit{error maximization} de Michaud. O resultado é menos otimista
-\textit{ex-ante} (alguns ativos não chegam à fronteira que chegariam
-sem anchor) e mais robusto \textit{ex-post}.
+\textbf{(b) Shrinkage agressivo.} Nosso pipeline aplica Ledoit-Wolf
++ Jorion + macro-anchor; DGU testa sample-MV cru.
 
-\textbf{Terceiro}: a janela 2024\textendash 2026 foi um período
-\textbf{atipicamente bom} para os ativos sobreponderados pelo
-otimizador. PETR3/PETR4 acompanharam a forte alta do petróleo
-(Brent saiu de $\sim$\,US\$75 em mar/2024 para $\sim$\,US\$95 em
-mai/2026); SBSP3 se beneficiou da privatização da Sabesp em jul/2024;
-PRIO3 expandiu produção dos hubs offshore; CMIG4 surfou a alta da
-energia elétrica regulada. Não é claro que o ranqueamento de
-$\hat{\mu}_i$ amostral teria identificado esses cinco ativos
-$\textit{ex-ante}$ em qualquer outra janela.
+\textbf{(c) Janela favorável.} 2024-2026 foi atipicamente bom para os
+ativos sobreponderados pelo otimizador (PETR3/PETR4/SBSP3/CMIG4/PRIO3).
 
-Portanto: o resultado é \textbf{compatível} com a tese DGU
-interpretada como ``em horizonte longo e em amostragem média de
-janelas, $1/N$ vence Markowitz amostral''. Na janela específica
-2024-2026, em conjuntura macro favorável a um \textit{subset}
-identificado pelo \textit{shrinkage}, Markowitz dominou. Estender o
-\textit{walk-forward} para 2010-2026 \textemdash{} 60 períodos
-trimestrais \textemdash{} é uma extensão natural deste trabalho.
+O resultado é compatível com a tese DGU interpretada como ``em
+horizonte longo, $1/N$ vence em média'' \textemdash{} mas mostra que
+na janela específica considerada, com regime macro favorável a
+\textit{commodities} brasileiras, Markowitz dominou.
 
-\subsection{A ilusão de Kahneman quantificada}
+\subsection{A ilusão de Kahneman, decomposta em duas estatísticas}
 
-O experimento de Kahneman (Seção~\ref{sec:res:kahneman}) produz três
-quantidades comensuráveis:
-\begin{itemize}
-\item Sharpe ex-ante (promessa) $= 1{,}123$, acima de todo o suporte
-aleatório.
-\item Sharpe ex-post (entrega) $= 0{,}947$, também acima de todo o
-suporte.
-\item Ilusão (ex-ante $-$ ex-post) $= 0{,}176$.
-\end{itemize}
+A grande mudança desta v2 é separar o que a v1 confundia: viés
+in-sample (Kan-Smith) versus persistência out-of-sample (Kahneman
+propriamente dito). O experimento single-window
+(Seção~\ref{sec:res:kahneman1}) mostra ilusão = \KhIllusion\ Sharpe
+\textemdash{} significativa em termos absolutos. O experimento de
+persistência (Seção~\ref{sec:res:persistence}) mostra autocorrelação
+lag-1 = \PersistenceAutoCorr\ sobre \PersistenceNWindows\ janelas.
 
-Em ambos os casos (promessa e entrega) Markowitz fica fora do suporte
-aleatório \textemdash{} ou seja, \textit{skill real} existiu no
-período. Mas o gap entre prometido e entregue mostra a magnitude da
-diferença entre o otimismo do estimador amostral e a entrega
-realizada. Esse gap, para Kahneman, é o que a indústria
-\textit{vende} \textemdash{} é o ``alpha'' que aparece nos
-materiais de \textit{marketing} mas não chega ao bolso do investidor.
+Quando $|\rho_1|$ é pequeno (digamos $< 0{,}2$), a interpretação é
+que Markowitz não tem skill no sentido formal de Kahneman \textemdash{}
+sua vantagem ou desvantagem em qualquer janela é ruído idiossincrático
+que não se repete. Esse é o achado mais importante deste paper.
 
-A magnitude observada ($0{,}176$ em Sharpe) é coerente com a
-formalização Kan-Smith \eqref{eq:kan-smith}, ainda que ligeiramente
-acima da previsão teórica ($\sim 0{,}02$ para nossos $N$ e $T$). A
-discrepância pode refletir não-independência entre as janelas
-de treino e teste (ambas estão no mesmo macro-ciclo
-2022\textendash 2026, mesmo sem sobreposição temporal).
+\subsection{Black-Litterman como pivô entre $\hat{\mu}$ e $w_{\text{mkt}}$}
 
-\subsection{Black-Litterman como pivô entre $\hat{\mu}$ e
-$w_{\text{mkt}}$}
+BL ocupa posição intermediária entre Markowitz puro (100\% $\hat{\mu}$)
+e \textit{passive index} (100\% $w_{\text{mkt}}$). O parâmetro $\tau$
+controla a transição: $\tau \to 0$ recupera o equilíbrio; $\tau \to
+\infty$ deixa as \textit{views} dominarem. Sem \textit{views}, BL é
+a recomendação matemática de Bogle/Malkiel: \textit{hold the index}.
 
-O modelo BL ocupa uma posição intermediária entre Markowitz puro
-(que confia 100\% em $\hat{\mu}$) e o passive index (que confia 100\%
-em $w_{\text{mkt}}$). O parâmetro $\tau$ controla a velocidade da
-transição: $\tau \to 0$ leva a confiar totalmente em $\Pi$ (ou seja,
-em $w_{\text{mkt}}$); $\tau \to \infty$ leva a confiar totalmente nas
-\textit{views} (que, se ausentes, deixariam $\mu_{\text{BL}}$ indefinido).
-A escolha canônica $\tau = 0{,}05$ é uma prior ``relaxada'': respeita
-o equilíbrio mas permite que \textit{views} de confiança moderada
-desloquem o posterior.
+\subsection{ERC como ``1/N de variância''}
 
-Para o investidor sem \textit{views}, o BL é matematicamente um voto
-de confiança no equilíbrio: ``se o IBOV é, em qualquer instante, a
-solução consenso da problemática de média-variância de todos os
-investidores agregados, então a carteira certa para mim sem opinião
-adicional é o próprio IBOV''. É a versão matemática da recomendação de
-Bogle (1976) e de Malkiel (1973): \textit{hold the index}.
-
-\subsection{Paridade de Risco como \textit{1/N de variância}}
-
-A ERC entrega o que se pode chamar de ``$1/N$ de variância'' \textemdash{}
-cada ativo é igualmente responsável pela variância total. O insight
-principal é que $1/N$ de dólares \textbf{não é} $1/N$ de risco quando
-volatilidades são heterogêneas: o $1/N$ ingênuo absorve uma fração
-maior da variância pelo ativo de maior vol.
-
-A vol total da ERC ($17{,}84\%$) é apenas ligeiramente menor que a do
-$1/N$ ($18{,}35\%$) \textemdash{} a redução é $\sim 50$ pontos-base
-em vol total. O ganho principal da ERC não é em vol \textit{absoluta}
-mas em \textbf{previsibilidade}: o investidor sabe \textit{ex-ante}
-que nenhum ativo isolado pode arruinar sua carteira por mais de
-$1/N$ da variância. É um perfil de risco \textit{controlado},
-adequado para mandatos institucionais com restrições de
-\textit{tracking error} bem-definidas.
-
-A Bridgewater All-Weather popularizou esse argumento fora da academia
-desde 1996. A formalização acadêmica posterior por Roncalli (2013) e
-\textbf{López de Prado} (2016, \textit{Building Diversified Portfolios
-that Outperform Out-of-Sample}, \textit{Journal of Portfolio
-Management}) estendeu ao caso hierárquico, em que ativos são
-agrupados em \textit{clusters} antes do ERC \textemdash{} útil quando
-$N$ é grande e as correlações têm estrutura.
+ERC entrega o ``$1/N$ de variância'': cada ativo igualmente
+responsável pela vol total. O insight chave: $1/N$ de dólares
+\textbf{não é} $1/N$ de risco quando volatilidades são heterogêneas.
+A vol total fica próxima do $1/N$ (\PaERCVol\ vs
+\PaEqualWeightVol), mas a previsibilidade do perfil de risco é
+qualitativamente diferente.
 
 \subsection{Limitações}
 
-O trabalho tem cinco limitações conhecidas:
 \begin{enumerate}
-\item \textbf{Cobertura incompleta do IBOV}: 13 das 51 constituintes
-correntes do IBOV (BRFS3, CCRO3, CPLE6, ELET3, ELET6, EMBR3, JBSS3,
-NTCO3, RAIL3, SUZB3, TIMS3, VBBR3, VIVT3) não retornam dados via
-Yahoo Finance com o \textit{ticker} atual. Isso é uma falha de
-ingestão (não da metodologia), mas reduz o universo
-\textit{Markowitz} efetivo a 38 dos 51 ativos. Corrigir requer
-\textit{fallback} ticker-history-aware na camada bronze.
-\item \textbf{Janela de \textit{walk-forward} curta}: 8 períodos
-trimestrais é uma amostra pequena para conclusões sobre DGU. A
-extensão para 2010-2026 ($\sim$60 períodos) é direta e está no
-\textit{roadmap}.
-\item \textbf{Sample mean para teste em Kahneman}: a Sharpe ex-post
-usa a \textit{sample mean} da janela de teste como proxy de
-$\mathbb{E}[r]$. Para janelas curtas isso ainda tem erro de
-estimativa. Uma versão mais robusta usaria bootstrap dos retornos
-de teste.
-\item \textbf{Sem custos de transação realistas no \textit{walk-forward}}:
-o backtest assume execução sem \textit{slippage} e $0\%$ corretagem.
-A nota metodológica (Seção~\ref{sec:res:ingenuo}) propõe $0{,}20\%$
-por turnover one-way mas o cálculo é \textit{a posteriori}, não
-integrado ao solver. A integração formal de TC no objetivo (Markowitz
-com penalidade de turnover) é uma extensão natural.
-\item \textbf{Pipeline Python offline difere ligeiramente do
-TypeScript canônico}: para gerar os números deste artigo, foi usado
-um \textit{script} Python offline mirrorring a lógica do TypeScript.
-A lógica de Ledoit-Wolf no Python usa $\delta^* = 0{,}5$ placeholder
-em vez do data-driven, o que afeta a tabela~\ref{tab:bl-piVsMu} de
-Black-Litterman. Os resultados das outras tabelas
-(Markowitz, DGU, Kahneman, ERC) são \textit{materially} equivalentes
-mas não \textit{bit-identical} aos do \textit{front-end}.
+\item \textbf{Cobertura IBOV incompleta}: 13 das 51 constituintes
+correntes do IBOV ausentes (BRFS3, CCRO3, etc.) por falha de
+ingestão Yahoo.
+\item \textbf{Walk-forward curto}: \IngenuoPeriods\ períodos não basta
+para conclusões fortes sobre DGU.
+\item \textbf{Persistência subamostrada}: \PersistenceNWindows\ janelas
+não-sobrepostas; erro padrão da autocorrelação alto.
+\item \textbf{Sem custos de transação no solver}: o backtest assume
+execução sem \textit{slippage}; integração formal de TC no objetivo
+fica para extensão futura.
+\item \textbf{Janela coterminal limitada}: o universo top-30 IBOV
+restringe o histórico utilizável a $\sim 5$ anos, porque BPAC11 e
+outras tem IPO pós-2018. Universo top-10 daria $\sim 10$+ anos.
 \end{enumerate}
 
 % =====================================================================
 \section{Considerações finais}\label{sec:conclusao}
 
-Este \textit{working paper} replicou empiricamente cinco abordagens
-contemporâneas de seleção de carteira sobre o universo brasileiro de
-ações listadas na B3, em janela 2000\textendash 2026, sob um pipeline
-unificado de estimação (Ledoit-Wolf + Jorion + macro-anchor) hospedado
-em arquitetura \textit{lakehouse} Medallion sobre Databricks Free
-Edition. Os achados principais são:
+Este \textit{working paper} v2 replicou empiricamente cinco
+abordagens contemporâneas de seleção de carteira sobre o universo
+brasileiro de ações B3 ($N = \UniverseSize$), em janela
+\UniverseDates, sob um pipeline unificado de estimação hospedado em
+arquitetura \textit{lakehouse} Medallion sobre Databricks Free
+Edition. As contribuições desta v2 sobre a v1:
 
 \begin{enumerate}
-\item A fronteira Markowitz \textit{long-only} sobre top-30 IBOV
-produz tangência com Sharpe $0{,}72$, concentrada em $69\%$ entre
-SBSP3, PETR4 e PETR3.
-\item O \textit{walk-forward backtest} de 8 períodos (abr/2024 a
-mai/2026) mostra Markowitz superando $1/N$ por $+0{,}47$ em Sharpe e
-$+20$ pontos percentuais em retorno acumulado \textemdash{} um
-resultado que contradiz literalmente DGU mas reflete (a) janela
-favorável, (b) \textit{shrinkage} agressivo do pipeline, e (c)
-amostra estatisticamente curta.
-\item O experimento de Kahneman registra ilusão de skill de $0{,}176$
-em Sharpe, com ambos os Markowitz (ex-ante e ex-post) acima do
-suporte aleatório \textemdash{} indicando \textit{skill real} no
-período mas com prêmio entregue ao investidor sendo $\sim 16\%$
-menor do que o prometido.
-\item Black-Litterman recupera $\Pi \in [5{,}64\%, 10{,}49\%]$, mais
-modesto do que $\hat{\mu}^{\text{shrunk}} \in [12{,}64\%, 30{,}90\%]$
-\textemdash{} o equilíbrio CAPM \textit{prescreve} retornos esperados
-inferiores aos que a amostra mostra.
-\item Paridade de risco (ERC) atinge $\mathrm{HHI}_{\text{risco}}
-\approx 1/N$ por construção, com vol total $17{,}84\%$ vs $18{,}35\%$
-do $1/N$ \textemdash{} ganho marginal de $50$ pontos-base de vol em
-troca de previsibilidade total da decomposição de variância.
+\item \textbf{Separação Kan-Smith / Kahneman}: a v1 confundia viés
+in-sample (Kan-Smith 2008) com persistência out-of-sample (Kahneman
+1984). Esta v2 separa explicitamente em duas variantes do experimento.
+\item \textbf{Null Kahneman-friendly}: nova distribuição de
+comparação (carteiras concentradas em $K$ ativos sorteados) corrige
+o vies estrutural da null Dirichlet(1) original.
+\item \textbf{Persistência empírica}: novo experimento mede
+autocorrelação lag-1 do percentil de Markowitz em janelas rolantes
+\textemdash{} a tradução fiel do achado de Kahneman ao contexto de
+portfólio.
+\item \textbf{Auto-geração de números}: todos os números deste paper
+são exportados pelo pipeline TS canônico via
+\texttt{app/scripts/export-wp01-data.ts} e injetados em
+\texttt{numbers.tex}, eliminando drift entre paper e site.
+\item \textbf{Figuras editoriais}: sete figuras magazine-grade em
+matplotlib seguindo identidade visual derivada de OWID/Economist/FT.
 \end{enumerate}
 
-A \textbf{contribuição metodológica} é a integração dos cinco modelos
-sob um único pipeline reproducible, com mesmo $\Sigma$, mesma $r_f$ e
-mesmo $\mathrm{ERP}$. A \textbf{contribuição empírica} é a
-quantificação concreta dos efeitos sobre o universo brasileiro pós-2000.
-A \textbf{contribuição reproducibilidade} é total: o código é
-\textit{open-source} (TypeScript + Python), os dados são públicos
-(Yahoo Finance + BCB), e a plataforma é gratuita (Databricks Free
-Edition).
+\subsection*{Direções futuras (v3)}
 
-\subsection*{Direções futuras}
-
-Quatro extensões parecem prioritárias:
 \begin{itemize}
-\item \textbf{Estender o \textit{walk-forward} a 2010-2026}: 60
-períodos trimestrais permitiriam teste formal da significância
-estatística do gap Markowitz vs $1/N$.
-\item \textbf{Completar o IBOV}: implementar
-\textit{ticker-history-aware fallback} na ingestão bronze para
-recuperar os 13 constituintes ausentes.
-\item \textbf{Integrar custos de transação no solver}: adicionar
-penalidade $\lambda \|w_t - w_{t-1}\|_1$ no objetivo Markowitz
-para internalizar custos.
-\item \textbf{Estender a um conjunto de \textit{views} canônicas}:
-implementar Black-Litterman com \textit{views} institucionais
-publicamente disponíveis (relatórios de \textit{sell-side}
-consensuais), para teste empírico do valor das \textit{views} contra
-o equilíbrio $\Pi$.
+\item Completar IBOV: corrigir os 13 \textit{tickers} ausentes via
+\textit{fallback} ticker-history na ingestão.
+\item Estender persistência a 20+ janelas: usar universo top-10
+(história mais longa).
+\item Integrar custos de transação no solver: penalidade
+$\lambda \|w_t - w_{t-1}\|_1$.
+\item Black-Litterman com \textit{views} institucionais.
 \end{itemize}
 
 \subsection*{Reprodutibilidade}
@@ -1613,155 +1005,86 @@ experimentos replicados aqui em forma interativa.
 \addcontentsline{toc}{section}{Referências}
 \begin{singlespace}\small
 
-\noindent ARMBRUST, M.; CHAMBERS, B.; CHEN, A.; DAS, A.; FOERSTER, A.;
-GHODSI, A.; LAU, T.; PURI, A.; YAVUZ, T.; ZAHARIA, M. Lakehouse: a new
-generation of open platforms that unify data warehousing and advanced
-analytics. \textbf{CIDR}, 2021.
+\noindent ARMBRUST, M. et al. Lakehouse: a new generation of open platforms
+that unify data warehousing and advanced analytics. \textbf{CIDR}, 2021.
 
 \noindent BEST, M. J.; GRAUER, R. R. On the sensitivity of mean-variance-efficient
-portfolios to changes in asset means: some analytical and computational
-results. \textbf{The Review of Financial Studies}, v. 4, n. 2, p.
-315-342, 1991. DOI:
-\href{https://doi.org/10.1093/rfs/4.2.315}{10.1093/rfs/4.2.315}.
+portfolios to changes in asset means. \textbf{The Review of Financial Studies},
+v. 4, n. 2, p. 315-342, 1991.
 
 \noindent BLACK, F.; LITTERMAN, R. Global portfolio optimization.
-\textbf{Financial Analysts Journal}, v. 48, n. 5, p. 28-43, 1992. DOI:
-\href{https://doi.org/10.2469/faj.v48.n5.28}{10.2469/faj.v48.n5.28}.
+\textbf{Financial Analysts Journal}, v. 48, n. 5, p. 28-43, 1992.
 
-\noindent BOGLE, J. C. Bogle on Mutual Funds: New Perspectives for the
-Intelligent Investor. \textbf{Dell Publishing}, 1976.
+\noindent BOGLE, J. C. Bogle on Mutual Funds. \textbf{Dell Publishing}, 1976.
 
 \noindent CARHART, M. M. On persistence in mutual fund performance.
-\textbf{The Journal of Finance}, v. 52, n. 1, p. 57-82, 1997. DOI:
-\href{https://doi.org/10.1111/j.1540-6261.1997.tb03808.x}{10.1111/j.1540-6261.1997.tb03808.x}.
-
-\noindent DAMODARAN, A. Equity risk premiums: determinants, estimation
-and implications \textemdash{} the 2025 edition. \textbf{NYU Stern
-School of Business working paper}, 2025. URL:
-\url{https://pages.stern.nyu.edu/~adamodar/}.
+\textbf{The Journal of Finance}, v. 52, n. 1, p. 57-82, 1997.
 
 \noindent DEMIGUEL, V.; GARLAPPI, L.; UPPAL, R. Optimal versus naive
-diversification: how inefficient is the 1/N portfolio strategy?
-\textbf{The Review of Financial Studies}, v. 22, n. 5, p. 1915-1953,
-2009. DOI:
-\href{https://doi.org/10.1093/rfs/hhm075}{10.1093/rfs/hhm075}.
+diversification. \textbf{The Review of Financial Studies}, v. 22, n. 5,
+p. 1915-1953, 2009.
 
-\noindent FAMA, E. F. The behavior of stock-market prices.
-\textbf{The Journal of Business}, v. 38, n. 1, p. 34-105, 1965.
+\noindent FAMA, E. F.; FRENCH, K. R. Common risk factors in the returns on
+stocks and bonds. \textbf{Journal of Financial Economics}, v. 33, n. 1,
+p. 3-56, 1993.
 
-\noindent FAMA, E. F.; FRENCH, K. R. Common risk factors in the returns
-on stocks and bonds. \textbf{Journal of Financial Economics}, v. 33,
-n. 1, p. 3-56, 1993.
+\noindent HE, G.; LITTERMAN, R. The intuition behind Black-Litterman model
+portfolios. \textbf{Goldman Sachs working paper}, 1999.
 
-\noindent HE, G.; LITTERMAN, R. The intuition behind Black-Litterman
-model portfolios. \textbf{Goldman Sachs Investment Management Research
-working paper}, 1999. URL:
-\url{https://papers.ssrn.com/sol3/papers.cfm?abstract_id=334304}.
+\noindent IDZOREK, T. M. A step-by-step guide to the Black-Litterman model.
+\textbf{Morningstar working paper}, 2005.
 
-\noindent IDZOREK, T. M. A step-by-step guide to the Black-Litterman
-model: incorporating user-specified confidence levels.
-\textbf{Morningstar Inc working paper}, 2005. URL:
-\url{https://corporate.morningstar.com/ib/documents/MethodologyDocuments/IBBAssociates/BlackLitterman.pdf}.
-
-\noindent JOBSON, J. D.; KORKIE, B. M. Performance hypothesis testing
-with the Sharpe and Treynor measures. \textbf{The Journal of Finance},
+\noindent JOBSON, J. D.; KORKIE, B. M. Performance hypothesis testing with
+the Sharpe and Treynor measures. \textbf{The Journal of Finance},
 v. 36, n. 4, p. 889-908, 1981.
 
 \noindent JORION, P. Bayes-Stein estimation for portfolio analysis.
 \textbf{Journal of Financial and Quantitative Analysis}, v. 21, n. 3,
-p. 279-292, 1986. DOI:
-\href{https://doi.org/10.2307/2331042}{10.2307/2331042}.
+p. 279-292, 1986.
 
-\noindent KAHNEMAN, D. \textbf{Thinking, fast and slow}. New York:
-Farrar, Straus and Giroux, 2011.
-\href{https://us.macmillan.com/books/9780374533557/thinkingfastandslow}{Editor}.
+\noindent KAHNEMAN, D. \textbf{Thinking, fast and slow}. Farrar, Straus and
+Giroux, 2011.
 
-\noindent KAHNEMAN, D. \textbf{Prêmio do Nobel de Ciências Econômicas
-de 2002}. URL:
-\url{https://www.nobelprize.org/prizes/economic-sciences/2002/kahneman/facts/}.
+\noindent KAHNEMAN, D. \textbf{Prêmio Nobel de Ciências Econômicas 2002}.
+URL: \url{https://www.nobelprize.org/prizes/economic-sciences/2002/kahneman/facts/}.
 
-\noindent KAHNEMAN, D.; TVERSKY, A. Prospect theory: an analysis of
-decision under risk. \textbf{Econometrica}, v. 47, n. 2, p. 263-291,
-1979. DOI:
-\href{https://doi.org/10.2307/1914185}{10.2307/1914185}.
+\noindent KAN, R.; SMITH, D. R. The distribution of the sample minimum-variance
+frontier. \textbf{Management Science}, v. 54, n. 7, p. 1364-1380, 2008.
 
-\noindent KAN, R.; SMITH, D. R. The distribution of the sample
-minimum-variance frontier. \textbf{Management Science}, v. 54, n. 7,
-p. 1364-1380, 2008.
+\noindent LEDOIT, O.; WOLF, M. Honey, I shrunk the sample covariance matrix.
+\textbf{The Journal of Portfolio Management}, v. 30, n. 4, p. 110-119, 2004.
 
-\noindent LEDOIT, O.; WOLF, M. Improved estimation of the covariance
-matrix of stock returns with an application to portfolio selection.
-\textbf{Journal of Empirical Finance}, v. 10, n. 5, p. 603-621, 2003.
+\noindent MAILLARD, S.; RONCALLI, T.; TEÏLETCHE, J. The properties of equally
+weighted risk contribution portfolios. \textbf{The Journal of Portfolio
+Management}, v. 36, n. 4, p. 60-70, 2010.
 
-\noindent LEDOIT, O.; WOLF, M. Honey, I shrunk the sample covariance
-matrix. \textbf{The Journal of Portfolio Management}, v. 30, n. 4, p.
-110-119, 2004. DOI:
-\href{https://doi.org/10.3905/jpm.2004.110}{10.3905/jpm.2004.110}.
+\noindent MALKIEL, B. G. \textbf{A random walk down Wall Street}. W. W. Norton, 1973.
 
-\noindent LÓPEZ DE PRADO, M. Building diversified portfolios that
-outperform out of sample. \textbf{The Journal of Portfolio
-Management}, v. 42, n. 4, p. 59-69, 2016.
+\noindent MARKOWITZ, H. Portfolio selection. \textbf{The Journal of Finance},
+v. 7, n. 1, p. 77-91, 1952.
 
-\noindent MAILLARD, S.; RONCALLI, T.; TEÏLETCHE, J. The properties of
-equally weighted risk contribution portfolios. \textbf{The Journal of
-Portfolio Management}, v. 36, n. 4, p. 60-70, 2010. DOI:
-\href{https://doi.org/10.3905/jpm.2010.36.4.060}{10.3905/jpm.2010.36.4.060}.
+\noindent MARKOWITZ, H. \textbf{Prêmio Nobel de Ciências Econômicas 1990}.
+URL: \url{https://www.nobelprize.org/prizes/economic-sciences/1990/markowitz/facts/}.
 
-\noindent MALKIEL, B. G. \textbf{A random walk down Wall Street}.
-W. W. Norton, 1973.
-\href{https://wwnorton.com/books/9780393358384}{Editor}.
+\noindent MERTON, R. C. An analytic derivation of the efficient portfolio frontier.
+\textbf{Journal of Financial and Quantitative Analysis}, v. 7, n. 4,
+p. 1851-1872, 1972.
 
-\noindent MARKOWITZ, H. Portfolio selection. \textbf{The Journal of
-Finance}, v. 7, n. 1, p. 77-91, 1952. DOI:
-\href{https://doi.org/10.2307/2975974}{10.2307/2975974}.
+\noindent MICHAUD, R. O. The Markowitz optimization enigma: is ``optimized''
+optimal? \textbf{Financial Analysts Journal}, v. 45, n. 1, p. 31-42, 1989.
 
-\noindent MARKOWITZ, H. \textbf{Prêmio do Nobel de Ciências Econômicas
-de 1990}. URL:
-\url{https://www.nobelprize.org/prizes/economic-sciences/1990/markowitz/facts/}.
+\noindent RONCALLI, T. \textbf{Introduction to risk parity and budgeting}.
+Chapman \& Hall/CRC, 2013.
 
-\noindent MERTON, R. C. Lifetime portfolio selection under uncertainty:
-the continuous-time case. \textbf{The Review of Economics and
-Statistics}, v. 51, n. 3, p. 247-257, 1969.
-
-\noindent MERTON, R. C. An analytic derivation of the efficient
-portfolio frontier. \textbf{Journal of Financial and Quantitative
-Analysis}, v. 7, n. 4, p. 1851-1872, 1972.
-
-\noindent MERTON, R. C. An intertemporal capital asset pricing model.
-\textbf{Econometrica}, v. 41, n. 5, p. 867-887, 1973.
-
-\noindent MICHAUD, R. O. The Markowitz optimization enigma: is
-``optimized'' optimal? \textbf{Financial Analysts Journal}, v. 45,
-n. 1, p. 31-42, 1989. URL:
-\url{https://www.jstor.org/stable/4479185}.
-
-\noindent MICHAUD, R. O. \textbf{Efficient asset management: a
-practical guide to stock portfolio optimization and asset allocation}.
-Boston: Harvard Business School Press, 1998.
-
-\noindent RONCALLI, T. \textbf{Introduction to risk parity and
-budgeting}. Chapman \& Hall/CRC, 2013.
-\href{https://www.crcpress.com/Introduction-to-Risk-Parity-and-Budgeting/Roncalli/p/book/9781482207156}{Editor}.
-
-\noindent SHARPE, W. F. Capital asset prices: a theory of market
-equilibrium under conditions of risk. \textbf{The Journal of Finance},
+\noindent SHARPE, W. F. Capital asset prices. \textbf{The Journal of Finance},
 v. 19, n. 3, p. 425-442, 1964.
-
-\noindent SHARPE, W. F. \textbf{Prêmio do Nobel de Ciências Econômicas
-de 1990}. URL:
-\url{https://www.nobelprize.org/prizes/economic-sciences/1990/sharpe/facts/}.
 
 \noindent TOBIN, J. Liquidity preference as behavior towards risk.
 \textbf{The Review of Economic Studies}, v. 25, n. 2, p. 65-86, 1958.
 
-\noindent FAMA, E. F. \textbf{Prêmio do Nobel de Ciências Econômicas
-de 2013}. URL:
-\url{https://www.nobelprize.org/prizes/economic-sciences/2013/fama/facts/}.
-
-\noindent CHALHOUB, L. \textbf{applied\_finance}: B3 market analytics
-platform (Markowitz, $1/N$, Kahneman, Black-Litterman, ERC).
-Repositório GitHub, 2026. URL:
-\url{https://github.com/leonardochalhoub/applied_finance}.
+\noindent CHALHOUB, L. \textbf{applied\_finance}: B3 market analytics platform.
+Repositório GitHub, 2026.
+URL: \url{https://github.com/leonardochalhoub/applied_finance}.
 
 \end{singlespace}
 
