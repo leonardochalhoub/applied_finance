@@ -157,16 +157,18 @@ async function main(): Promise<void> {
   NUMBERS.MVSigmaMin = fmtPctAA(Math.min(...diag30), 1);
   NUMBERS.MVSigmaMax = fmtPctAA(Math.max(...diag30), 1);
   NUMBERS.MVSigmaMedian = fmtPctAA(median(diag30), 1);
-  // Top-5 picks
-  for (let i = 0; i < Math.min(5, sortedByW30.length); i++) {
-    const k = i + 1;
+  // Top-5 picks. LaTeX \newcommand names cannot contain digits, so we
+  // index by word (One..Five) instead of "1..5".
+  const RANKS = ["One", "Two", "Three", "Four", "Five"];
+  for (let i = 0; i < Math.min(RANKS.length, sortedByW30.length); i++) {
+    const k = RANKS[i];
     const r = sortedByW30[i];
     NUMBERS[`MVTop${k}Ticker`] = r.ticker.replace(".SA", "");
     NUMBERS[`MVTop${k}Weight`] = fmtPctAA(r.w, 1);
     NUMBERS[`MVTop${k}MuShrunk`] = fmtPctAA(r.muS, 1);
     NUMBERS[`MVTop${k}MuRaw`] = fmtPctAA(r.muR, 1);
   }
-  NUMBERS.MVTop5SumWeights = fmtPctAA(
+  NUMBERS.MVTopFiveSumWeights = fmtPctAA(
     sortedByW30.slice(0, 5).reduce((s, r) => s + r.w, 0),
     1,
   );

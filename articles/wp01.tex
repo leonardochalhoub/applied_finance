@@ -135,7 +135,7 @@ Maillard et al.\ (2010).
 \MVPeriodStart\ \textendash\ \MVPeriodEnd, $r_f = \Rf$).}
 (i)~Tangência Markowitz: $E[r] = \MVTangencyRet$, $\sigma =
 \MVTangencyVol$, Sharpe = \MVTangencySharpe, com top-5 pesos somando
-\MVTop5SumWeights\ em \MVTopOneTicker, \MVTopTwoTicker, \MVTopThreeTicker,
+\MVTopFiveSumWeights\ em \MVTopOneTicker, \MVTopTwoTicker, \MVTopThreeTicker,
 \MVTopFourTicker\ e \MVTopFiveTicker.
 (ii)~\textit{Walk-forward} 3y/1q em \IngenuoPeriods\ períodos
 (\IngenuoPeriodStart\ a \IngenuoPeriodEnd): Markowitz acumulou
@@ -677,12 +677,12 @@ A composição da tangência (top-5) está na tabela~\ref{tab:markowitz-topw}.
 \MVTopFourTicker  & \MVTopFourWeight  & \MVTopFourMuShrunk  & \MVTopFourMuRaw  \\
 \MVTopFiveTicker  & \MVTopFiveWeight  & \MVTopFiveMuShrunk  & \MVTopFiveMuRaw  \\
 \midrule
-\textit{Soma top-5} & \MVTop5SumWeights & --- & --- \\
+\textit{Soma top-5} & \MVTopFiveSumWeights & --- & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Os cinco maiores pesos somam \MVTop5SumWeights\ da carteira: solução
+Os cinco maiores pesos somam \MVTopFiveSumWeights\ da carteira: solução
 fortemente concentrada em energia e \textit{utilities}. O macro-anchor
 encolheu os $\hat{\mu}$ ao intervalo $[\MVMuShrunkMin, \MVMuShrunkMax]$
 contra raw $[\MVMuRawMin, \MVMuRawMax]$. É o comportamento canônico
