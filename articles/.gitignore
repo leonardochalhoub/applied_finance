@@ -1,0 +1,19 @@
+# LaTeX build artifacts — only .tex and compile-stamp.tex are tracked.
+# PDFs are produced in CI and copied to app/public/articles/, not committed.
+*.pdf
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb

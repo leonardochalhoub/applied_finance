@@ -122,12 +122,19 @@ def _apply_column_tags(fqn: str) -> None:
 
 
 def _apply(table: str, comment: str, tags: dict, columns: dict | None = None,
-           apply_generic_to_remaining: str | None = None) -> None:
+           apply_generic_to_remaining: str | None = None,
+           skip_column_tags: bool = False) -> None:
     """Apply COMMENT + TAGS on table, COMMENT on each listed column.
 
     If `apply_generic_to_remaining` is set, every column not explicitly listed
     in `columns` gets that generic comment (useful for wide tables with
     dynamic ticker columns).
+
+    `skip_column_tags=True` skips per-column tag application. Use for wide
+    pivot tables where every value column is uniform (e.g., one column per
+    ticker, all numeric log returns) — per-column tags add zero governance
+    value over the table-level tag and rapidly exhaust Unity Catalog's
+    1000-tag-per-table quota.
     """
     fqn = f"{catalog}.{table}"
     if not spark.catalog.tableExists(fqn):
@@ -159,7 +166,8 @@ def _apply(table: str, comment: str, tags: dict, columns: dict | None = None,
             except Exception as exc:
                 log.warning("generic column comment failed on %s.%s: %s", table, col, exc)
 
-    _apply_column_tags(fqn)
+    if not skip_column_tags:
+        _apply_column_tags(fqn)
     log.info("governance applied: %s", fqn)
 
 
@@ -291,10 +299,15 @@ _apply(
     "column per ticker. log_return = ln(close_t / close_{t-1}). NULL where "
     "the ticker did not trade or has insufficient history.",
     {**D, "layer": "gold", "source": "derived",
-     "grain": "trading_date", "pattern": "materialized_artifact"},
+     "grain": "trading_date", "pattern": "materialized_artifact",
+     "shape": "wide_pivot", "value_role": "measure", "value_unit": "log_return"},
     {"trading_date": "B3 trading session date."},
     apply_generic_to_remaining="Daily log-return for ticker {col} on this trading_date "
                                "(NULL = ticker did not trade).",
+    # 469 ticker columns × 3 tags would blow the 1000-tag-per-table UC quota.
+    # All ticker columns are uniform — role/unit/pii are encoded as
+    # value_role/value_unit on the table-level tag set above.
+    skip_column_tags=True,
 )
 
 for w, label in (

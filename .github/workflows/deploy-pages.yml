@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "articles/**"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -67,6 +68,50 @@ jobs:
             cp /tmp/mclean_repo.json app/public/data/mclean_results.json
           fi
           ls -la app/public/data/ | head -20
+
+      # ─── compile-stamp.tex with CI timestamp + commit SHA ────────────
+      # Each .tex file does \input{compile-stamp} and the cover page
+      # prints "Compilada em DD/MM/YYYY às HH:MM (BRT) • <sha>".
+      - name: Generate articles/compile-stamp.tex
+        run: |
+          if [ -d articles ]; then
+            TS=$(TZ='America/Sao_Paulo' date '+%d/%m/%Y às %H:%M (BRT)')
+            SHA=$(git rev-parse --short HEAD)
+            printf '%% AUTO-GERADO em CI por deploy-pages.yml -- nao edite a mao.\n\\newcommand{\\COMPILESTAMP}{%s}\n\\newcommand{\\COMPILESHA}{%s}\n' "$TS" "$SHA" > articles/compile-stamp.tex
+            echo "─── compile-stamp.tex gerado ───"
+            cat articles/compile-stamp.tex
+          fi
+
+      # ─── Compile WP01 LaTeX → PDF ────────────────────────────────────
+      # Uses xu-cheng/latex-action@v3 (TeX Live Docker image) — no
+      # local TeX install needed in CI. Runs latexmk -pdf twice for
+      # TOC + cross-refs. Output PDF stays in articles/; the next step
+      # stages it into app/public/articles for Next.js to bundle.
+      - name: Compile WP01 LaTeX → PDF
+        if: ${{ hashFiles('articles/wp01.tex') != '' }}
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: wp01.tex
+          working_directory: articles
+          latexmk_use_xelatex: false
+          args: -pdf -interaction=nonstopmode -file-line-error
+
+      # ─── Stage compiled PDFs into app/public/articles ────────────────
+      # Next.js statically copies app/public/* into app/out/* at build,
+      # which the assemble step below copies into _site/. The PDF then
+      # lives at /applied_finance/articles/wp01.pdf on gh-pages.
+      - name: Stage articles into app/public/articles
+        run: |
+          mkdir -p app/public/articles
+          if [ -f articles/wp01.pdf ]; then
+            cp articles/wp01.pdf app/public/articles/wp01.pdf
+            echo "✓ wp01.pdf staged ($(stat -c%s articles/wp01.pdf) bytes)"
+          fi
+          # Also stage the .tex source so users can download it
+          if [ -f articles/wp01.tex ]; then
+            cp articles/wp01.tex app/public/articles/wp01.tex
+          fi
+          ls -la app/public/articles/ || true
 
       - name: Build frontend
         working-directory: app

@@ -53,19 +53,39 @@ if window_days is not None and len(returns) > window_days:
 ticker_cols = [c for c in returns.columns if c != "trading_date"]
 n_total = len(ticker_cols)
 
-# Classify each ticker by coverage in the window
-MIN_COVERAGE = 0.95  # at least 95% non-null observations in window
+# Classify each ticker by coverage in the window. Two regimes:
+#  - Short windows (1y, 5y, 10y): use an absolute threshold of ≥95% — the
+#    historical universe is well-populated and we want to drop only flaky
+#    tickers and recent IPOs.
+#  - Long windows (15y, 20y, full): use an ADAPTIVE threshold relative to
+#    the most-covered ticker in the window. The old strict 95% gate failed
+#    in 15y/20y because the expanded universe includes many post-2010 IPOs;
+#    even the longest-running tickers (ITUB4) only cover ~80% of a 15y
+#    window once those IPOs introduce rogue dates. The adaptive threshold
+#    keeps the relative quality bar while ensuring at least the well-covered
+#    set survives. `dropna` at the row level still enforces common support
+#    before computing the sample covariance.
+MIN_COVERAGE_ABS = 0.95
 n_window = len(returns)
+
+coverages: dict[str, float] = {c: float(returns[c].notna().mean()) for c in ticker_cols}
+max_cov = max(coverages.values()) if coverages else 0.0
+# Adaptive floor: 95% of the best-covered ticker, but never below 60% absolute
+# (anything below that is genuinely too sparse to keep in a long window).
+adaptive_threshold = max(0.60, 0.95 * max_cov)
+threshold = min(MIN_COVERAGE_ABS, adaptive_threshold)
+log.info(
+    "window=%s · n_total=%d · max_coverage=%.4f · adaptive_threshold=%.4f · using=%.4f",
+    window, n_total, max_cov, adaptive_threshold, threshold,
+)
 
 valid: list[str] = []
 excluded: list[dict[str, str]] = []
 for c in ticker_cols:
     series = returns[c]
-    coverage = float(series.notna().mean())
-    if coverage >= 1.0:
+    coverage = coverages[c]
+    if coverage >= threshold:
         valid.append(c)
-    elif coverage >= MIN_COVERAGE:
-        excluded.append({"ticker": c, "reason": "low_liquidity", "coverage": round(coverage, 4)})
     else:
         # Decide whether this is insufficient_history vs delisted by looking at
         # where the gaps are
@@ -81,10 +101,26 @@ for c in ticker_cols:
             excluded.append({"ticker": c, "reason": "insufficient_history", "coverage": round(coverage, 4)})
 
 if not valid:
-    raise RuntimeError(f"No ticker has complete coverage in window {window}")
+    raise RuntimeError(
+        f"No ticker has coverage ≥ {threshold:.0%} in window {window} "
+        f"(max coverage observed: {max_cov:.0%})"
+    )
 
-X = returns[valid].to_numpy(dtype=np.float64)
+# Drop rows where ANY of the selected tickers has NaN — ensures the sample
+# covariance is computed on a clean rectangular panel (np.cov can't handle
+# NaN). With MIN_COVERAGE=0.95 and a 1260-row window, this drops at most
+# ~5% of rows (typically far fewer due to overlap of gaps across tickers).
+_clean = returns[valid].dropna()
+X = _clean.to_numpy(dtype=np.float64)
 T, N = X.shape
+log.info(
+    "window=%s · valid=%d/%d · rows_after_dropna=%d/%d (kept %.1f%%)",
+    window, len(valid), n_total, T, n_window, 100.0 * T / max(n_window, 1),
+)
+if T < 60:
+    raise RuntimeError(
+        f"After dropna only {T} rows remain in window {window} — need ≥60 to estimate Σ"
+    )
 
 
 def _sample_cov(X_: np.ndarray) -> np.ndarray:

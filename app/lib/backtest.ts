@@ -36,6 +36,12 @@ export type BacktestPoint = {
   equalWeight: number;
   /** Cumulative return of benchmark (e.g. IBOV). null if not provided. */
   benchmark: number | null;
+  /** Per-period simple return realised IN THIS WINDOW (not cumulative). */
+  markowitzPeriodReturn: number;
+  /** Per-period simple return realised IN THIS WINDOW (not cumulative). */
+  equalWeightPeriodReturn: number;
+  /** Per-period simple return of the benchmark for this window. */
+  benchmarkPeriodReturn: number | null;
 };
 
 export type BacktestSummary = {
@@ -47,6 +53,21 @@ export type BacktestSummary = {
   sharpe: number;
   /** Maximum drawdown (negative number). */
   maxDD: number;
+  /** Annualized one-way turnover: average per-rebalance L1 weight change ÷ 2,
+   *  multiplied by rebalances per year. Equal-weight has turnover ≈ 0 by
+   *  construction. Markowitz typically ranges 1-3× per year on noisy μ̂. */
+  turnoverAnn: number;
+  /** Average Herfindahl-Hirschman Index of the held weights across rebalances.
+   *  HHI = Σ w_i². 1/N has HHI = 1/N (minimum diversification index for a
+   *  long-only book); concentrated MV solutions push HHI toward 1. */
+  meanHHI: number;
+};
+
+export type WeightSnapshot = {
+  /** Date stamp at the END of the holding window in which these weights were active. */
+  date: string;
+  markowitz: number[];
+  equalWeight: number[];
 };
 
 export type BacktestResult = {
@@ -60,6 +81,10 @@ export type BacktestResult = {
   trainDays: number;
   /** Test window length in days. */
   testDays: number;
+  /** Per-rebalance weight snapshots, aligned with `tickers`. */
+  weightHistory: WeightSnapshot[];
+  /** Ticker labels aligned with the columns of every weight vector. */
+  tickers: string[];
 };
 
 function _solveMaxSharpe(X: number[][], rf: number): number[] {
@@ -92,10 +117,45 @@ function _solveMaxSharpe(X: number[][], rf: number): number[] {
   }
 }
 
+/** Average one-way turnover per rebalance × rebalances per year.
+ *  At each step t we compute Σ_i |w_i(t) − w_i(t−1)| / 2 — the "one-way"
+ *  convention (a 50% rotation counts as 50%, not 100%). The first rebalance
+ *  is excluded since there is no prior holding to compare against. */
+function _turnoverAnnualized(weights: number[][], periodsPerYear: number): number {
+  if (weights.length < 2) return 0;
+  let total = 0;
+  for (let t = 1; t < weights.length; t++) {
+    let oneWay = 0;
+    const prev = weights[t - 1];
+    const cur = weights[t];
+    const n = Math.max(prev.length, cur.length);
+    for (let i = 0; i < n; i++) {
+      const a = prev[i] ?? 0;
+      const b = cur[i] ?? 0;
+      oneWay += Math.abs(b - a);
+    }
+    total += oneWay / 2;
+  }
+  const avgPerRebalance = total / (weights.length - 1);
+  return avgPerRebalance * periodsPerYear;
+}
+
+/** Mean Herfindahl-Hirschman concentration index across rebalances. */
+function _meanHHI(weights: number[][]): number {
+  if (weights.length === 0) return 0;
+  let acc = 0;
+  for (const w of weights) {
+    let h = 0;
+    for (const wi of w) h += wi * wi;
+    acc += h;
+  }
+  return acc / weights.length;
+}
+
 /** Compute summary stats from a series of period log returns. */
 function _summary(periodLogReturns: number[], periodsPerYear: number, rf: number): BacktestSummary {
   if (periodLogReturns.length === 0) {
-    return { retAnn: 0, volAnn: 0, sharpe: 0, maxDD: 0 };
+    return { retAnn: 0, volAnn: 0, sharpe: 0, maxDD: 0, turnoverAnn: 0, meanHHI: 0 };
   }
   const cumulative: number[] = [1];
   for (const r of periodLogReturns) {
@@ -118,7 +178,7 @@ function _summary(periodLogReturns: number[], periodsPerYear: number, rf: number
     const dd = (v - peak) / Math.max(peak, 1e-12);
     if (dd < maxDD) maxDD = dd;
   }
-  return { retAnn, volAnn, sharpe, maxDD };
+  return { retAnn, volAnn, sharpe, maxDD, turnoverAnn: 0, meanHHI: 0 };
 }
 
 /**
@@ -159,6 +219,10 @@ export function walkForwardBacktest(
     testDays?: number;
     /** Risk-free rate (annualized) for Sharpe. */
     rf: number;
+    /** Optional ticker labels (length N), copied into `BacktestResult.tickers`
+     *  so the UI can label weight history without holding a parallel array.
+     *  Defaults to ["A0", "A1", ..., "A(N-1)"] when not provided. */
+    tickers?: string[];
   },
 ): BacktestResult | null {
   const trainDays = options.trainDays ?? 1260;
@@ -166,14 +230,22 @@ export function walkForwardBacktest(
   const { X, dates, rf, benchmark } = options;
   const T = X.length;
   if (T < trainDays + testDays) return null;
+  const N = X[0]?.length ?? 0;
+  const tickers =
+    options.tickers && options.tickers.length === N
+      ? options.tickers.slice()
+      : Array.from({ length: N }, (_, i) => `A${i}`);
 
   const series: BacktestPoint[] = [];
+  const weightHistory: WeightSnapshot[] = [];
   let cumMV = 1;
   let cumEW = 1;
   let cumBM = 1;
   const periodMV: number[] = [];
   const periodEW: number[] = [];
   const periodBM: number[] = [];
+  const mvWeightsByPeriod: number[][] = [];
+  const ewWeightsByPeriod: number[][] = [];
 
   for (let start = trainDays; start + testDays <= T; start += testDays) {
     const trainX = X.slice(start - trainDays, start);
@@ -225,22 +297,37 @@ export function walkForwardBacktest(
     periodEW.push(logEW);
     if (logBM != null) periodBM.push(logBM);
 
+    const periodDate = dates[start + testDays - 1] ?? dates[dates.length - 1];
     series.push({
-      date: dates[start + testDays - 1] ?? dates[dates.length - 1],
+      date: periodDate,
       markowitz: cumMV - 1,
       equalWeight: cumEW - 1,
       benchmark: benchmark ? cumBM - 1 : null,
+      markowitzPeriodReturn: pMV,
+      equalWeightPeriodReturn: pEW,
+      benchmarkPeriodReturn: logBM != null ? Math.exp(logBM) - 1 : null,
     });
+    mvWeightsByPeriod.push(wMV.slice());
+    ewWeightsByPeriod.push(wEW.slice());
+    weightHistory.push({ date: periodDate, markowitz: wMV.slice(), equalWeight: wEW.slice() });
   }
 
   const periodsPerYear = 252 / testDays;
+  const mvSummary = _summary(periodMV, periodsPerYear, rf);
+  const ewSummary = _summary(periodEW, periodsPerYear, rf);
+  mvSummary.turnoverAnn = _turnoverAnnualized(mvWeightsByPeriod, periodsPerYear);
+  ewSummary.turnoverAnn = _turnoverAnnualized(ewWeightsByPeriod, periodsPerYear);
+  mvSummary.meanHHI = _meanHHI(mvWeightsByPeriod);
+  ewSummary.meanHHI = _meanHHI(ewWeightsByPeriod);
   return {
     series,
-    markowitz: _summary(periodMV, periodsPerYear, rf),
-    equalWeight: _summary(periodEW, periodsPerYear, rf),
+    markowitz: mvSummary,
+    equalWeight: ewSummary,
     benchmark: benchmark && periodBM.length > 0 ? _summary(periodBM, periodsPerYear, rf) : null,
     periods: series.length,
     trainDays,
     testDays,
+    weightHistory,
+    tickers,
   };
 }

@@ -163,6 +163,98 @@ describe("walkForwardBacktest — happy path", () => {
   });
 });
 
+describe("walkForwardBacktest — weight history, turnover, HHI, per-period returns", () => {
+  it("emits weightHistory with one snapshot per rebalance period, aligned with tickers", () => {
+    const X = syntheticReturns(252 * 3, 4, 51);
+    const tickers = ["A", "B", "C", "D"];
+    const r = walkForwardBacktest({
+      X,
+      dates: fakeDates(X.length),
+      rf: 0.05,
+      trainDays: 252,
+      testDays: 63,
+      tickers,
+    })!;
+    expect(r.tickers).toEqual(tickers);
+    expect(r.weightHistory.length).toBe(r.periods);
+    for (const snap of r.weightHistory) {
+      expect(snap.markowitz.length).toBe(4);
+      expect(snap.equalWeight.length).toBe(4);
+      // Each set of weights sums to 1 (long-only, normalised) modulo numeric slop
+      const sMV = snap.markowitz.reduce((a, b) => a + b, 0);
+      const sEW = snap.equalWeight.reduce((a, b) => a + b, 0);
+      expect(sMV).toBeCloseTo(1, 6);
+      expect(sEW).toBeCloseTo(1, 6);
+      // 1/N weights are literally 1/N
+      for (const w of snap.equalWeight) expect(w).toBeCloseTo(0.25, 10);
+    }
+  });
+
+  it("1/N strategy has zero turnover by construction; Markowitz turnover is non-negative", () => {
+    const X = syntheticReturns(252 * 4, 5, 71);
+    const r = walkForwardBacktest({
+      X,
+      dates: fakeDates(X.length),
+      rf: 0.05,
+      trainDays: 252,
+      testDays: 63,
+    })!;
+    expect(r.equalWeight.turnoverAnn).toBeCloseTo(0, 10);
+    expect(r.markowitz.turnoverAnn).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(r.markowitz.turnoverAnn)).toBe(true);
+  });
+
+  it("1/N HHI equals 1/N exactly; Markowitz HHI is between 1/N and 1", () => {
+    const N = 5;
+    const X = syntheticReturns(252 * 4, N, 79);
+    const r = walkForwardBacktest({
+      X,
+      dates: fakeDates(X.length),
+      rf: 0.05,
+      trainDays: 252,
+      testDays: 63,
+    })!;
+    expect(r.equalWeight.meanHHI).toBeCloseTo(1 / N, 10);
+    expect(r.markowitz.meanHHI).toBeGreaterThanOrEqual(1 / N - 1e-9);
+    expect(r.markowitz.meanHHI).toBeLessThanOrEqual(1 + 1e-9);
+  });
+
+  it("per-period simple returns are populated and consistent with cumulative path", () => {
+    const X = syntheticReturns(252 * 3, 4, 83);
+    const r = walkForwardBacktest({
+      X,
+      dates: fakeDates(X.length),
+      rf: 0.05,
+      trainDays: 252,
+      testDays: 63,
+    })!;
+    // Compounding the per-period simple returns must reconstruct the cumulative
+    // (1 + cum) series within float tolerance.
+    let cumMV = 1;
+    let cumEW = 1;
+    for (const pt of r.series) {
+      cumMV *= 1 + pt.markowitzPeriodReturn;
+      cumEW *= 1 + pt.equalWeightPeriodReturn;
+      expect(cumMV - 1).toBeCloseTo(pt.markowitz, 8);
+      expect(cumEW - 1).toBeCloseTo(pt.equalWeight, 8);
+      expect(Number.isFinite(pt.markowitzPeriodReturn)).toBe(true);
+      expect(Number.isFinite(pt.equalWeightPeriodReturn)).toBe(true);
+    }
+  });
+
+  it("default tickers are synthesised when none are passed", () => {
+    const X = syntheticReturns(252 * 3, 3, 89);
+    const r = walkForwardBacktest({
+      X,
+      dates: fakeDates(X.length),
+      rf: 0.05,
+      trainDays: 252,
+      testDays: 63,
+    })!;
+    expect(r.tickers).toEqual(["A0", "A1", "A2"]);
+  });
+});
+
 describe("walkForwardBacktest — three-stage shrinkage is applied at each rebalance", () => {
   it("Markowitz retAnn stays within a realistic band [-30%, +30%]", () => {
     // With the full Stages 1+2+3 shrinkage stack baked into _solveMaxSharpe,
