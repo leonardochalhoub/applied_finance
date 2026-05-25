@@ -377,8 +377,8 @@ def fig_persistence():
     ci_low = max(-1.0, autocorr - 1.96 * se)
     ci_high = min(1.0, autocorr + 1.96 * se)
     verdict = (
-        f"$|\\hat\\rho_1| < 0{{,}}20$ (Cohen 1988: pequeno-fraco) "
-        f"$\\Rightarrow$ ausência de persistência"
+        "$|\\hat\\rho_1| < 0{,}20$ (Cohen 1988: pequeno-fraco) "
+        "$\\Rightarrow$ ausência de persistência"
         if abs(autocorr) < 0.20
         else ("Persistência positiva" if autocorr > 0 else "Anti-persistência")
     )
