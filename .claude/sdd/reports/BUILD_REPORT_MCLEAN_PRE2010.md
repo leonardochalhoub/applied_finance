@@ -150,6 +150,47 @@ If `dbfread` opens a real `.DFM` cleanly, we save ~1-2 weeks of binary-parsing w
 
 ---
 
+## Databricks Recovery Pass (2026-05-25, second follow-up)
+
+After the parser-pivot commit (`b30927af`) and the DESIGN-sync + IPCA commit (`f1416a21`), the user pointed out that Databricks workspace tokens are available via `./.env`. This unblocked **B3 (firm-universe cd_cvm verification)** in this session.
+
+### What was unblocked
+
+- **B3: cd_cvm verification completed.** Queried `finance_prd.bronze.cvm_cad_cia` (warehouse `Serverless Starter Warehouse`, id `9e9a68644c51f277`) for the 10 PoC firms. Discovery: cd_cvm is stored **zero-padded to 6 characters** (e.g., `009512` not `9512`), and **7 of 10 of my initial best-effort values were wrong**.
+
+  | Ticker | Old (wrong) | Verified | Notes |
+  |--------|-------------|----------|-------|
+  | PETR4 | 9512 | **009512** | ✓ match |
+  | VALE3 | 4170 | **004170** | ✓ match |
+  | BBAS3 | 1023 | **001023** | ✓ match |
+  | USIM5 | 7617 | **014320** | corrected |
+  | ACES4 | 4030 | **000434** | corrected (Aracruz; CANCELADA 2009) |
+  | SDIA4 | 5258 | **018848** | corrected (Sadia; multiple matches existed) |
+  | TNLP4 | 11592 | **011320** | corrected (Telemar Norte Leste; CANCELADA) |
+  | AMBV4 | 11193 | **018112** | corrected (old AmBev pre-2013) |
+  | ENBR3 | 8265 | **019763** | corrected (EDP Brasil) |
+  | GOLL4 | 19305 | **019569** | corrected (GOL; CANCELADA — likely Chapter 11 admin status) |
+
+  `data/mclean_firm_universe.csv` updated with verified values.
+
+### Other findings from the Databricks pass
+
+- **Free fy=2009 data already in bronze.** `bronze.cvm_dfp_lines` has 88,461 rows / 364 firms for fy=2009 — captured via the PENÚLTIMO mechanism from the 2010 zip (see filter at `silver/mclean_firm_year.py:74`). This data flows into `silver.mclean_firm_year` (363 firms in fy=2009) but **NOT** into `silver.mclean_clean` (which needs fy=2008 lags). Once legacy data fills 1995-2008, fy=2009 promotes into the regression panel **for free**.
+
+- **Panel-growth math revised.** Original assumption: legacy work adds 1995-2009 = 15 years. Actual: legacy work adds **1995-2008 = 14 raw years**, which then unlocks 1996-2009 = 14 panel years in the regression (since fy=1995 still needs lag, fy=2009 unlocks once we have fy=2008). Net: panel grows from 16 years (2010-2025) → **30 years (1996-2025)**.
+
+- **Bronze schema confirmed.** Spot-query for Petrobras 2010 BPA returned 4 rows (Ativo Total + Caixa, each in ÚLTIMO + PENÚLTIMO) with `vl_norm` already scaled to BRL (Ativo Total = ~R$ 519B, sensible). Legacy bronze must match this schema exactly. The existing column shape (cd_cvm, fiscal_year, statement, cd_conta, ds_conta, vl_norm, ordem_exerc) is the contract.
+
+### What's still blocked
+
+- **B1: ASP URL pattern.** Probed `cvmweb.cvm.gov.br/SWB/Sistemas/SCW/CPublica/CiaAb/FormBuscaCiaAb*.aspx` and `rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx` from a curl session. Every link to an actual filing is an ASP.NET `__doPostBack` JavaScript callback. Scraping them from curl requires simulating a full WebForms session (POST back, VIEWSTATE round-trip, etc.) — possible but ~half a day of work and brittle. Easier: capture the network request from a browser dev-tools session for one known query (PETR4 2005 DFP), then plug the URL pattern into `_build_url()`.
+
+- **B2: DBF column names.** Still need one real `.DFM` file. From curl session: pre-2010 Dados Abertos zips don't exist (all 404). The legacy CVMWIN files are gated behind the ASP.NET WebForms portal that B1 also blocks. Both unblock together when B1 is resolved.
+
+- **B4-B5: Bundle deploy + smoke test.** Not attempted in this session. Ready to run once B1/B2 resolved.
+
+---
+
 ## Acceptance Test Verification
 
 PoC-scope tests (most DEFINE ATs are Phase 1+):

@@ -1,11 +1,11 @@
 cd_cvm,denom_cia,sector_curated,ticker_current,delisted_year,poc_subset,notes
-9512,PETROLEO BRASILEIRO S.A. PETROBRAS,Petróleo Gás e Biocombustíveis,PETR4,,true,Survivor — long history (PETR4 PN since 1968)
-4170,VALE S.A.,Materiais Básicos,VALE3,,true,Survivor — IPO 1968; rebrand from CVRD 2007
-1023,BANCO DO BRASIL S.A.,Financeiro,BBAS3,,true,Survivor — state-owned bank
-7617,USINAS SID DE MINAS GERAIS S.A.-USIMINAS,Materiais Básicos,USIM5,,true,Survivor — IPO 1956
-4030,ARACRUZ CELULOSE S.A.,Materiais Básicos,,2009,true,Delisted 2009 (merged into Suzano via Fibria)
-5258,SADIA S.A.,Consumo Não Cíclico,,2009,true,Delisted 2009 (merged into BRF with Perdigão)
-11592,TELE NORTE LESTE PARTICIPACOES S.A.,Comunicações,,2012,true,"Renamed Telemar → OI; TNLP4 ticker ceased 2012"
-11193,AMBEV S.A.,Consumo Não Cíclico,ABEV3,,true,AMBV3/4 retired 2013 → ABEV3 single-class
-8265,EDP - ENERGIAS DO BRASIL S.A.,Utilidade Pública,,2024,true,Taken private 2024 (delisted)
-19305,GOL LINHAS AEREAS INTELIGENTES S.A.,Bens Industriais,GOLL4,,true,RJ (Chapter 11) 2024; still listed
+009512,PETROLEO BRASILEIRO S.A. PETROBRAS,Petróleo Gás e Biocombustíveis,PETR4,,true,Survivor — long history (PETR4 PN since 1968). Verified via cvm_cad_cia.
+004170,VALE S.A.,Materiais Básicos,VALE3,,true,Survivor — IPO 1968; rebrand from CVRD 2007. Verified via cvm_cad_cia.
+001023,BANCO DO BRASIL S.A.,Financeiro,BBAS3,,true,Survivor — state-owned bank. Verified via cvm_cad_cia.
+014320,USINAS SID DE MINAS GERAIS S.A.-USIMINAS,Materiais Básicos,USIM5,,true,Survivor — IPO 1956. Verified via cvm_cad_cia.
+000434,ARACRUZ CELULOSE S/A,Materiais Básicos,,2009,true,"Delisted 2009 (merged into Suzano via Fibria). cvm_cad_cia.situation=CANCELADA"
+018848,SADIA SA,Consumo Não Cíclico,,2009,true,"Delisted 2009 (merged into BRF with Perdigão). cvm_cad_cia.situation=CANCELADA. Multiple SADIA entries exist (010308/010316/010332/018848); using 018848 as the most recent consolidated entity."
+011320,TELEMAR NORTE LESTE SA,Comunicações,,2012,true,"Renamed Telemar → OI; TNLP4 ticker ceased 2012. cvm_cad_cia.situation=CANCELADA"
+018112,COMPANHIA DE BEBIDAS DAS AMÉRICAS-AMBEV,Consumo Não Cíclico,ABEV3,2013,true,"AMBV3/4 retired 2013 → ABEV3 single-class. The post-2013 entity is cd_cvm=023264 (active). Using 018112 for pre-2013 paper window."
+019763,EDP ENERGIAS DO BRASIL S/A,Utilidade Pública,,2024,true,Taken private 2024 (delisted). cvm_cad_cia.situation=ATIVO (registry not yet updated post-delisting).
+019569,GOL LINHAS AEREAS INTELIGENTES SA,Bens Industriais,GOLL4,,true,"RJ (Chapter 11) 2024; still listed. cvm_cad_cia.situation=CANCELADA (likely related to Chapter 11 administrative status)."
