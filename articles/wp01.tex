@@ -1,13 +1,9 @@
 % =====================================================================
-% Applied Finance — Working Paper n. 1 (v2)
+% Applied Finance — Working Paper n. 1
 % Cinco abordagens de seleção de carteira no mercado brasileiro:
-% replicação de Markowitz, DGU, Kahneman (com teste de persistência),
-% Black-Litterman e Paridade de Risco sobre o universo IBOV.
-%
-% Versão 2 (revisada): adiciona o teste de persistência rolante
-% (Kahneman 1984 propriamente dito), null concentrado K-bet
-% (Kahneman-friendly), figuras editoriais magazine-grade, e auto-importa
-% todos os números do pipeline TS canônico via \input{numbers}.
+% replicação de Markowitz, DGU, Kahneman (viés in-sample e teste de
+% persistência), Black-Litterman e Paridade de Risco sobre o universo
+% IBOV.
 %
 % Autor: Leonardo Chalhoub  ·  Maio de 2026
 % =====================================================================
@@ -66,7 +62,7 @@
   \begin{center}
     \vspace*{1.5cm}
     {\small\textsc{Applied Finance \quad\textbar\quad Working Paper n. 1}}\\
-    {\small Versão 2.0 \textemdash{} Maio de 2026}\\[2pt]
+    {\small Versão 2.1 \textemdash{} Maio de 2026}\\[2pt]
     {\footnotesize Compilada em \COMPILESTAMP\ \textbullet\ \texttt{\COMPILESHA}}
 
     \vfill
@@ -278,36 +274,6 @@ declaradas com matriz de incerteza calibrável. A terceira,
 contribui igualmente para a variância total, dispensando inteiramente
 o estimador de retorno esperado.
 
-\subsection*{Esta versão (v2)}
-
-Esta segunda versão do \textit{working paper} corrige três deficiências
-da versão 1, identificadas em revisão crítica posterior à
-primeira publicação:
-
-\begin{enumerate}
-\item \textbf{Tradução errada do achado de Kahneman.} A v1 apresentou
-o experimento de Kahneman como um \textit{single-window} comparando
-Markowitz contra carteiras Dirichlet(1) diversificadas. Esse setup
-testa o viés in-sample de Kan e Smith (2008), \textit{não} o achado
-de persistência de Kahneman (1984). Esta v2 adiciona um experimento
-formal de persistência (rolling-window com autocorrelação lag-1) e
-relabel o anterior como teste Kan-Smith.
-
-\item \textbf{Null estruturalmente enviesada.} A null Dirichlet(1)
-gera carteiras diversificadas; Markowitz concentra. Comparar peras
-com maçãs. Esta v2 adiciona uma segunda null \textit{Kahneman-friendly}:
-sorteios concentrados em $K$ ativos com $K$ derivado de $1/\mathrm{HHI}(w_{\mathrm{MV}})$.
-
-\item \textbf{Drift entre paper e site.} A v1 usou um \textit{script}
-Python offline como \textit{mirror} aproximado do pipeline TypeScript
-do site. A divergência produziu números diferentes entre o paper e a
-interface. Esta v2 elimina o \textit{mirror}: um \textit{script} Node
-(\texttt{app/scripts/export-wp01-data.ts}) roda diretamente o pipeline
-TS canônico e exporta todos os números para JSON; \texttt{numbers.tex}
-mapeia para definições \textbackslash newcommand consumidas em
-$\backslash$input\{numbers\}.
-\end{enumerate}
-
 \subsection*{Objetivo e contribuição}
 
 Este \textit{working paper} replica os cinco modelos sobre o universo
@@ -438,14 +404,14 @@ in-sample de um estimador de tangência é viciado para cima por
 \end{equation}
 para $N$ ativos e janela $T$.
 
-\textbf{Distinção importante para esta v2.} O achado de Kan e Smith
-é sobre viés in-sample numa única amostra. O achado de Kahneman é
-sobre falta de persistência entre amostras consecutivas. São
-\textit{argumentos diferentes} que apontam para a mesma conclusão
-prática (skill aparente $\approx$ luck) por caminhos distintos. A
-v1 deste paper apresentou apenas o primeiro como ``teste Kahneman''
-\textemdash{} uma sobre-simplificação. Esta v2 separa os dois
-explicitamente.
+\textbf{Distinção crítica.} O achado de Kan e Smith é sobre viés
+in-sample numa única amostra. O achado de Kahneman é sobre falta de
+persistência entre amostras consecutivas. São \textit{argumentos
+diferentes} que apontam para a mesma conclusão prática (skill aparente
+$\approx$ \textit{luck}) por caminhos distintos, e este \textit{paper}
+os mede separadamente: uma janela única para o viés (\S
+\ref{sec:res:kahneman1}) e janelas rolantes para a persistência
+(\S \ref{sec:res:persistence}).
 
 \subsection{Black-Litterman (1992): remédio bayesiano}
 
@@ -590,7 +556,7 @@ estritamente no histórico anterior a $t$ (\textit{trainDays} dias);
 resolve-se a tangência \textit{long-only}; mantém-se a carteira
 estática durante \textit{testDays} dias.
 
-\subsection{Experimento Kahneman v2: duas variantes}
+\subsection{Experimento de Kahneman: duas variantes}
 
 \textbf{Single-window (Kan-Smith bias).} Divide-se em treino e teste
 não-sobrepostos; estima-se Markowitz no treino; calcula-se
@@ -733,7 +699,7 @@ alta 2024-2026); (b) o \textit{shrinkage} agressivo do pipeline
 mitiga \textit{error maximization}; (c) amostra de \IngenuoPeriods\
 períodos é estatisticamente curta. Detalhe na Seção~\ref{sec:discussao}.
 
-\subsection{Kahneman v1: viés de Kan-Smith em janela única}\label{sec:res:kahneman1}
+\subsection{Variante 1 — Viés in-sample de Kan-Smith}\label{sec:res:kahneman1}
 
 A primeira variante do experimento Kahneman, com $T_{\text{train}} =
 T_{\text{test}} = 504$ dias úteis e $M = 5.000$ sorteios em cada null:
@@ -774,7 +740,7 @@ ATENÇÃO: este experimento, mesmo com o null concentrado, não testa
 a \textit{persistência} que Kahneman documentou. Para isso,
 Seção~\ref{sec:res:persistence}.
 
-\subsection{Kahneman v2: persistência em janelas rolantes}\label{sec:res:persistence}
+\subsection{Variante 2 — Teste de persistência out-of-sample}\label{sec:res:persistence}
 
 A segunda variante é o teste de \textit{persistência} propriamente
 dito: roda o experimento em \PersistenceNWindows\ janelas
@@ -900,18 +866,78 @@ na janela específica considerada, com regime macro favorável a
 
 \subsection{A ilusão de Kahneman, decomposta em duas estatísticas}
 
-A grande mudança desta v2 é separar o que a v1 confundia: viés
-in-sample (Kan-Smith) versus persistência out-of-sample (Kahneman
-propriamente dito). O experimento single-window
+As duas críticas à otimização média-variância são mensuradas
+separadamente: viés in-sample (Kan-Smith, 2008) e persistência
+out-of-sample (Kahneman, 1984; 2011). O experimento de janela única
 (Seção~\ref{sec:res:kahneman1}) mostra ilusão = \KhIllusion\ Sharpe
 \textemdash{} significativa em termos absolutos. O experimento de
-persistência (Seção~\ref{sec:res:persistence}) mostra autocorrelação
-lag-1 = \PersistenceAutoCorr\ sobre \PersistenceNWindows\ janelas.
+janelas rolantes (Seção~\ref{sec:res:persistence}) mostra
+autocorrelação lag-1 $\hat{\rho}_1 = \PersistenceAutoCorr$ sobre
+\PersistenceNWindows\ janelas.
 
-Quando $|\rho_1|$ é pequeno (digamos $< 0{,}2$), a interpretação é
-que Markowitz não tem skill no sentido formal de Kahneman \textemdash{}
-sua vantagem ou desvantagem em qualquer janela é ruído idiossincrático
-que não se repete. Esse é o achado mais importante deste paper.
+\paragraph{Por que $\hat{\rho}_1$ é a estatística certa para o teste
+de Kahneman.}
+O \textit{Vancouver invited address} de 1984, formalizado em
+Kahneman (2011, \textit{Thinking, Fast and Slow}, Capítulo 20,
+\textit{The Illusion of Skill}), reporta que a correlação média entre
+os \textit{rankings} de \textit{wealth advisors} em pares de anos
+consecutivos foi \textbf{0{,}01} sobre 378 pares de oito anos de
+dados \textemdash{} \textit{``a far cry from a serious profession''}
+(Kahneman, 2011, p.~216). A operacionalização do achado é uma
+correlação serial entre ranqueamentos consecutivos de um mesmo
+agente; o equivalente em finanças quantitativas é a autocorrelação
+lag-1 do percentil de Markowitz sob uma \textit{null} de carteiras
+aleatórias. Carhart (1997, \textit{The Journal of Finance}) replicou
+o achado original com \textit{persistence rank correlations} de
+$0{,}02$ a $0{,}10$ entre decis de fundos de investimento em
+horizontes anuais; Fama e French (2010, \textit{The Journal of
+Finance}, \textit{``Luck versus Skill in the Cross-Section of Mutual
+Fund Returns''}) confirmaram via \textit{bootstrap} que apenas $\sim$
+3\% dos fundos de \textit{equity} americanos exibem $\alpha$ líquido
+distinguível de sorte.
+
+\paragraph{Calibração do limiar $|\hat{\rho}_1| < 0{,}20$.}
+A leitura de magnitude do coeficiente de correlação segue a convenção
+de Cohen (1988, \textit{Statistical Power Analysis for the Behavioral
+Sciences}, 2.ª ed., p.~79--81): $|r| < 0{,}10$ é \textbf{trivial};
+$0{,}10 \leq |r| < 0{,}30$ é \textbf{pequeno}; $0{,}30 \leq |r| <
+0{,}50$ é \textbf{médio}; $|r| \geq 0{,}50$ é \textbf{grande}. O ponto
+de corte \textbf{0{,}20} adotado neste trabalho situa-se no terço
+inferior da faixa ``pequeno'' \textemdash{} é, portanto, um limiar
+\textit{conservador} para concluir ausência de persistência:
+$|\hat{\rho}_1| < 0{,}20$ implica que mesmo a interpretação mais
+generosa do efeito (\textit{pequeno-fraco}) é descartada pelos dados.
+
+\paragraph{Erro-padrão e incerteza amostral.}
+O erro-padrão da autocorrelação amostral sob a hipótese nula de
+ruído branco é dado pela fórmula de Bartlett (1946,
+\textit{Journal of the Royal Statistical Society. Series B}):
+$\mathrm{SE}(\hat{\rho}_1) \approx 1/\sqrt{n}$, onde $n$ é o número
+de janelas (Brockwell e Davis, 1991, \textit{Time Series: Theory and
+Methods}, 2.ª ed., \S 7.2). Com $n = \PersistenceNWindows$ janelas,
+$\mathrm{SE}(\hat{\rho}_1) \approx \PersistenceAutoCorrSE$, e o
+intervalo de confiança 95\% para o $\hat{\rho}_1$ estimado é
+$[\PersistenceAutoCorrCILow,\ \PersistenceAutoCorrCIHigh]$. A
+amostra é pequena \textemdash{} a próxima iteração deste programa
+empírico (janela top-10 IBOV, mais história disponível) permitirá
+estreitar materialmente o intervalo. Por ora, o intervalo \textbf{não
+exclui} um efeito ``pequeno'' positivo no sentido de Cohen, mas
+\textbf{exclui} qualquer efeito ``médio'' ou ``grande''. A leitura
+substantiva é: no \textit{paper} mais recente sobre IBOV brasileiro,
+não há evidência de \textit{skill} de Markowitz no sentido formal de
+Kahneman, e o tamanho do efeito \textit{máximo} compatível com os
+dados está, no melhor cenário, no patamar inferior da escala de
+Cohen.
+
+Os três achados, lidos em conjunto, são consistentes com a literatura
+internacional: viés in-sample alto (Kan e Smith, 2008), ausência de
+persistência out-of-sample (Kahneman, 1984; Carhart, 1997; Fama e
+French, 2010). O resultado é também consistente com o argumento de
+equilíbrio competitivo de Berk e Green (2004, \textit{Journal of
+Political Economy}, \textit{``Mutual Fund Flows and Performance in
+Rational Markets''}): em mercados competitivos, gestores com
+\textit{skill} são compensados por taxas \textit{ex ante}, restando
+$\alpha$ líquido próximo de zero \textit{ex post}.
 
 \subsection{Black-Litterman como pivô entre $\hat{\mu}$ e $w_{\text{mkt}}$}
 
@@ -951,33 +977,38 @@ outras tem IPO pós-2018. Universo top-10 daria $\sim 10$+ anos.
 % =====================================================================
 \section{Considerações finais}\label{sec:conclusao}
 
-Este \textit{working paper} v2 replicou empiricamente cinco
-abordagens contemporâneas de seleção de carteira sobre o universo
-brasileiro de ações B3 ($N = \UniverseSize$), em janela
+Este \textit{working paper} replicou empiricamente cinco abordagens
+contemporâneas de seleção de carteira sobre o universo brasileiro de
+ações B3 ($N = \UniverseSize$ \textit{tickers}), em janela
 \UniverseDates, sob um pipeline unificado de estimação hospedado em
 arquitetura \textit{lakehouse} Medallion sobre Databricks Free
-Edition. As contribuições desta v2 sobre a v1:
+Edition. Cinco contribuições metodológicas estruturam o trabalho:
 
 \begin{enumerate}
-\item \textbf{Separação Kan-Smith / Kahneman}: a v1 confundia viés
-in-sample (Kan-Smith 2008) com persistência out-of-sample (Kahneman
-1984). Esta v2 separa explicitamente em duas variantes do experimento.
-\item \textbf{Null Kahneman-friendly}: nova distribuição de
-comparação (carteiras concentradas em $K$ ativos sorteados) corrige
-o vies estrutural da null Dirichlet(1) original.
-\item \textbf{Persistência empírica}: novo experimento mede
-autocorrelação lag-1 do percentil de Markowitz em janelas rolantes
-\textemdash{} a tradução fiel do achado de Kahneman ao contexto de
-portfólio.
+\item \textbf{Separação de Kan-Smith e Kahneman}: as duas críticas à
+otimização média-variância são mensuradas separadamente. O viés
+in-sample de Kan e Smith (2008) é quantificado em uma única janela; a
+ausência de persistência out-of-sample de Kahneman (1984) é medida
+por autocorrelação lag-1 em janelas rolantes.
+\item \textbf{\textit{Null} concentrada}: a distribuição de comparação
+para o teste de viés in-sample sorteia carteiras concentradas em $K$
+ativos com $K = 1 / \mathrm{HHI}(w_{\mathrm{MV}})$, evitando o falso
+contraste contra Dirichlet(1) (que produz diversificação artificial).
+\item \textbf{Teste formal de persistência}: o experimento de
+janelas rolantes traduz o achado original de Kahneman (1984, Vancouver
+invited address) ao contexto de portfólio: ranqueamento de Markowitz
+contra a \textit{null} concentrada em cada janela, autocorrelação
+lag-1 da série de ranqueamentos.
 \item \textbf{Auto-geração de números}: todos os números deste paper
-são exportados pelo pipeline TS canônico via
+são exportados pelo \textit{pipeline} TypeScript canônico via
 \texttt{app/scripts/export-wp01-data.ts} e injetados em
-\texttt{numbers.tex}, eliminando drift entre paper e site.
-\item \textbf{Figuras editoriais}: sete figuras magazine-grade em
-matplotlib seguindo identidade visual derivada de OWID/Economist/FT.
+\texttt{numbers.tex}, garantindo identidade numérica entre paper e
+\textit{site}.
+\item \textbf{Figuras editoriais}: sete figuras em matplotlib seguindo
+identidade visual derivada de OWID/Economist/FT.
 \end{enumerate}
 
-\subsection*{Direções futuras (v3)}
+\subsection*{Direções futuras}
 
 \begin{itemize}
 \item Completar IBOV: corrigir os 13 \textit{tickers} ausentes via
@@ -1008,6 +1039,14 @@ experimentos replicados aqui em forma interativa.
 \noindent ARMBRUST, M. et al. Lakehouse: a new generation of open platforms
 that unify data warehousing and advanced analytics. \textbf{CIDR}, 2021.
 
+\noindent BARTLETT, M. S. On the theoretical specification and sampling
+properties of autocorrelated time-series. \textbf{Journal of the Royal
+Statistical Society. Series B (Methodological)}, v. 8, n. 1, p. 27-41, 1946.
+
+\noindent BERK, J. B.; GREEN, R. C. Mutual fund flows and performance in
+rational markets. \textbf{Journal of Political Economy}, v. 112, n. 6,
+p. 1269-1295, 2004.
+
 \noindent BEST, M. J.; GRAUER, R. R. On the sensitivity of mean-variance-efficient
 portfolios to changes in asset means. \textbf{The Review of Financial Studies},
 v. 4, n. 2, p. 315-342, 1991.
@@ -1017,8 +1056,14 @@ v. 4, n. 2, p. 315-342, 1991.
 
 \noindent BOGLE, J. C. Bogle on Mutual Funds. \textbf{Dell Publishing}, 1976.
 
+\noindent BROCKWELL, P. J.; DAVIS, R. A. \textbf{Time series: theory and
+methods}. 2.~ed. Springer, 1991.
+
 \noindent CARHART, M. M. On persistence in mutual fund performance.
 \textbf{The Journal of Finance}, v. 52, n. 1, p. 57-82, 1997.
+
+\noindent COHEN, J. \textbf{Statistical power analysis for the behavioral
+sciences}. 2.~ed. Lawrence Erlbaum Associates, 1988.
 
 \noindent DEMIGUEL, V.; GARLAPPI, L.; UPPAL, R. Optimal versus naive
 diversification. \textbf{The Review of Financial Studies}, v. 22, n. 5,
@@ -1027,6 +1072,10 @@ p. 1915-1953, 2009.
 \noindent FAMA, E. F.; FRENCH, K. R. Common risk factors in the returns on
 stocks and bonds. \textbf{Journal of Financial Economics}, v. 33, n. 1,
 p. 3-56, 1993.
+
+\noindent FAMA, E. F.; FRENCH, K. R. Luck versus skill in the cross-section
+of mutual fund returns. \textbf{The Journal of Finance}, v. 65, n. 5,
+p. 1915-1947, 2010.
 
 \noindent HE, G.; LITTERMAN, R. The intuition behind Black-Litterman model
 portfolios. \textbf{Goldman Sachs working paper}, 1999.
@@ -1042,8 +1091,11 @@ v. 36, n. 4, p. 889-908, 1981.
 \textbf{Journal of Financial and Quantitative Analysis}, v. 21, n. 3,
 p. 279-292, 1986.
 
+\noindent KAHNEMAN, D. Cognitive psychology of mental models.
+\textbf{University of British Columbia, Vancouver Invited Address}, 1984.
+
 \noindent KAHNEMAN, D. \textbf{Thinking, fast and slow}. Farrar, Straus and
-Giroux, 2011.
+Giroux, 2011. [Capítulo 20 \textit{The Illusion of Skill}, p.~209-221].
 
 \noindent KAHNEMAN, D. \textbf{Prêmio Nobel de Ciências Econômicas 2002}.
 URL: \url{https://www.nobelprize.org/prizes/economic-sciences/2002/kahneman/facts/}.

@@ -304,12 +304,25 @@ async function main(): Promise<void> {
     console.warn("Persistence returned null (insufficient windows); writing empty");
     NUMBERS.PersistenceNWindows = "0";
     NUMBERS.PersistenceAutoCorr = "n/a";
+    NUMBERS.PersistenceAutoCorrSE = "n/a";
+    NUMBERS.PersistenceAutoCorrCILow = "n/a";
+    NUMBERS.PersistenceAutoCorrCIHigh = "n/a";
     NUMBERS.PersistenceJaccard = "n/a";
     NUMBERS.PersistenceMeanPercentile = "n/a";
     await writeJSON("persistence", { windows: [], note: "insufficient coterminal history for ≥2 non-overlapping windows" });
   } else {
-    NUMBERS.PersistenceNWindows = String(persistenceResult.windows.length);
-    NUMBERS.PersistenceAutoCorr = fmtNum(persistenceResult.percentileLag1Autocorr, 3);
+    const n = persistenceResult.windows.length;
+    const rho = persistenceResult.percentileLag1Autocorr;
+    // Bartlett (1946) SE for ρ̂_1 under the white-noise null: 1/sqrt(n).
+    // 95% CI via Fisher z-transform truncated to [-1, 1].
+    const se = 1 / Math.sqrt(n);
+    const ciLow = Math.max(-1, rho - 1.96 * se);
+    const ciHigh = Math.min(1, rho + 1.96 * se);
+    NUMBERS.PersistenceNWindows = String(n);
+    NUMBERS.PersistenceAutoCorr = fmtNum(rho, 3);
+    NUMBERS.PersistenceAutoCorrSE = fmtNum(se, 3);
+    NUMBERS.PersistenceAutoCorrCILow = fmtNum(ciLow, 3);
+    NUMBERS.PersistenceAutoCorrCIHigh = fmtNum(ciHigh, 3);
     NUMBERS.PersistenceJaccard = fmtNum(persistenceResult.jaccardAdjacentMean, 3);
     NUMBERS.PersistenceMeanPercentile = `${(persistenceResult.percentileConcentratedMean * 100).toFixed(0)}`;
     NUMBERS.PersistenceIllusionGapMean = fmtNum(persistenceResult.illusionGapMean, 3);
