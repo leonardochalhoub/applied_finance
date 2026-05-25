@@ -33,7 +33,17 @@ TBLPROPERTIES (
 from pyspark.sql import Window
 from pyspark.sql import functions as F
 
-stage = spark.read.parquet(f"/Volumes/{catalog}/bronze/raw/yf/*/ohlcv.parquet").selectExpr(
+# Glob ALL parquet files in each run_id dir, not just `ohlcv.parquet`.
+# yf_ohlcv.py used to write a single `ohlcv.parquet` per run; commit 5c4ceb2
+# (per-chunk persistence) changed that to one file per logical chunk:
+# `returning.parquet` (lookback ingest) and `backfill_batch_NNN.parquet`
+# (full-history backfill, chunked). The old glob silently dropped every
+# new-format landing dir — the universe-expansion + IRBR-fix backfills
+# (May 22-24, 290 tickers fetched) sat in the volume for 2 days without
+# ever reaching bronze, capping the deployed site at the 134 tickers from
+# pre-5c4ceb2 ohlcv.parquet runs. `*/*.parquet` picks up both formats so
+# old dirs keep merging too.
+stage = spark.read.parquet(f"/Volumes/{catalog}/bronze/raw/yf/*/*.parquet").selectExpr(
     "ticker",
     "to_date(ref_date) AS trading_date",
     "CAST(price_open AS DOUBLE) AS price_open",
