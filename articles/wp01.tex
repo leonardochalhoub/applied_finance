@@ -122,8 +122,8 @@ B3 ($N = \UniverseSize$ \textit{tickers}, janela
 (ii) ingênuo $1/N$ de DGU, (iii) ilusão de Kahneman em duas
 variantes \textemdash{} viés de Kan-Smith em janela única e teste
 formal de persistência em janelas rolantes, (iv) Black-Litterman, e
-(v) Paridade de Risco. \textbf{Métodos.} Σ via Ledoit-Wolf (2004);
-μ via Jensen + ×252 + Jorion shrinkage (1986) + macro-anchor a $r_f
+(v) Paridade de Risco. \textbf{Métodos.} $\Sigma$ via Ledoit-Wolf (2004);
+$\hat{\mu}$ via Jensen + $\times 252$ + Jorion shrinkage (1986) + macro-anchor a $r_f
 + \mathrm{ERP}$ com teto por ativo em $r_f + 3 \cdot \mathrm{ERP}
 \approx \Ceiling$. \textit{Long-only} via \textit{active-set} guloso
 (Merton 1972 + projeção iterativa). Os retornos esperados implícitos
@@ -556,7 +556,7 @@ $r_f = \Rf$, média histórica do CDI obtida via Banco Central do Brasil
 % =====================================================================
 \section{Metodologia}\label{sec:metodo}
 
-\subsection{Estimação de Σ via Ledoit-Wolf}
+\subsection{Estimação de \texorpdfstring{$\Sigma$}{Sigma} via Ledoit-Wolf}
 
 A matriz de covariância $\hat{\Sigma}$ é estimada via Ledoit-Wolf
 (2004) com alvo de correlação constante, intensidade $\delta^*$
@@ -566,7 +566,7 @@ de observações não-nulas; para janelas longas (15y, 20y, \textit{full})
 adotamos a regra adaptativa $\max\{0{,}60, \; 0{,}95 \cdot \max_c
 \text{cobertura}_c\}$.
 
-\subsection{Estimação de μ}
+\subsection{Estimação de \texorpdfstring{$\mu$}{mu}}
 
 A estimação de $\hat{\mu}$ passa por quatro etapas: (i) média
 log-retornos diários; (ii) correção de Jensen
@@ -605,7 +605,7 @@ não-sobrepostas (\textit{step} = \textit{testDays}); em cada uma roda
 o experimento single-window; computa autocorrelação lag-1 do
 percentil de Markowitz na null concentrada (a estatística de
 Kahneman 1984 traduzida ao contexto de portfólio) e Jaccard
-adjacente dos picks. Persistência ≈ 0 ⇒ ausência de skill no
+adjacente dos picks. Persistência $\approx 0 \Rightarrow$ ausência de skill no
 sentido formal de Kahneman.
 
 \subsection{Black-Litterman}
@@ -793,7 +793,7 @@ $N$ janelas não-sobrepostas                        & \PersistenceNWindows \\
 Autocorrelação lag-1 do percentil                  & \PersistenceAutoCorr \\
 Jaccard médio dos top-K picks consecutivos          & \PersistenceJaccard \\
 Percentil concentrado médio                         & \PersistenceMeanPercentile$^{\mathrm{o}}$ \\
-Ilusão (ex-ante − ex-post) média                    & \PersistenceIllusionGapMean \\
+Ilusão (ex-ante $-$ ex-post) média                  & \PersistenceIllusionGapMean \\
 Fração janelas em que MV bate 1/N                   & \PersistenceMVBeatsEQFrac \\
 \bottomrule
 \end{tabular}
@@ -819,7 +819,7 @@ erro padrão da autocorrelação é alto ($\approx 1/\sqrt{n-1}$). O
 teste com poder estatístico maior requer histórico coterminal
 estendido \textemdash{} extensão prevista para v3 deste paper.
 
-\subsection{Black-Litterman: Π vs $\hat{\mu}$ amostral}\label{sec:res:bl}
+\subsection{Black-Litterman: \texorpdfstring{$\Pi$}{Pi} vs \texorpdfstring{$\hat{\mu}$}{mu-hat} amostral}\label{sec:res:bl}
 
 \begin{table}[H]
 \centering
@@ -867,7 +867,7 @@ Markowitz        & \PaMarkowitzVol   & \PaMarkowitzHHI   & \PaMarkowitzMaxRC   &
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig07_paridade_rc.pdf}
-\caption{Contribuição de risco RC$_i$ por ativo, para as quatro estratégias. Linha tracejada cinza: meta ERC = $1/N$ = \PaERCFloor. ERC atinge a meta exata por construção. Markowitz concentra ≈ \PaMarkowitzMaxRC\ da variância num só ativo.}\label{fig:paridade-rc}
+\caption{Contribuição de risco RC$_i$ por ativo, para as quatro estratégias. Linha tracejada cinza: meta ERC = $1/N$ = \PaERCFloor. ERC atinge a meta exata por construção. Markowitz concentra $\approx$ \PaMarkowitzMaxRC\ da variância num só ativo.}\label{fig:paridade-rc}
 \end{figure}
 
 ERC atinge HHI risco = \PaERCHHI\ $\approx 1/N$ exato, contra

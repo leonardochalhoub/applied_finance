@@ -365,8 +365,9 @@ async function main(): Promise<void> {
   NUMBERS.BLPiMax = fmtPctAA(Math.max(...piVec), 2);
   NUMBERS.BLMuMin = fmtPctAA(Math.min(...macro15.mu), 2);
   NUMBERS.BLMuMax = fmtPctAA(Math.max(...macro15.mu), 2);
-  NUMBERS.BLL1Mv = fmtPctAA(l1Mv, 1);
-  NUMBERS.BLL1Bl = fmtPctAA(l1Bl, 1);
+  // `BLL1*` would collide with LaTeX (digit inside \newcommand name); use word form.
+  NUMBERS.BLLOneMv = fmtPctAA(l1Mv, 1);
+  NUMBERS.BLLOneBl = fmtPctAA(l1Bl, 1);
   NUMBERS.BLMvZeros = String(wMv15.filter((w) => w < 0.005).length);
   NUMBERS.BLBlZeros = String(wBl15.filter((w) => w < 0.005).length);
   await writeJSON("bl", {
