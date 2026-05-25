@@ -4,7 +4,7 @@ import { VERSION } from "@/lib/version";
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-border">
-      <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-xs md:grid-cols-3">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-xs sm:px-6 md:grid-cols-3">
         <section>
           <div className="eyebrow mb-3">Fontes primárias</div>
           <ul className="space-y-3 text-body">
@@ -109,7 +109,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-4 text-[10px] text-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-[10px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>
             Este conteúdo é informativo. Nada aqui constitui recomendação de
             investimento, oferta ou solicitação para compra ou venda de valores

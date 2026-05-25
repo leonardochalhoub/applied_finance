@@ -326,7 +326,7 @@ function IbovContribution({
           const pct = (Math.abs(c) / max) * 100;
           const direction = c >= 0 ? "left" : "right";
           return (
-            <li key={m.ticker} className="relative px-5 py-3">
+            <li key={m.ticker} className="relative px-4 py-3 sm:px-5">
               <div
                 aria-hidden
                 className={`absolute inset-y-0 ${
@@ -336,15 +336,20 @@ function IbovContribution({
                 } opacity-[0.10]`}
                 style={{ width: `${pct / 2}%`, [direction]: "50%" } as React.CSSProperties}
               />
-              <div className="relative grid grid-cols-[120px_1fr_120px_100px] items-center gap-3">
+              <div className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 sm:grid-cols-[120px_minmax(0,1fr)_120px_100px]">
                 <a
                   className="mono text-sm font-semibold hover:underline"
                   href={withBase(`/ticker/${encodeURIComponent(m.ticker)}/`)}
                 >
                   {m.ticker.replace(/\.SA$/, "")}
                 </a>
-                <span className="truncate text-xs text-muted">{m.company_name}</span>
-                <span className="text-right text-xs text-muted tabular">
+                <div className="min-w-0">
+                  <div className="truncate text-xs text-muted">{m.company_name}</div>
+                  <div className="text-[10px] text-muted tabular sm:hidden">
+                    peso {(m.weight * 100).toFixed(2)}%
+                  </div>
+                </div>
+                <span className="hidden text-right text-xs text-muted tabular sm:block">
                   peso {(m.weight * 100).toFixed(2)}%
                 </span>
                 <span className={`text-right text-sm font-semibold tabular ${signedClass(c)}`}>

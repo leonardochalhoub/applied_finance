@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="sticky-header relative">
           <Nav />
         </header>
-        <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">{children}</main>
         <Footer />
       </body>
     </html>

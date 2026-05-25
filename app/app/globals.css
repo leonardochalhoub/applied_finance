@@ -73,6 +73,16 @@ body {
   color: var(--strong);
 }
 
+/* Mobile guard: prevent any one rogue child (recharts tooltips, fixed-width
+   grids, long mono strings) from pushing the page wider than the viewport.
+   `clip` is preferred over `hidden` so it doesn't create a scroll container —
+   the sticky <header> keeps working. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -179,6 +189,12 @@ body {
   backdrop-filter: blur(12px) saturate(140%);
   background: color-mix(in srgb, var(--bg-base) 85%, transparent);
   border-bottom: 1px solid var(--border);
+}
+
+/* Hide WebKit horizontal scrollbar on the mobile nav pill bar — Firefox / IE
+   handled inline via `scrollbarWidth: none` / `msOverflowStyle: none`. */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 .gradient-hero {
