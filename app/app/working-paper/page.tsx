@@ -3,9 +3,9 @@ import { withBase } from "@/lib/links";
 export const dynamic = "force-static";
 
 export const metadata = {
-  title: "Working Paper #1 — Cinco abordagens de seleção de carteira | Applied Finance",
+  title: "Working Paper — Cinco abordagens de seleção de carteira | Applied Finance",
   description:
-    "Working Paper n. 1 (Applied Finance): replicação empírica de Markowitz, DeMiguel-Garlappi-Uppal, Kahneman, Black-Litterman e Paridade de Risco sobre o universo IBOV (2000-2026), com pipeline unificado de estimação Ledoit-Wolf + Jorion + macro-anchor.",
+    "Applied Finance Working Paper: replicação empírica de Markowitz, DeMiguel-Garlappi-Uppal, Kahneman, Black-Litterman e Paridade de Risco sobre o universo IBOV (2000-2026), com pipeline unificado de estimação Ledoit-Wolf + Jorion + macro-anchor.",
 };
 
 export default function WorkingPaperPage() {
@@ -20,7 +20,7 @@ export default function WorkingPaperPage() {
   return (
     <div className="space-y-10">
       <header>
-        <div className="eyebrow">Applied Finance · Working Paper n. 1</div>
+        <div className="eyebrow">Applied Finance · Working Paper</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           Cinco abordagens de seleção de carteira no mercado brasileiro
         </h1>
@@ -188,24 +188,7 @@ export default function WorkingPaperPage() {
       </section>
 
       <section className="card px-6 py-5 text-xs text-muted">
-        <div className="eyebrow">Citação sugerida</div>
-        <p className="mt-3 font-mono">
-          CHALHOUB, L. Cinco abordagens de seleção de carteira no mercado
-          brasileiro: replicação empírica de Markowitz, DeMiguel-Garlappi-Uppal,
-          Kahneman, Black-Litterman e Paridade de Risco sobre o universo IBOV
-          (2000-2026). Applied Finance Working Paper n. 1, Maio de 2026.
-          Disponível em:{" "}
-          <a
-            href="https://leonardochalhoub.github.io/applied_finance/working-paper/"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-dotted underline-offset-2"
-          >
-            leonardochalhoub.github.io/applied_finance/working-paper
-          </a>
-          .
-        </p>
-        <p className="mt-3">
+        <p>
           Código sob licença MIT; texto sob CC BY 4.0. Compilação:{" "}
           <span className="font-mono">.tex</span> via{" "}
           <span className="font-mono">latexmk -pdf</span> em CI (TeX Live
