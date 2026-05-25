@@ -275,7 +275,8 @@ def fig_kahneman_histograms():
 def fig_persistence():
     p = load("persistence")
     windows = p.get("windows", [])
-    if not windows:
+    n = len(windows)
+    if n == 0:
         # Stub figure when insufficient history
         fig, ax = plt.subplots(figsize=GOLDEN_FIGSIZE)
         ax.text(0.5, 0.5,
@@ -295,18 +296,68 @@ def fig_persistence():
         print("  ✓ fig05_persistence.pdf (stub)")
         return
 
+    if n == 1:
+        # Single-window case: a line chart is misleading. Show a horizontal
+        # strip-plot of where Markowitz landed on the 0-100 percentile
+        # spectrum, with Cohen-style annotated regions and an honest
+        # "n = 1, persistence undefined" subtitle.
+        w0 = windows[0]
+        pct = 100 * w0["percentileConcentrated"]
+
+        fig, ax = plt.subplots(figsize=(GOLDEN_FIGSIZE_WIDE[0], 3.6))
+
+        # Background shading: lower / median / upper bands
+        ax.axvspan(0, 25, color=PALETTE["rule"], alpha=0.55, zorder=0)
+        ax.axvspan(75, 100, color=PALETTE["rule"], alpha=0.55, zorder=0)
+        ax.axvline(50, color=PALETTE["neutro"], lw=1.0, ls="--", zorder=1)
+        ax.text(50, 0.85, "mediana (Kahneman: sem skill)", ha="center",
+                va="bottom", fontsize=8.5, color=PALETTE["neutro"])
+
+        # Markowitz dot
+        ax.scatter([pct], [0.4], s=180, color=PALETTE["principal"],
+                   edgecolors="white", linewidths=1.4, zorder=4)
+        ax.annotate(f"Markowitz @ {pct:.0f}º",
+                    xy=(pct, 0.4), xytext=(0, 18),
+                    textcoords="offset points", ha="center", fontsize=10.5,
+                    fontweight="bold", color=PALETTE["principal"])
+
+        # Tick labels
+        ax.set_xlim(0, 100)
+        ax.set_xticks([0, 25, 50, 75, 100])
+        ax.set_xticklabels(["0º", "25º", "50º", "75º", "100º"])
+        ax.set_ylim(0, 1)
+        ax.set_yticks([])
+        ax.set_xlabel("Percentil da Sharpe ex-post (carteiras concentradas aleatórias)")
+        for sp in ("left", "right", "top"):
+            ax.spines[sp].set_visible(False)
+
+        editorial_title(ax,
+            title="Janela única — ranqueamento de Markowitz no espaço da null",
+            subtitle=(
+                f"Treino {w0['trainStart']}-{w0['trainEnd']}, "
+                f"teste {w0['testStart']}-{w0['testEnd']}.  "
+                f"n = 1 janela coterminal: autocorrelação lag-1 requer n $\\geq$ 2; "
+                f"teste de persistência inviável com a cobertura atual (ver Seção 6)."
+            ),
+            source=SOURCE)
+        fig.subplots_adjust(top=0.78, bottom=0.22)
+        fig.savefig(HERE / "fig05_persistence.pdf")
+        plt.close(fig)
+        print("  ✓ fig05_persistence.pdf (single-window)")
+        return
+
+    # n >= 2: rolling line chart with annotated points
     labels = [w["testStart"][:7] for w in windows]
     pcts = [100 * w["percentileConcentrated"] for w in windows]
 
     fig, ax = plt.subplots(figsize=GOLDEN_FIGSIZE_WIDE)
-    x = np.arange(len(windows))
+    x = np.arange(n)
     ax.axhline(50, color=PALETTE["neutro"], lw=1.0, ls="--", zorder=1,
                label="50º = mediana (Kahneman: sem skill)")
     ax.plot(x, pcts, color=PALETTE["principal"], lw=2.5,
             marker="o", markersize=7, zorder=4,
             label="Percentil Markowitz · null concentrada")
 
-    # Annotate each window
     for xi, yi in zip(x, pcts, strict=True):
         ax.annotate(f"{yi:.0f}º", xy=(xi, yi), xytext=(0, 10),
                     textcoords="offset points", ha="center",
@@ -321,16 +372,25 @@ def fig_persistence():
 
     autocorr = p.get("percentileLag1Autocorr", 0.0)
     jaccard = p.get("jaccardAdjacentMean", 0.0)
+    # Bartlett SE (1946) for the white-noise null: 1/sqrt(n).
+    se = 1 / np.sqrt(n)
+    ci_low = max(-1.0, autocorr - 1.96 * se)
+    ci_high = min(1.0, autocorr + 1.96 * se)
     verdict = (
-        "≈ 0 → SEM persistência (Kahneman vindicado)"
+        f"$|\\hat\\rho_1| < 0{{,}}20$ (Cohen 1988: pequeno-fraco) "
+        f"$\\Rightarrow$ ausência de persistência"
         if abs(autocorr) < 0.20
         else ("Persistência positiva" if autocorr > 0 else "Anti-persistência")
     )
     editorial_title(ax,
-        title=f"Persistência de Markowitz em {len(windows)} janelas rolantes não-sobrepostas",
-        subtitle=f"Autocorrelação lag-1 = {autocorr:+.3f}  ·  Jaccard médio dos picks = {jaccard:.2f}  ·  Veredito: {verdict}",
+        title=f"Persistência de Markowitz em {n} janelas rolantes não-sobrepostas",
+        subtitle=(
+            f"$\\hat\\rho_1$ = {autocorr:+.3f} (Bartlett SE = {se:.3f}, "
+            f"IC 95\\% = [{ci_low:+.2f}, {ci_high:+.2f}])  ·  "
+            f"Jaccard médio = {jaccard:.2f}  ·  {verdict}"
+        ),
         source=SOURCE)
-    fig.subplots_adjust(top=0.88, bottom=0.16)
+    fig.subplots_adjust(top=0.86, bottom=0.16)
     fig.savefig(HERE / "fig05_persistence.pdf")
     plt.close(fig)
     print("  ✓ fig05_persistence.pdf")

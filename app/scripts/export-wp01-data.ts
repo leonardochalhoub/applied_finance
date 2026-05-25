@@ -327,6 +327,12 @@ async function main(): Promise<void> {
     NUMBERS.PersistenceMeanPercentile = `${(persistenceResult.percentileConcentratedMean * 100).toFixed(0)}`;
     NUMBERS.PersistenceIllusionGapMean = fmtNum(persistenceResult.illusionGapMean, 3);
     NUMBERS.PersistenceMVBeatsEQFrac = `${(persistenceResult.mvBeatsEqWeightFrac * 100).toFixed(0)}\\%`;
+    const first = persistenceResult.windows[0];
+    const last = persistenceResult.windows[persistenceResult.windows.length - 1];
+    NUMBERS.PersistenceTrainStart = first.trainStart;
+    NUMBERS.PersistenceTrainEnd = first.trainEnd;
+    NUMBERS.PersistenceTestStart = last.testStart;
+    NUMBERS.PersistenceTestEnd = last.testEnd;
     await writeJSON("persistence", persistenceResult);
   }
 

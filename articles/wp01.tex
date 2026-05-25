@@ -144,10 +144,12 @@ Sharpe = \KhMVExAnte, ex-post Sharpe = \KhMVExPost, ilusão = \KhIllusion.
 Sob a null Dirichlet(1) diversificada, percentil ex-post = \KhDirichletExPostPct º;
 sob a null concentrada em $K=\KhConcentrationK$ ativos
 (Kahneman-friendly), \KhConcentratedExPostPct º.
-(iv)~Kahneman \textit{rolling persistence}: \PersistenceNWindows\
-janelas não-sobrepostas; autocorrelação lag-1 do percentil =
-\PersistenceAutoCorr; Jaccard médio dos picks = \PersistenceJaccard;
-percentil médio = \PersistenceMeanPercentile º.
+(iv)~Kahneman \textit{rolling persistence}: \textit{framework}
+plenamente operacional; cobertura Yahoo Finance corrente permite
+$n = \PersistenceNWindows$ janela coterminal não-sobreposta, com
+Markowitz no \PersistenceMeanPercentile º percentil contra a
+\textit{null} concentrada. Inferência sobre $\hat{\rho}_1$ exige
+$n \geq 2$, prevista em direções futuras.
 (v)~Black-Litterman ($\delta = \BLDelta$, $\tau = \BLTau$, sem
 \textit{views}): $\Pi \in [\BLPiMin, \BLPiMax]$ contra $\hat{\mu}^{\text{shrunk}}
 \in [\BLMuMin, \BLMuMax]$; norma $L^1/2$ ao IBOV: MV = \BLLOneMv,
@@ -180,9 +182,11 @@ the Brazilian B3 universe ($N = \UniverseSize$ tickers, window
 top-30 IBOV with $r_f = \Rf$, Markowitz tangency Sharpe is
 \MVTangencySharpe; walk-forward 3y/1q over \IngenuoPeriods\ periods
 shows MV ahead of $1/N$ (\IngenuoMVSharpe\ vs \IngenuoEQSharpe); single-window
-Kahneman illusion = \KhIllusion\ Sharpe; rolling-window persistence
-autocorrelation = \PersistenceAutoCorr\ (sample of \PersistenceNWindows\
-windows); BL recovers $\Pi \in [\BLPiMin, \BLPiMax]$ vs sample $\hat{\mu}
+Kahneman illusion = \KhIllusion\ Sharpe; the rolling-window
+persistence framework is fully operational but the current Yahoo
+Finance coterminal universe permits only $n = \PersistenceNWindows$
+non-overlapping window, so inference on $\hat{\rho}_1$ awaits coverage
+expansion; BL recovers $\Pi \in [\BLPiMin, \BLPiMax]$ vs sample $\hat{\mu}
 \in [\BLMuMin, \BLMuMax]$; ERC achieves HHI of risk = \PaERCHHI\
 $\approx 1/N$ vs \PaMarkowitzHHI\ for Markowitz. All numbers and
 figures are auto-generated from the live TypeScript pipeline; code
@@ -743,24 +747,34 @@ Seção~\ref{sec:res:persistence}.
 \subsection{Variante 2 — Teste de persistência out-of-sample}\label{sec:res:persistence}
 
 A segunda variante é o teste de \textit{persistência} propriamente
-dito: roda o experimento em \PersistenceNWindows\ janelas
-não-sobrepostas, registra o percentil de Markowitz contra a null
-concentrada em cada uma, e calcula a autocorrelação lag-1 da série.
+dito. O procedimento desliza uma janela $(\text{treino},
+\text{teste})$ por todo o histórico coterminal disponível, estima
+Markowitz em cada janela de treino, calcula o ranqueamento do Sharpe
+ex-post contra a null concentrada na janela de teste, e mede a
+autocorrelação lag-1 da série de ranqueamentos
+\textemdash{} a operacionalização direta do experimento que Kahneman
+(2011, \textit{Thinking, Fast and Slow}, Capítulo 20, p.~209-221)
+relata para a firma de \textit{wealth management} de 28 consultores
+acompanhados ao longo de oito anos. No estudo original, a média de
+378 correlações pareadas de \textit{rankings} ano-a-ano foi
+$0{,}01$.
 
 \begin{table}[H]
 \centering
-\caption{Estatísticas de persistência (Kahneman 1984) em \PersistenceNWindows\ janelas.}\label{tab:persistence}
+\caption{Estatísticas de persistência (Kahneman, 1984; 2011) em \PersistenceNWindows\ janelas coterminais.}\label{tab:persistence}
 \small
 \begin{tabular}{lr}
 \toprule
 \textbf{Quantidade} & \textbf{Valor} \\
 \midrule
 $N$ janelas não-sobrepostas                        & \PersistenceNWindows \\
-Autocorrelação lag-1 do percentil                  & \PersistenceAutoCorr \\
-Jaccard médio dos top-K picks consecutivos          & \PersistenceJaccard \\
+Autocorrelação lag-1 do percentil ($\hat{\rho}_1$) & \PersistenceAutoCorr \\
+Erro-padrão de Bartlett $1/\sqrt{n}$               & \PersistenceAutoCorrSE \\
+IC 95\% para $\hat{\rho}_1$                        & [\PersistenceAutoCorrCILow,\ \PersistenceAutoCorrCIHigh] \\
+Jaccard médio dos top-$K$ \textit{picks} consecutivos & \PersistenceJaccard \\
 Percentil concentrado médio                         & \PersistenceMeanPercentile$^{\mathrm{o}}$ \\
 Ilusão (ex-ante $-$ ex-post) média                  & \PersistenceIllusionGapMean \\
-Fração janelas em que MV bate 1/N                   & \PersistenceMVBeatsEQFrac \\
+Fração janelas em que MV bate $1/N$                & \PersistenceMVBeatsEQFrac \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -768,22 +782,41 @@ Fração janelas em que MV bate 1/N                   & \PersistenceMVBeatsEQFra
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig05_persistence.pdf}
-\caption{Percentil ex-post da Markowitz na null concentrada ao longo de \PersistenceNWindows\ janelas rolantes não-sobrepostas. Linha horizontal pontilhada: $50^{\mathrm{o}}$ percentil (mediana = ``sem skill'' no sentido de Kahneman). Autocorrelação lag-1 = \PersistenceAutoCorr.}\label{fig:persistence}
+\caption{Posicionamento de Markowitz no espaço da \textit{null} concentrada. Com $n = \PersistenceNWindows$ janela(s) coterminal(is) disponível(eis), o procedimento de janelas rolantes produz a única realização do percentil ex-post; a autocorrelação lag-1 da série de percentis exige $n \geq 2$ e ficará pendente até a extensão do histórico coterminal (ver Seção~\ref{sec:discussao}).}\label{fig:persistence}
 \end{figure}
 
-A interpretação é direta. Com $|\rho_1| < 0{,}2$, o percentil de
-Markowitz numa janela não prediz o percentil na próxima
-\textemdash{} a vantagem é \textit{regime-específica}, não
-estrutural. É a tradução exata do achado de Kahneman ao contexto de
-portfólio. Note o paralelo: a correlação ano-a-ano dos rankings de
-gestores na firma de \textit{wealth management} estudada por
-Kahneman foi $0{,}01$; a autocorrelação trimestral do percentil de
-Markowitz neste estudo foi \PersistenceAutoCorr.
+\paragraph{Leitura honesta do resultado atual.}
+A cobertura Yahoo Finance do \textit{top-30} do IBOV no momento da
+compilação permite recuperar apenas $n = \PersistenceNWindows$ janela
+coterminal não-sobreposta de $4$ anos ($2$ de treino + $2$ de teste)
+para o universo \textit{tightenado} (Seção~\ref{sec:metodo}). A
+autocorrelação lag-1 não é definida para $n = 1$, e o erro-padrão de
+Bartlett (1946) $1 / \sqrt{n} = \PersistenceAutoCorrSE$ produz um
+intervalo de confiança $[\PersistenceAutoCorrCILow,
+\PersistenceAutoCorrCIHigh]$ que se estende sobre toda a escala de
+Cohen \textemdash{} qualquer leitura substantiva de $\hat{\rho}_1$
+ficaria à mercê do ruído amostral. \textbf{Por essa razão, o teste de
+persistência permanece em aberto neste \textit{paper}:} o
+\textit{framework} (Seção~\ref{sec:metodo}, Variante 2) está
+plenamente operacional, mas a inferência sobre $\hat{\rho}_1$
+demandará a próxima expansão de cobertura discutida na
+Seção~\ref{sec:discussao}.
 
-\textbf{Disclaimer}: com apenas \PersistenceNWindows\ janelas, o
-erro padrão da autocorrelação é alto ($\approx 1/\sqrt{n-1}$). O
-teste com poder estatístico maior requer histórico coterminal
-estendido \textemdash{} extensão prevista para v3 deste paper.
+\paragraph{O que a janela única \textit{nos diz}.}
+Naquela única janela coterminal disponível
+(treino \PersistenceTrainStart-\PersistenceTrainEnd, teste
+\PersistenceTestStart-\PersistenceTestEnd), Markowitz situou-se no
+\PersistenceMeanPercentile$^{\mathrm{o}}$ percentil contra a
+\textit{null} concentrada $K$-\textit{bet}: uma carteira ex-post
+melhor do que cerca de \PersistenceMeanPercentile\% das carteiras
+concentradas comparáveis. Isso é \textit{consistente com} a
+hipótese de \textit{skill}, mas também \textit{consistente com} a
+hipótese de sorte de Kahneman: uma única realização favorável
+não distingue um \textit{outcome} estrutural de um \textit{tail draw}
+de uma distribuição com média $0{,}5$. A pergunta de Kahneman
+\textemdash{} ``o ranqueamento persiste?'' \textemdash{} requer ao
+menos uma segunda janela coterminal para sequer começar a ser
+respondida.
 
 \subsection{Black-Litterman: \texorpdfstring{$\Pi$}{Pi} vs \texorpdfstring{$\hat{\mu}$}{mu-hat} amostral}\label{sec:res:bl}
 
@@ -864,80 +897,159 @@ horizonte longo, $1/N$ vence em média'' \textemdash{} mas mostra que
 na janela específica considerada, com regime macro favorável a
 \textit{commodities} brasileiras, Markowitz dominou.
 
-\subsection{A ilusão de Kahneman, decomposta em duas estatísticas}
+\subsection{A contribuição central: tradução do teste de Kahneman ao IBOV}\label{sec:disc:kahneman}
 
-As duas críticas à otimização média-variância são mensuradas
-separadamente: viés in-sample (Kan-Smith, 2008) e persistência
-out-of-sample (Kahneman, 1984; 2011). O experimento de janela única
-(Seção~\ref{sec:res:kahneman1}) mostra ilusão = \KhIllusion\ Sharpe
-\textemdash{} significativa em termos absolutos. O experimento de
-janelas rolantes (Seção~\ref{sec:res:persistence}) mostra
-autocorrelação lag-1 $\hat{\rho}_1 = \PersistenceAutoCorr$ sobre
-\PersistenceNWindows\ janelas.
+\textbf{Este é o principal aporte metodológico deste \textit{working
+paper}.} A literatura brasileira de gestão de carteiras conta com
+replicações do experimento de Markowitz (1952), do \textit{1/N} de
+DeMiguel, Garlappi e Uppal (2009), do Black-Litterman (1992) e do ERC
+de Maillard, Roncalli e Teïletche (2010). O que está ausente, ao
+melhor do conhecimento deste autor, é uma tradução fiel do
+experimento que Kahneman (1984, \textit{University of British
+Columbia Vancouver Invited Address}; 2011, \textit{Thinking, Fast and
+Slow}, Capítulo 20 \textit{The Illusion of Skill}, p.~209-221)
+realizou para uma firma de \textit{wealth management} americana.
+Esta seção articula a contribuição em seis passos.
 
-\paragraph{Por que $\hat{\rho}_1$ é a estatística certa para o teste
-de Kahneman.}
-O \textit{Vancouver invited address} de 1984, formalizado em
-Kahneman (2011, \textit{Thinking, Fast and Slow}, Capítulo 20,
-\textit{The Illusion of Skill}), reporta que a correlação média entre
-os \textit{rankings} de \textit{wealth advisors} em pares de anos
-consecutivos foi \textbf{0{,}01} sobre 378 pares de oito anos de
-dados \textemdash{} \textit{``a far cry from a serious profession''}
-(Kahneman, 2011, p.~216). A operacionalização do achado é uma
-correlação serial entre ranqueamentos consecutivos de um mesmo
-agente; o equivalente em finanças quantitativas é a autocorrelação
-lag-1 do percentil de Markowitz sob uma \textit{null} de carteiras
-aleatórias. Carhart (1997, \textit{The Journal of Finance}) replicou
-o achado original com \textit{persistence rank correlations} de
-$0{,}02$ a $0{,}10$ entre decis de fundos de investimento em
-horizontes anuais; Fama e French (2010, \textit{The Journal of
-Finance}, \textit{``Luck versus Skill in the Cross-Section of Mutual
-Fund Returns''}) confirmaram via \textit{bootstrap} que apenas $\sim$
-3\% dos fundos de \textit{equity} americanos exibem $\alpha$ líquido
-distinguível de sorte.
+\paragraph{Passo 1 -- O achado original.}
+Kahneman acompanhou 28 consultores ao longo de oito anos consecutivos,
+calculou a correlação dos \textit{rankings} ano-a-ano dos consultores
+em cada par de anos $(t, t+1)$, e obteve uma média de
+\textbf{$0{,}01$} sobre $\binom{8}{2} = 28$ pares de anos $\times$
+até $28$ consultores por par, totalizando $378$ comparações. O
+intervalo de variação dos pares individuais foi $[-0{,}25;\ +0{,}25]$;
+nenhum par foi estatisticamente distinguível de zero. Kahneman
+batizou o fenômeno de \textit{The Illusion of Skill}: a indústria de
+gestão ativa é remunerada por uma persistência de \textit{performance}
+que não existe.
 
-\paragraph{Calibração do limiar $|\hat{\rho}_1| < 0{,}20$.}
-A leitura de magnitude do coeficiente de correlação segue a convenção
-de Cohen (1988, \textit{Statistical Power Analysis for the Behavioral
-Sciences}, 2.ª ed., p.~79--81): $|r| < 0{,}10$ é \textbf{trivial};
-$0{,}10 \leq |r| < 0{,}30$ é \textbf{pequeno}; $0{,}30 \leq |r| <
-0{,}50$ é \textbf{médio}; $|r| \geq 0{,}50$ é \textbf{grande}. O ponto
-de corte \textbf{0{,}20} adotado neste trabalho situa-se no terço
-inferior da faixa ``pequeno'' \textemdash{} é, portanto, um limiar
-\textit{conservador} para concluir ausência de persistência:
-$|\hat{\rho}_1| < 0{,}20$ implica que mesmo a interpretação mais
-generosa do efeito (\textit{pequeno-fraco}) é descartada pelos dados.
+\paragraph{Passo 2 -- A confirmação na literatura financeira
+quantitativa.}
+O achado de Kahneman, originalmente sobre consultores individuais,
+foi confirmado em larga escala para fundos de investimento. Carhart
+(1997, \textit{The Journal of Finance}) reporta \textit{persistence
+rank correlations} entre decis de \textit{performance} anual de
+fundos americanos no intervalo $[0{,}02;\ 0{,}10]$, removendo o
+``persistente'' Carhart-momentum como fator de risco. Fama e French
+(2010, \textit{The Journal of Finance}, \textit{``Luck versus Skill
+in the Cross-Section of Mutual Fund Returns''}) confirmam via
+\textit{bootstrap} que apenas $\sim 3\%$ dos fundos americanos de
+\textit{equity} exibem $\alpha$ líquido distinguível de sorte. Berk
+e Green (2004, \textit{Journal of Political Economy},
+\textit{``Mutual Fund Flows and Performance in Rational Markets''})
+fornecem a leitura de equilíbrio: em mercados competitivos, o
+\textit{skill} existe (gera $\alpha$ bruto), mas é integralmente
+capturado por taxas e fluxos de capital, restando $\alpha$ líquido
+próximo de zero. A ausência de persistência \textit{out-of-sample} é,
+portanto, um fato \textit{stylized} consolidado.
 
-\paragraph{Erro-padrão e incerteza amostral.}
-O erro-padrão da autocorrelação amostral sob a hipótese nula de
-ruído branco é dado pela fórmula de Bartlett (1946,
+\paragraph{Passo 3 -- Por que isso é decisivo para a engenharia de
+carteiras.}
+O argumento de DeMiguel, Garlappi e Uppal (2009) -- ``o otimizador
+não vence $1/N$ \textit{out-of-sample}'' -- é, em sua essência, uma
+operacionalização específica do achado de Kahneman aplicada ao espaço
+de \textit{carteiras} em vez do espaço de \textit{gestores}. O viés
+in-sample formalizado por Kan e Smith (2008, \textit{Management
+Science}) explica \textit{por que} o otimizador pode parecer
+brilhante numa única janela: o estimador do Sharpe \textit{in-sample}
+é viciado para cima por aproximadamente $N/T$ (Equação
+\ref{eq:kan-smith}). Mas explicar o viés numa janela não responde à
+pergunta de Kahneman, que é sobre a relação entre janelas
+consecutivas. \textbf{Sem o teste de persistência, qualquer
+recomendação de uso de Markowitz puro sobre $1/N$ está mal-fundada}:
+um ganho ex-post numa janela não justifica adoção se o ganho não se
+repete na próxima.
+
+\paragraph{Passo 4 -- Por que $\hat{\rho}_1$ é a estatística certa.}
+O experimento de Kahneman pode ser sintetizado em uma única
+estatística: a correlação de \textit{rankings} entre janelas
+consecutivas. A tradução para o contexto de portfólio sob uma
+\textit{null} estatística é direta:
+\begin{enumerate}
+\item Em cada janela de teste $t$, computa-se o Sharpe ex-post da
+carteira Markowitz e o Sharpe ex-post de $M$ carteiras aleatórias
+sorteadas da \textit{null} concentrada $K$-\textit{bet}
+(Seção~\ref{sec:metodo}).
+\item Define-se $p_t$ = percentil de Markowitz na distribuição
+empírica de Sharpes das $M$ carteiras aleatórias.
+\item Construída a série $\{p_1, p_2, \ldots, p_n\}$, calcula-se a
+autocorrelação serial lag-1 $\hat{\rho}_1 =
+\mathrm{Corr}(p_t, p_{t+1})$.
+\end{enumerate}
+A hipótese nula de Kahneman é $\rho_1 = 0$: o ranqueamento de
+Markowitz numa janela não prediz seu ranqueamento na próxima. A
+\textit{null} concentrada (em vez de Dirichlet) elimina o falso
+contraste contra carteiras artificialmente diversificadas,
+preservando o experimento como ``Markowitz contra alternativas
+\textit{realistas} de carteira concentrada''.
+
+\paragraph{Passo 5 -- Calibração do limiar de magnitude.}
+A leitura substantiva de $\hat{\rho}_1$ segue a convenção de Cohen
+(1988, \textit{Statistical Power Analysis for the Behavioral
+Sciences}, 2.ª ed., p.~79-81), padrão na literatura de \textit{effect
+size} em ciências comportamentais e biomédicas:
+
+\begin{table}[H]
+\centering
+\caption{Convenção de Cohen (1988, p.~79-81) para magnitudes de coeficiente de correlação.}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Intervalo de $|r|$} & \textbf{Classificação} & \textbf{Interpretação substantiva}\\
+\midrule
+$|r| < 0{,}10$        & Trivial    & Indistinguível de ruído\\
+$0{,}10 \leq |r| < 0{,}30$ & Pequeno    & Detectável; pouca relevância prática\\
+$0{,}30 \leq |r| < 0{,}50$ & Médio      & Relevante para decisão\\
+$|r| \geq 0{,}50$     & Grande     & Efeito dominante\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O ponto de corte \textbf{$|\hat{\rho}_1| < 0{,}20$} adotado para
+declarar ``ausência de persistência'' situa-se no \textit{terço
+inferior} da faixa ``pequeno'' -- portanto, um limiar conservador
+contra o autor: estamos exigindo que o efeito seja menor do que o que
+Cohen classifica como ``pequeno detectável'', não apenas menor do que
+``médio''. A correlação de Kahneman ($0{,}01$) e as correlações de
+Carhart ($0{,}02$-$0{,}10$) caem todas no regime trivial.
+
+\paragraph{Passo 6 -- Inferência e o ponto em que este \textit{paper}
+está.}
+Sob a hipótese nula de ruído branco para a série $\{p_t\}$, o
+erro-padrão do estimador $\hat{\rho}_1$ é dado por Bartlett (1946,
 \textit{Journal of the Royal Statistical Society. Series B}):
-$\mathrm{SE}(\hat{\rho}_1) \approx 1/\sqrt{n}$, onde $n$ é o número
-de janelas (Brockwell e Davis, 1991, \textit{Time Series: Theory and
-Methods}, 2.ª ed., \S 7.2). Com $n = \PersistenceNWindows$ janelas,
-$\mathrm{SE}(\hat{\rho}_1) \approx \PersistenceAutoCorrSE$, e o
-intervalo de confiança 95\% para o $\hat{\rho}_1$ estimado é
-$[\PersistenceAutoCorrCILow,\ \PersistenceAutoCorrCIHigh]$. A
-amostra é pequena \textemdash{} a próxima iteração deste programa
-empírico (janela top-10 IBOV, mais história disponível) permitirá
-estreitar materialmente o intervalo. Por ora, o intervalo \textbf{não
-exclui} um efeito ``pequeno'' positivo no sentido de Cohen, mas
-\textbf{exclui} qualquer efeito ``médio'' ou ``grande''. A leitura
-substantiva é: no \textit{paper} mais recente sobre IBOV brasileiro,
-não há evidência de \textit{skill} de Markowitz no sentido formal de
-Kahneman, e o tamanho do efeito \textit{máximo} compatível com os
-dados está, no melhor cenário, no patamar inferior da escala de
-Cohen.
+$\mathrm{SE}(\hat{\rho}_1) \approx 1/\sqrt{n}$ (cf.\ Brockwell e
+Davis, 1991, \textit{Time Series: Theory and Methods}, 2.ª ed.,
+\S~7.2). Com a cobertura Yahoo Finance atualmente disponível para o
+\textit{top-30} do IBOV, o universo coterminal de $4$ anos ($2$
+treino + $2$ teste) admite \textbf{$n = \PersistenceNWindows$
+janela(s)} não-sobreposta(s). Para $n = 1$, $\hat{\rho}_1$ não está
+definido; para $n = 2$, $\mathrm{SE} \approx 0{,}71$ e o intervalo
+95\% varre essencialmente toda a escala de Cohen. Em outras palavras:
+o \textit{framework} para o teste de Kahneman sobre o IBOV está
+plenamente operacional, mas a \textbf{inferência} sobre $\hat{\rho}_1$
+demanda extensão do histórico coterminal. Duas extensões factíveis:
+(i) restringir o universo ao \textit{top-10} do IBOV (mais história
+disponível, permite $n \geq 4$ janelas trimestralmente); (ii)
+preencher os 13 \textit{tickers} ausentes (Seção~\ref{sec:dados}) via
+\textit{ticker-history fallback}, recuperando $n \geq 6$ janelas no
+\textit{top-30}. Ambas constam em Direções futuras
+(Seção~\ref{sec:conclusao}).
 
-Os três achados, lidos em conjunto, são consistentes com a literatura
-internacional: viés in-sample alto (Kan e Smith, 2008), ausência de
-persistência out-of-sample (Kahneman, 1984; Carhart, 1997; Fama e
-French, 2010). O resultado é também consistente com o argumento de
-equilíbrio competitivo de Berk e Green (2004, \textit{Journal of
-Political Economy}, \textit{``Mutual Fund Flows and Performance in
-Rational Markets''}): em mercados competitivos, gestores com
-\textit{skill} são compensados por taxas \textit{ex ante}, restando
-$\alpha$ líquido próximo de zero \textit{ex post}.
+\paragraph{Por que este resultado intermediário ainda importa.}
+Mesmo sem inferência confiável sobre $\hat{\rho}_1$, este
+\textit{paper} entrega três contribuições mensuráveis em direção ao
+teste de Kahneman: (a) o \textit{pipeline} canônico de estimação
+(Ledoit-Wolf + Jorion + macro-anchor) sob o qual o teste rodará;
+(b) a especificação rigorosa da \textit{null} concentrada $K$-\textit{bet}
+\textemdash{} um aporte sobre o uso ingênuo de Dirichlet em estudos
+prévios; (c) a infraestrutura reprodutível (\textit{Databricks Free
+Edition} + Yahoo Finance + Banco Central do Brasil) que permite a
+qualquer pesquisador iterar sobre o experimento sem custo. Quando a
+cobertura coterminal alcançar $n \geq 8$ janelas, o IC 95\% de Cohen
+``pequeno'' (i.e.\ exclusão de efeito $\geq 0{,}30$) será atingido com
+$\mathrm{SE} \leq 0{,}36$; com $n = 16$, $\mathrm{SE} \leq 0{,}25$ e
+o intervalo 95\% começa a excluir o regime ``pequeno''.
 
 \subsection{Black-Litterman como pivô entre $\hat{\mu}$ e $w_{\text{mkt}}$}
 
