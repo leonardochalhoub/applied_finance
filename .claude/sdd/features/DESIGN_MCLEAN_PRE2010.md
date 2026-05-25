@@ -192,32 +192,34 @@
 
 ---
 
-### Decision 4: CVMWIN Binary Parser Written from Scratch (No Library Dependency)
+### Decision 4: CVMWIN Parser via `dbfread` (Clipper/dBase Format) — REVISED
 
 | Attribute | Value |
 |-----------|-------|
-| **Status** | Accepted |
+| **Status** | Accepted (revised 2026-05-25 after public-info recovery; supersedes original "byte-level parser from scratch") |
 | **Date** | 2026-05-25 |
 
-**Context:** The pre-2010 filings are in proprietary `.DFM`/`.DFL`/`.ITM`/`.ITL`/`.IAN` binary format. The only known OSS Python parser (pycvm, 8 stars) handles only the post-2010 CSV format. Public layout specs exist at `sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp`.
+**Context:** The pre-2010 filings have `.DFM`/`.DFL`/`.ITM`/`.ITL`/`.IAN` extensions. Initial design assumed proprietary binary format requiring custom `struct.unpack` parsing. **Public-info recovery post-initial-commit (2026-05-25) overturned this**: the legacy CVM reader (`Consulta.zip` v2.4 at `sistemas.cvm.gov.br/download/sep/pub/programas/RelatCias24/`) has `set clipper=F:200` in its DOS autoexec.bat — the Clipper xBase compiler's memory directive. The files are therefore almost certainly **standard dBase III/IV / Clipper DBF databases** with a rename, not proprietary binary. Extension semantics: M = "Mil" (monetary scale 000s), L = "Livre" (free unit).
 
-**Choice:** Write a parser from scratch in pure Python using `struct.unpack` against the published layout specs. Module: `pipelines/notebooks/bronze/cvmwin_parser.py` (importable into the bronze notebook).
+**Choice:** Use the `dbfread` Python library (pure Python, MIT-licensed, handles Clipper variants) as the primary parser. Module `pipelines/notebooks/bronze/cvmwin_parser.py` wraps `dbfread.DBF` to emit `CvmwinAccountLine` records via the same public API the bronze MERGE notebook depends on. Detection-by-experiment in Phase 0 step 2: download one real `.DFM`, run `dbfread.DBF(path).field_names`, populate `_DBF_FIELD_MAP[statement]`.
 
 **Rationale:**
-- No existing library to depend on; pycvm doesn't cover this format.
-- Layout specs are public and stable (filings published 1996-2010 won't change).
-- Pure Python keeps the dependency surface zero (only `struct` from stdlib).
-- Testable via the 2010-2013 overlap: firms that filed both CVMWIN (legacy) AND Dados Abertos (modern) for those years give a row-by-row regression suite for the parser (R7 mitigation).
+- dBase/Clipper format is a 1990s standard with mature OSS parsers; `dbfread` is widely used and stable.
+- Drops parser scope from ~600-800 LoC custom binary parsing to ~50-100 LoC of `dbfread` wrapper + field-name mapping.
+- Effort estimate for Phase 0 step 2: **1-2 days → 2-4 hours** (just column inspection, no byte-level decoding).
+- Fallback `dbf` library (broader Clipper-variant support) and `simpledbf` (last-resort manual decoding) keep the risk bounded.
 
-**Alternatives Rejected:**
-1. **Wrap CVMWIN.exe (the Windows reader binary)** — requires Windows runtime, not feasible in Databricks Linux executors.
-2. **Submit a PR to pycvm to add binary support** — slower (upstream review cycle), pycvm is barely maintained.
-3. **OCR the rendered HTML the legacy reader produces** — fragile, slower, loses precision on numerical values.
+**Alternatives Rejected (revised):**
+1. **Custom `struct.unpack` byte-level parser** (the original Decision 4) — rejected after format reframe. Would have been ~10× more work for no extra capability.
+2. **Wrap CVMWIN.exe** — requires Windows runtime, not feasible in Databricks Linux executors.
+3. **`pycvm` library** — handles only post-2010 CSV, doesn't cover pre-2010 DBF.
+4. **OCR rendered HTML** — fragile, loses precision.
 
 **Consequences:**
-- ~600-800 LoC of new parser code with a regression suite.
-- One-time learning cost on the CVMWIN binary format (field widths, encoding — likely CP1252 Portuguese).
-- Parser becomes a long-term maintained artifact; if CVMWIN format version 5.x differs materially from 9.x within our 1995-2009 window, we own that version detection.
+- Adds `dbfread` to the pipeline dependency closure (small, pure-Python, no transitive deps).
+- Parser becomes a thin wrapper, not a long-term maintenance burden.
+- Still need to handle: (a) Clipper variants `dbfread` doesn't cover (fallback to `dbf` lib); (b) memo fields if present in `.DFL` files (Clipper memo is `.DBT`, may need separate retrieval); (c) Portuguese encoding (cp850 DOS or cp1252 Windows-ANSI — test on real file).
+- Test strategy unchanged: validate parser output against 2010-2013 Dados Abertos overlap (R7 mitigation).
 
 ---
 
@@ -506,18 +508,21 @@ for row in _work_queue():
         _mark_failed(row["cd_cvm"], row["fiscal_year"], row["statement"], str(e))
 ```
 
-### Pattern 2: CVMWIN Binary Parser Scaffold
+### Pattern 2: CVMWIN Parser via `dbfread` (revised after Clipper discovery)
 
 ```python
-# pipelines/notebooks/bronze/cvmwin_parser.py — record parser per published layout spec
+# pipelines/notebooks/bronze/cvmwin_parser.py — dBase/Clipper parser
 
-import struct
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
+from io import BytesIO
 
-# Layout per http://sistemas.cvm.gov.br/port/ciasabertas/Leiaute_de_Formularios_do_EmpresasNET.asp
-# (CVMWIN version 9.x — version 5.x has a 32-byte vs 64-byte field width diff,
-# detected from header byte; see _detect_version below.)
+import dbfread
+
+# Pre-2010 CVM filings are Clipper DBF databases (extension renamed to
+# .DFM/.DFL/.ITM/.ITL/.IAN). The Consulta.zip v2.4 DOS reader has
+# `set clipper=F:200` in autoexec.bat — the Clipper memory directive.
+# M = Mil (monetary scale 000s), L = Livre (free unit).
 
 @dataclass(frozen=True)
 class CvmwinAccountLine:
@@ -526,47 +531,53 @@ class CvmwinAccountLine:
     vl_norm: float
     ordem_exerc: str  # 'ÚLTIMO' or 'PENÚLTIMO'
 
-def _detect_version(blob: bytes) -> int:
-    """First 4 bytes of CVMWIN files are version magic. v5.x = 0x05000000,
-    v9.x = 0x09000000. Anything else → raise UnsupportedVersionError."""
-    magic = struct.unpack("<I", blob[:4])[0]
-    if magic == 0x05000000: return 5
-    if magic == 0x09000000: return 9
-    raise UnsupportedVersionError(f"unknown CVMWIN magic: 0x{magic:08x}")
+
+# Populated in Phase 0 step 2 after running
+#     dbfread.DBF(path).field_names
+# on a real downloaded sample file. Anticipated shape:
+#   "DFP": {"cd_conta": "CD_CONTA", "ds_conta": "DS_CONTA",
+#           "vl_norm": "VL_CONTA", "ordem_exerc": "ORDEM_EXER"}
+_DBF_FIELD_MAP: dict[str, dict[str, str]] = {}
+
+
+def detect_dbf(blob: bytes) -> bool:
+    """Check first byte for dBase III/IV / FoxPro / Clipper signature."""
+    if not blob:
+        raise UnsupportedVersionError("empty blob")
+    header = blob[0]
+    if header in (0x03, 0x83, 0xF5, 0xFB, 0x30):
+        return True
+    raise UnsupportedVersionError(f"first byte 0x{header:02x} is not dBase/Clipper")
+
 
 def parse_bpa(blob: bytes) -> Iterator[CvmwinAccountLine]:
-    """Iterate BPA (Balanço Patrimonial Ativo) account lines.
-
-    Record layout (v9.x):
-        offset  width  field
-        0       4      record_type ("BPA1" / "BPA2" / etc — we filter to "BPA1" only)
-        4       16     cd_conta (CP1252)
-        20      120    ds_conta (CP1252, space-padded)
-        140     8      vl_norm (IEEE 754 double little-endian)
-        148     2      ordem_exerc (UU=ÚLTIMO, PU=PENÚLTIMO)
-        150     ...    (next record)
-    """
-    version = _detect_version(blob)
-    if version == 5:
-        # v5.x has cd_conta width 8, ds_conta width 80, otherwise same layout
-        cd_conta_width, ds_conta_width = 8, 80
-    else:
-        cd_conta_width, ds_conta_width = 16, 120
-    record_size = 4 + cd_conta_width + ds_conta_width + 8 + 2
-
-    offset = _header_size(version)  # skip CVMWIN header
-    while offset + record_size <= len(blob):
-        record_type = blob[offset:offset+4].decode("cp1252").strip()
-        if record_type != "BPA1":
-            offset += record_size
-            continue
-        cd_conta = blob[offset+4:offset+4+cd_conta_width].decode("cp1252").strip()
-        ds_conta = blob[offset+4+cd_conta_width:offset+4+cd_conta_width+ds_conta_width].decode("cp1252").strip()
-        vl_norm = struct.unpack("<d", blob[offset+4+cd_conta_width+ds_conta_width:offset+4+cd_conta_width+ds_conta_width+8])[0]
-        ordem_exerc = "ÚLTIMO" if blob[offset+record_size-2:offset+record_size].decode("ascii") == "UU" else "PENÚLTIMO"
-        yield CvmwinAccountLine(cd_conta, ds_conta, vl_norm, ordem_exerc)
-        offset += record_size
+    """Iterate BPA (Balanço Patrimonial Ativo) account lines from a .DFM file."""
+    detect_dbf(blob)
+    if "DFP" not in _DBF_FIELD_MAP:
+        raise LayoutNotDecodedError("_DBF_FIELD_MAP['DFP'] not populated — Phase 0 step 2")
+    fmap = _DBF_FIELD_MAP["DFP"]
+    table = dbfread.DBF(filename=None, filedata=BytesIO(blob),
+                        encoding="cp850", lowernames=True)
+    for record in table:
+        yield CvmwinAccountLine(
+            cd_conta=str(record[fmap["cd_conta"]]).strip(),
+            ds_conta=str(record[fmap["ds_conta"]]).strip(),
+            vl_norm=float(record[fmap["vl_norm"]] or 0.0),
+            ordem_exerc=str(record[fmap["ordem_exerc"]]).strip(),
+        )
 ```
+
+**Phase 0 step 2 work to populate `_DBF_FIELD_MAP`** (was previously "decode binary spec, write 600-800 LoC of struct.unpack"):
+
+```python
+# Run once on a downloaded .DFM file to inspect columns:
+import dbfread
+table = dbfread.DBF("petr4_2005.DFM", lowernames=True)
+print(table.field_names)  # → ['cd_conta', 'ds_conta', 'vl_conta', 'ordem_exer', ...]
+print(next(iter(table)))  # → sample record to verify encoding + value types
+```
+
+Total Phase 0 step 2: ~2-4 hours (download, inspect, populate map, commit fixture).
 
 ### Pattern 3: DOAR↔DFC Bridge Decision Tree
 
@@ -891,6 +902,7 @@ resources:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-05-25 | design-agent (Claude Code) | Initial version from DEFINE_MCLEAN_PRE2010.md |
+| 1.1 | 2026-05-25 | iterate (post-public-info-recovery) | Decision 4 revised: parser pivots from custom `struct.unpack` to `dbfread` after discovery that pre-2010 files are Clipper/dBase databases. Code Pattern 2 rewritten. Effort estimate dropped 9-11w → ~7-9w. See `BUILD_REPORT_MCLEAN_PRE2010.md` § Public-Info Recovery for evidence trail. |
 
 ---
 
