@@ -8,14 +8,12 @@ Usage:
     cd articles/figures && python make_figures.py
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.lines import Line2D
-from matplotlib.patches import FancyArrowPatch
-
 from figure_style import (
     GOLDEN_FIGSIZE,
     GOLDEN_FIGSIZE_WIDE,
@@ -67,7 +65,7 @@ def fig_markowitz_frontier():
             label="Fronteira eficiente (long-only)")
 
     # 3. Per-asset dots labeled — for context
-    for i, t in enumerate(tickers):
+    for i, _t in enumerate(tickers):
         ax.scatter(sigma_diag[i], mu_shrunk[i], s=24,
                    color=PALETTE["secundario"], alpha=0.8,
                    edgecolors="white", linewidths=0.6, zorder=5)
@@ -146,7 +144,7 @@ def fig_ingenuo_wealth():
     ax.axhline(1.0, color=PALETTE["contexto_dark"], lw=0.8, ls=":", zorder=1)
 
     # X-axis ticks: every 2nd period
-    tick_idx = list(range(0, len(dates), 2)) + [len(dates) - 1]
+    tick_idx = [*range(0, len(dates), 2), len(dates) - 1]
     tick_idx = sorted(set(tick_idx))
     ax.set_xticks(tick_idx)
     ax.set_xticklabels([dates[i][:7] for i in tick_idx], rotation=30, ha="right")
@@ -263,7 +261,7 @@ def fig_kahneman_histograms():
 
     editorial_title(ax1,
         title="Ilusão de skill · Markowitz vs dois nulls aleatórios",
-        subtitle=f"5.000 carteiras sorteadas em cada null; treino {kh['trainStart']}–{kh['trainEnd']}, teste {kh['testStart']}–{kh['testEnd']}.",
+        subtitle=f"5.000 carteiras sorteadas em cada null; treino {kh['trainStart']}-{kh['trainEnd']}, teste {kh['testStart']}-{kh['testEnd']}.",
         source=SOURCE)
     fig.subplots_adjust(top=0.90, bottom=0.08, hspace=0.32)
     fig.savefig(HERE / "fig04_kahneman_histograms.pdf")
@@ -299,7 +297,6 @@ def fig_persistence():
 
     labels = [w["testStart"][:7] for w in windows]
     pcts = [100 * w["percentileConcentrated"] for w in windows]
-    illusions = [w["sharpeExAnte"] - w["sharpeExPost"] for w in windows]
 
     fig, ax = plt.subplots(figsize=GOLDEN_FIGSIZE_WIDE)
     x = np.arange(len(windows))
@@ -310,7 +307,7 @@ def fig_persistence():
             label="Percentil Markowitz · null concentrada")
 
     # Annotate each window
-    for i, (xi, yi) in enumerate(zip(x, pcts)):
+    for xi, yi in zip(x, pcts, strict=True):
         ax.annotate(f"{yi:.0f}º", xy=(xi, yi), xytext=(0, 10),
                     textcoords="offset points", ha="center",
                     fontsize=8.5, color=PALETTE["neutro"])
@@ -383,7 +380,7 @@ def fig_bl_weights():
 
     editorial_title(ax1,
         title="Black-Litterman · ancoragem ao equilíbrio CAPM",
-        subtitle=f"Universo top-15 IBOV; $\\delta=2{{,}}5$; $\\tau=0{{,}}05$; sem views.",
+        subtitle="Universo top-15 IBOV; $\\delta=2{,}5$; $\\tau=0{,}05$; sem views.",
         source=SOURCE)
     fig.subplots_adjust(top=0.91, bottom=0.10, hspace=0.40)
     fig.savefig(HERE / "fig06_bl_weights.pdf")
