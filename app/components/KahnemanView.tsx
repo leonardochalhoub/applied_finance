@@ -387,6 +387,8 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
 
           <SharpeNumberLine result={result} />
 
+          <ConcentratedNullPanel result={result} />
+
           <GeometricReadingPanel result={result} />
 
           <ObservationsPanel
@@ -501,9 +503,17 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
                   o &ldquo;macaco m&eacute;dio&rdquo; de Malkiel. Dois espa&ccedil;os
                   vazios importam: <em>vermelha ↔ azul</em> &eacute; a ilus&atilde;o
                   em unidades de Sharpe; <em>azul ↔ borda direita do suporte</em>{" "}
-                  &eacute; o skill real do Markowitz versus o melhor random no
-                  per&iacute;odo. Detalhe no painel &ldquo;Leitura geom&eacute;trica&rdquo;
-                  acima.
+                  mede a diferen&ccedil;a entre a Markowitz e o melhor sorteio
+                  Dirichlet do per&iacute;odo. <strong>N&Atilde;O confunda esse
+                  segundo gap com &ldquo;skill&rdquo;</strong>: o sorteio
+                  Dirichlet(1) gera carteiras <em>diversificadas</em> sobre os
+                  30 ativos, enquanto Markowitz aposta em 5; a compara&ccedil;&atilde;o
+                  est&aacute; estruturalmente enviesada a favor da concentra&ccedil;&atilde;o
+                  que se alinhar com a tend&ecirc;ncia do per&iacute;odo. Pelo
+                  argumento de Kahneman, o teste correto seria amostrar{" "}
+                  <em>outras carteiras concentradas em 5 ativos</em> e ver onde
+                  a Markowitz cai. Detalhe na se&ccedil;&atilde;o
+                  &ldquo;Notas metodol&oacute;gicas&rdquo; abaixo.
                 </p>
               </div>
             </div>
@@ -520,6 +530,25 @@ export function KahnemanView({ prices, ibov, cdi }: Props) {
                 poss&iacute;vel: nenhum vi&eacute;s para diversifica&ccedil;&atilde;o
                 (α &gt; 1) ou para concentra&ccedil;&atilde;o (α &lt; 1). Implementa&ccedil;&atilde;o
                 via gamma sampling com Marsaglia-Tsang.
+              </li>
+              <li>
+                • <strong>Limita&ccedil;&atilde;o estrutural do null (Dirichlet
+                vs concentra&ccedil;&atilde;o Markowitz)</strong>. Dirichlet(1)
+                gera carteiras <em>diversificadas</em> em torno do peso m&eacute;dio
+                1/N (≈ 3,3% para N=30); a Markowitz, por outro lado, concentra
+                ≈ 92% em 5 ativos. A compara&ccedil;&atilde;o &ldquo;Sharpe
+                Markowitz vs distribui&ccedil;&atilde;o Dirichlet&rdquo; mistura
+                duas coisas distintas: (a) o efeito da concentra&ccedil;&atilde;o
+                em si; e (b) o sinal informacional do que o otimizador
+                escolheu. Quando os 5 ativos sobreponderados pela Markowitz
+                continuam a tend&ecirc;ncia da janela de treino (persist&ecirc;ncia
+                de regime), a Markowitz vence quase mecanicamente, sem que
+                isso prove skill no sentido de Kahneman (1984). Um teste
+                rigorosamente Kahneman-friendly amostraria{" "}
+                <em>outras carteiras concentradas em 5 ativos</em>{" "}
+                (Dirichlet(α=0,2) ou subset aleat&oacute;rio de 5 do top-30)
+                e compararia a Markowitz contra esse null reformulado.
+                Implementa&ccedil;&atilde;o prevista para a v2 do experimento.
               </li>
               <li>
                 • <strong>Sharpe realizada (eixo X)</strong>:{" "}
@@ -932,24 +961,21 @@ function GeometricReadingPanel({ result }: { result: IllusionResult }) {
               Distância azul ↔ borda direita da banda = {fmtNum2(Math.abs(realSkillGap))} de Sharpe
             </p>
             <p className="mt-1 text-muted">
-              <strong>É a vantagem real da Markowitz sobre aleatório</strong>{" "}
-              nesta janela. Mede em quanto a entrega da Markowitz superou a
-              MELHOR das {result.nRandom.toLocaleString("pt-BR")} carteiras
-              sorteadas. É o skill genuíno do otimizador no período —{" "}
-              {Math.abs(realSkillGap) > Math.abs(illusionGap) ? (
-                <>
-                  e neste caso é{" "}
-                  <em>maior</em> que a ilusão, indicando que o otimizador,
-                  apesar de prometer demais, ainda entregou substancialmente
-                  mais que um macaco com dardos.
-                </>
-              ) : (
-                <>
-                  e neste caso é <em>menor</em> que a ilusão — o que o
-                  otimizador entregou de skill real foi menos da metade do
-                  que prometeu.
-                </>
-              )}
+              <strong>Não confunda esse gap com &ldquo;skill&rdquo; no sentido
+              de Kahneman.</strong> Ele mede em quanto a entrega da Markowitz
+              superou a MELHOR das {result.nRandom.toLocaleString("pt-BR")}{" "}
+              carteiras sorteadas — mas as carteiras sorteadas s&atilde;o{" "}
+              <em>Dirichlet(1), diversificadas sobre 30 ativos</em>, enquanto
+              a Markowitz aposta em 5. A compara&ccedil;&atilde;o
+              estruturalmente enviesa-se a favor de qualquer concentra&ccedil;&atilde;o
+              5-bet que se alinhar com a tend&ecirc;ncia do per&iacute;odo de
+              teste, e essa tend&ecirc;ncia frequentemente continua a do
+              per&iacute;odo de treino (persist&ecirc;ncia de regime). Para
+              testar skill real no sentido de Kahneman (1984), seria preciso
+              comparar a Markowitz contra <em>outras 5.000 carteiras
+              concentradas em 5 ativos</em>, sorteadas aleatoriamente do
+              universo. Esse teste mais rigoroso est&aacute; previsto para
+              a v2 deste experimento.
             </p>
           </div>
         ) : null}
@@ -961,6 +987,195 @@ function GeometricReadingPanel({ result }: { result: IllusionResult }) {
           sorteio atingiu&rdquo;. Entre vermelha e azul = &ldquo;Sharpe que
           a promessa cobriu mas a entrega não&rdquo;. Os dois vazios juntos
           contam toda a história da Markowitz nesta janela.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** Concentrated K-bet null hypothesis: the Kahneman-correct comparison.
+ *  Shows a second histogram alongside the Dirichlet(1) one, where each
+ *  random portfolio is concentrated in K=concentrationK randomly-chosen
+ *  ativos. Markowitz's ex-post Sharpe is plotted as a reference line
+ *  inside this distribution. If Markowitz lands at p≈50 under the
+ *  concentrated null, the optimizer is indistinguishable from a random
+ *  K-bet — i.e., its specific 5-pick carries no information beyond what
+ *  a coin-flip selection of 5 tickers would deliver. That's the
+ *  empirical statement closest to Kahneman's (1984) original finding. */
+function ConcentratedNullPanel({ result }: { result: IllusionResult }) {
+  const cn = result.concentratedNull;
+  const dn = result.dirichletNull;
+  const K = result.concentrationK;
+
+  const histData = cn.histogram.map((b) => ({
+    binMid: b.binMid,
+    binStart: b.binStart,
+    binEnd: b.binEnd,
+    count: b.count,
+    freq: b.freq,
+  }));
+
+  const domain = useMemo((): [number, number] => {
+    if (cn.histogram.length === 0) return [-1, 1];
+    const lo = cn.histogram[0].binStart;
+    const hi = cn.histogram[cn.histogram.length - 1].binEnd;
+    const extras = [
+      result.markowitzExAnte.sharpe,
+      result.markowitzExPost.sharpe,
+      result.equalWeight.sharpe,
+      cn.median,
+    ];
+    const allLo = Math.min(lo, ...extras);
+    const allHi = Math.max(hi, ...extras);
+    const span = Math.max(allHi - allLo, 0.1);
+    return [allLo - 0.03 * span, allHi + 0.08 * span];
+  }, [cn, result.markowitzExAnte.sharpe, result.markowitzExPost.sharpe, result.equalWeight.sharpe]);
+
+  const deltaExPost =
+    cn.markowitzExPostPercentile - dn.markowitzExPostPercentile;
+  const sameSkillVerdict =
+    Math.abs(cn.markowitzExPostPercentile - 0.5) < 0.15;
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="border-b border-border px-5 py-3">
+        <span className="eyebrow">
+          Null Kahneman-friendly: Markowitz vs sorteios CONCENTRADOS em {K} ativos
+        </span>
+        <p className="mt-1 text-xs text-muted">
+          O histograma acima compara Markowitz contra carteiras Dirichlet(1)
+          <strong> diversificadas</strong> sobre {result.tickers.length}{" "}
+          ativos — uma compara&ccedil;&atilde;o estruturalmente
+          enviesada porque Markowitz concentra ≈92% em apenas{" "}
+          <span className="tabular font-semibold text-strong">{K}</span>{" "}
+          ativos. Este painel mostra a compara&ccedil;&atilde;o
+          <strong> correta segundo Kahneman</strong>: sorteamos{" "}
+          {result.nRandom.toLocaleString("pt-BR")} outras carteiras
+          tamb&eacute;m concentradas em {K} ativos (escolhidos
+          aleatoriamente) e vemos onde a Markowitz cai nesta distribui&ccedil;&atilde;o.
+        </p>
+      </div>
+      <div className="p-4">
+        <div style={{ width: "100%", height: 320 }}>
+          <ResponsiveContainer>
+            <BarChart
+              data={histData}
+              margin={{ top: 28, right: 60, left: 8, bottom: 28 }}
+              barCategoryGap={1}
+            >
+              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="binMid"
+                type="number"
+                domain={domain}
+                tick={{ fontSize: 10, fill: "var(--muted)" }}
+                stroke="var(--border)"
+                tickFormatter={(v) => fmtAxisNum(v)}
+                label={{ value: `Sharpe realizado (carteiras concentradas em ${K} ativos)`, position: "insideBottom", offset: -16, style: { fontSize: 11, fill: "var(--muted)" } }}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--muted)" }}
+                stroke="var(--border)"
+                width={48}
+                label={{ value: "carteiras", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "var(--muted)" } }}
+              />
+              <Tooltip content={<HistogramTooltip />} cursor={{ fill: "color-mix(in srgb, var(--loss) 8%, transparent)" }} />
+              <ReferenceArea
+                x1={cn.histogram[0]?.binStart ?? 0}
+                x2={cn.histogram[cn.histogram.length - 1]?.binEnd ?? 0}
+                fill="var(--muted)"
+                fillOpacity={0.06}
+                stroke="var(--muted)"
+                strokeOpacity={0.25}
+                strokeDasharray="3 4"
+              />
+              <Bar dataKey="count" isAnimationActive={false}>
+                {cn.histogram.map((_, i) => (
+                  <Cell key={i} fill={COLOURS.bar} fillOpacity={0.55} />
+                ))}
+              </Bar>
+              <ReferenceLine
+                x={cn.median}
+                stroke={COLOURS.median}
+                strokeWidth={1.5}
+                strokeDasharray="2 4"
+                label={{
+                  value: `mediana ${fmtNum2(cn.median)}`,
+                  position: "insideBottom",
+                  offset: 6,
+                  style: { fontSize: 10, fill: COLOURS.median },
+                }}
+              />
+              <ReferenceLine
+                x={result.markowitzExPost.sharpe}
+                stroke={COLOURS.exPost}
+                strokeWidth={3}
+                label={{
+                  value: `← Markowitz ex-post ${fmtNum2(result.markowitzExPost.sharpe)} (p=${(cn.markowitzExPostPercentile * 100).toFixed(0)}º)`,
+                  position: "insideTopLeft",
+                  offset: 10,
+                  style: { fontSize: 11, fill: COLOURS.exPost, fontWeight: 700 },
+                }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="space-y-3 border-t border-border px-5 py-4 text-sm">
+        <div className="rounded-md border-l-4 px-3 py-2" style={{ borderColor: COLOURS.exPost, background: "color-mix(in srgb, var(--accent) 4%, transparent)" }}>
+          <p className="font-semibold text-strong">
+            O veredito Kahneman: Markowitz no{" "}
+            <span className="tabular">
+              {(cn.markowitzExPostPercentile * 100).toFixed(0)}º percentil
+            </span>{" "}
+            dos sorteios concentrados (vs{" "}
+            <span className="tabular">
+              {(dn.markowitzExPostPercentile * 100).toFixed(0)}º
+            </span>{" "}
+            sob Dirichlet diversificada)
+          </p>
+          <p className="mt-1 text-muted">
+            Delta entre os dois nulls:{" "}
+            <span className={`tabular font-semibold ${signedClass(-Math.abs(deltaExPost))}`}>
+              {deltaExPost >= 0 ? "+" : "−"}
+              {(Math.abs(deltaExPost) * 100).toFixed(1)} p.p.
+            </span>
+            . {sameSkillVerdict ? (
+              <>
+                A Markowitz vive <strong>perto da mediana</strong> entre carteiras
+                concentradas em {K} ativos — <em>indistingu&iacute;vel de sorte</em>{" "}
+                no sentido de Kahneman. A apar&ecirc;ncia de skill no histograma
+                Dirichlet acima era artefato estrutural: qualquer concentra&ccedil;&atilde;o
+                em ativos que continuaram a tend&ecirc;ncia do treino teria
+                produzido o mesmo &ldquo;p=100&rdquo; vs sorteios diversificados.
+              </>
+            ) : cn.markowitzExPostPercentile > 0.5 ? (
+              <>
+                A Markowitz ficou <strong>acima da mediana</strong> mesmo entre
+                carteiras concentradas — sinal de algum conte&uacute;do
+                informacional na escolha do otimizador, ainda que o gap entre
+                os dois nulls revele quanto da &ldquo;skill&rdquo; aparente era
+                puramente estrutural.
+              </>
+            ) : (
+              <>
+                A Markowitz ficou <strong>abaixo da mediana</strong> entre
+                carteiras concentradas — sinal de que, pelo menos neste per&iacute;odo,
+                o μ̂ amostral apontou para os <em>piores</em> {K} ativos da
+                janela de teste; o que parecia skill no histograma Dirichlet era
+                pior que sorte concentrada.
+              </>
+            )}
+          </p>
+        </div>
+        <p className="text-xs text-muted">
+          <strong>Como esse painel deve mudar sua leitura do gr&aacute;fico
+          principal:</strong> o &ldquo;p=100&rdquo; da Markowitz no histograma
+          Dirichlet acima compara peras (concentradas) com ma&ccedil;&atilde;s
+          (diversificadas). O p={(cn.markowitzExPostPercentile * 100).toFixed(0)}º
+          desta se&ccedil;&atilde;o compara peras com peras — &eacute; o
+          n&uacute;mero que devemos citar quando perguntarmos &ldquo;a Markowitz
+          tem skill no sentido de Kahneman?&rdquo;.
         </p>
       </div>
     </section>

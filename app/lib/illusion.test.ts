@@ -193,3 +193,116 @@ describe("runIllusionExperiment — happy path", () => {
     expect(a.markowitzExPost.sharpe).toBe(b.markowitzExPost.sharpe);
   });
 });
+
+describe("runIllusionExperiment — concentrated null (Kahneman-friendly)", () => {
+  it("emits dirichletNull and concentratedNull both with full structure", () => {
+    const X = syntheticReturns(252 * 4, 8, 41);
+    const r = runIllusionExperiment({
+      X,
+      dates: fakeDates(X.length),
+      tickers: ["A", "B", "C", "D", "E", "F", "G", "H"],
+      rf: 0.05,
+      trainDays: 252 * 2,
+      testDays: 252 * 2,
+      nRandom: 300,
+    })!;
+    expect(r.dirichletNull).toBeDefined();
+    expect(r.concentratedNull).toBeDefined();
+    expect(r.dirichletNull.sharpes.length).toBe(300);
+    expect(r.concentratedNull.sharpes.length).toBe(300);
+    expect(r.dirichletNull.label).toContain("Dirichlet");
+    expect(r.concentratedNull.label).toContain("Concentrada");
+    // concentrationK falls into the documented range [2, floor(N/2)]
+    expect(r.concentrationK).toBeGreaterThanOrEqual(2);
+    expect(r.concentrationK).toBeLessThanOrEqual(Math.floor(8 / 2));
+  });
+
+  it("backwards compatibility: dirichletNull data matches the legacy randomSharpes/histogram", () => {
+    const X = syntheticReturns(252 * 4, 5, 43);
+    const r = runIllusionExperiment({
+      X,
+      dates: fakeDates(X.length),
+      tickers: ["A", "B", "C", "D", "E"],
+      rf: 0.05,
+      trainDays: 252 * 2,
+      testDays: 252 * 2,
+      nRandom: 200,
+    })!;
+    expect(r.dirichletNull.sharpes).toEqual(r.randomSharpes);
+    expect(r.dirichletNull.histogram).toEqual(r.histogram);
+    expect(r.dirichletNull.markowitzExPostPercentile).toBe(
+      r.markowitzExPost.percentile,
+    );
+  });
+
+  it("concentrated null produces FATTER-TAILED Sharpe distribution than Dirichlet(1)", () => {
+    // Concentrated K-bets carry higher idiosyncratic vol than diversified
+    // Dirichlet(1) samples; the realized-Sharpe distribution should have a
+    // wider range (more negative min, more positive max) under the
+    // concentrated null. Tests on synthetic IID returns.
+    const X = syntheticReturns(252 * 4, 10, 47);
+    const r = runIllusionExperiment({
+      X,
+      dates: fakeDates(X.length),
+      tickers: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+      rf: 0.05,
+      trainDays: 252 * 2,
+      testDays: 252 * 2,
+      nRandom: 1000,
+    })!;
+    const dirSpan =
+      r.dirichletNull.sharpes[r.dirichletNull.sharpes.length - 1] -
+      r.dirichletNull.sharpes[0];
+    const conSpan =
+      r.concentratedNull.sharpes[r.concentratedNull.sharpes.length - 1] -
+      r.concentratedNull.sharpes[0];
+    expect(conSpan).toBeGreaterThan(dirSpan);
+  });
+
+  it("markowitz percentile under concentrated null is materially DIFFERENT from Dirichlet percentile", () => {
+    // The whole point of having two nulls is that they answer different
+    // questions and yield different percentile rankings for the same
+    // Markowitz Sharpe. We only assert that the two percentiles aren't
+    // numerically identical (within tolerance) — direction depends on
+    // data regime. On real B3 bull windows, concentrated < dirichlet;
+    // on adversarial regimes the opposite can happen.
+    const X = syntheticReturns(252 * 5, 12, 53);
+    const r = runIllusionExperiment({
+      X,
+      dates: fakeDates(X.length),
+      tickers: Array.from({ length: 12 }, (_, i) => `A${i}`),
+      rf: 0.05,
+      trainDays: 252 * 3,
+      testDays: 252 * 2,
+      nRandom: 1000,
+    })!;
+    const delta = Math.abs(
+      r.concentratedNull.markowitzExPostPercentile -
+        r.dirichletNull.markowitzExPostPercentile,
+    );
+    expect(delta).toBeGreaterThan(0.01);
+  });
+
+  it("concentrated null has all percentiles in [0,1] and median is the median", () => {
+    const X = syntheticReturns(252 * 3, 6, 59);
+    const r = runIllusionExperiment({
+      X,
+      dates: fakeDates(X.length),
+      tickers: ["A", "B", "C", "D", "E", "F"],
+      rf: 0.05,
+      trainDays: 252 * 2,
+      testDays: 252,
+      nRandom: 500,
+    })!;
+    for (const p of [
+      r.concentratedNull.markowitzExAntePercentile,
+      r.concentratedNull.markowitzExPostPercentile,
+      r.concentratedNull.equalWeightPercentile,
+    ]) {
+      expect(p).toBeGreaterThanOrEqual(0);
+      expect(p).toBeLessThanOrEqual(1);
+    }
+    const sorted = r.concentratedNull.sharpes;
+    expect(r.concentratedNull.median).toBe(sorted[Math.floor(sorted.length / 2)]);
+  });
+});

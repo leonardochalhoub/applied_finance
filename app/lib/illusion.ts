@@ -45,8 +45,26 @@ export type HistogramBin = {
   freq: number;
 };
 
+/** A null hypothesis distribution: sorted Sharpes, histogram, median, plus
+ *  the percentile rank of each named portfolio inside this distribution. */
+export type NullDistribution = {
+  /** Label for UI: "Dirichlet uniforme" or "concentrada em K ativos". */
+  label: string;
+  /** Sorted ascending realized Sharpes of the random portfolios. */
+  sharpes: number[];
+  histogram: HistogramBin[];
+  /** Median Sharpe value across the sampled portfolios. */
+  median: number;
+  /** Percentile of the Markowitz ex-ante Sharpe inside this distribution. */
+  markowitzExAntePercentile: number;
+  /** Percentile of the Markowitz ex-post Sharpe inside this distribution. */
+  markowitzExPostPercentile: number;
+  /** Percentile of the 1/N Sharpe inside this distribution. */
+  equalWeightPercentile: number;
+};
+
 export type IllusionResult = {
-  /** Random portfolios' realized Sharpes, sorted ascending. */
+  /** Random portfolios' realized Sharpes (Dirichlet(1)), sorted ascending. */
   randomSharpes: number[];
   histogram: HistogramBin[];
   /** Markowitz max-Sharpe weights computed on TRAIN; Sharpe field is what
@@ -68,6 +86,21 @@ export type IllusionResult = {
   nRandom: number;
   /** Tickers aligned with weight vectors. */
   tickers: string[];
+  /** Dirichlet(1) null (the legacy "macaco com dardos" diversified sampler).
+   *  Provided as a structured NullDistribution for symmetry with the
+   *  concentrated null below. Same data as `randomSharpes`/`histogram`. */
+  dirichletNull: NullDistribution;
+  /** Kahneman-friendly null: M portfolios concentrated in K=concentrationK
+   *  randomly-chosen tickers, with Dirichlet(α=1) weights over those K.
+   *  This null matches the *structural* concentration of Markowitz's pick
+   *  (~5 ativos at ~92% of book), so when Markowitz's ex-post Sharpe lands
+   *  near the median of THIS null, it's evidence of NO skill in the
+   *  Kahneman (1984) sense — even if it sits above all Dirichlet(1)
+   *  samples (which are diversified and structurally disadvantaged). */
+  concentratedNull: NullDistribution;
+  /** K used for the concentrated null — derived from Markowitz's effective
+   *  concentration via 1/HHI rounded, clamped to [2, N/2]. */
+  concentrationK: number;
 };
 
 /** Annualised Sharpe of weights `w` evaluated under daily log-return matrix
@@ -118,12 +151,51 @@ function _gamma(alpha: number, rng: Rng): number {
 }
 
 /** Uniform sample on the (N-1)-simplex — every long-only portfolio summing
- *  to 1 has equal density. The "monkey throwing darts" of Malkiel (1973). */
+ *  to 1 has equal density. The "monkey throwing darts" of Malkiel (1973).
+ *  Produces DIVERSIFIED portfolios (avg peso ≈ 1/N per ticker). */
 function _dirichletUniform(n: number, rng: Rng): number[] {
   const x = new Array(n);
   for (let i = 0; i < n; i++) x[i] = _gamma(1, rng);
   const s = x.reduce((a, b) => a + b, 0);
   return x.map((v) => v / s);
+}
+
+/** CONCENTRATED sample: pick K out of N indices uniformly without
+ *  replacement (Fisher-Yates partial shuffle), then sample Dirichlet(1)
+ *  over those K. Result is a length-N vector with N−K zeros and K
+ *  positive weights summing to 1.
+ *
+ *  This is the proper Kahneman-friendly null for testing whether
+ *  Markowitz's *specific* K-bet has informational value: it compares
+ *  against OTHER random K-bets, not against diversified portfolios. */
+function _concentratedSample(n: number, k: number, rng: Rng): number[] {
+  // Partial Fisher-Yates: pick k unique indices from 0..n-1
+  const indices = new Array(n);
+  for (let i = 0; i < n; i++) indices[i] = i;
+  for (let i = 0; i < k; i++) {
+    const j = i + Math.floor(rng() * (n - i));
+    const tmp = indices[i];
+    indices[i] = indices[j];
+    indices[j] = tmp;
+  }
+  // Sample Dirichlet(1) over the chosen k
+  const gammas = new Array(k);
+  let s = 0;
+  for (let i = 0; i < k; i++) {
+    gammas[i] = _gamma(1, rng);
+    s += gammas[i];
+  }
+  const w = new Array(n).fill(0);
+  for (let i = 0; i < k; i++) w[indices[i]] = gammas[i] / s;
+  return w;
+}
+
+/** HHI of a weight vector (concentration measure). 1/N for fully
+ *  diversified, 1 for single-asset. Effective N ≈ 1/HHI. */
+function _hhi(w: number[]): number {
+  let s = 0;
+  for (const wi of w) s += wi * wi;
+  return s;
 }
 
 /** Compute the full Markowitz pipeline (Ledoit-Wolf + Jensen + Jorion +
@@ -304,24 +376,63 @@ export function runIllusionExperiment(opts: {
   // to show. Using μ̂_raw keeps the histogram pedagogy honest.
   const sharpeMVexAnte = _analyticalSharpe(fit.weights, fit.muRawAnn, fit.sigAnn, rf);
 
-  const pctile = (s: number) => _percentile(randomSharpes, s);
-  const median = randomSharpes[Math.floor(randomSharpes.length / 2)];
+  // ── CONCENTRATED NULL (Kahneman-friendly) ──────────────────────────
+  // Match Markowitz's effective concentration: K = round(1/HHI(w_mv)),
+  // clamped to [2, floor(N/2)]. For our typical top-30 IBOV pick,
+  // HHI ≈ 0.18 → effective N ≈ 5.5 → K ≈ 5-6. This matches the
+  // structural concentration of the Markowitz pick and tests whether
+  // the *specific* choice of 5 tickers carries information beyond what
+  // a random 5-bet would (Kahneman 1984's persistence test).
+  const mvHHI = _hhi(fit.weights);
+  let concentrationK = Math.round(1 / Math.max(mvHHI, 1e-6));
+  concentrationK = Math.max(2, Math.min(Math.floor(N / 2), concentrationK));
+  const concentratedSharpes: number[] = [];
+  for (let k = 0; k < nRandom; k++) {
+    const w = _concentratedSample(N, concentrationK, rng);
+    concentratedSharpes.push(_realizedSharpe(w, testX, rf));
+  }
+  concentratedSharpes.sort((a, b) => a - b);
+
+  const pctileDir = (s: number) => _percentile(randomSharpes, s);
+  const pctileCon = (s: number) => _percentile(concentratedSharpes, s);
+  const medianDir = randomSharpes[Math.floor(randomSharpes.length / 2)];
+  const medianCon =
+    concentratedSharpes[Math.floor(concentratedSharpes.length / 2)];
+
+  const dirichletNull: NullDistribution = {
+    label: "Dirichlet(1) — diversificada",
+    sharpes: randomSharpes,
+    histogram: _binSharpes(randomSharpes, nBins),
+    median: medianDir,
+    markowitzExAntePercentile: pctileDir(sharpeMVexAnte),
+    markowitzExPostPercentile: pctileDir(sharpeMVtest),
+    equalWeightPercentile: pctileDir(sharpeEQtest),
+  };
+  const concentratedNull: NullDistribution = {
+    label: `Concentrada em ${concentrationK} ativos (Kahneman-friendly)`,
+    sharpes: concentratedSharpes,
+    histogram: _binSharpes(concentratedSharpes, nBins),
+    median: medianCon,
+    markowitzExAntePercentile: pctileCon(sharpeMVexAnte),
+    markowitzExPostPercentile: pctileCon(sharpeMVtest),
+    equalWeightPercentile: pctileCon(sharpeEQtest),
+  };
 
   return {
     randomSharpes,
-    histogram: _binSharpes(randomSharpes, nBins),
+    histogram: dirichletNull.histogram,
     markowitzExAnte: {
       sharpe: sharpeMVexAnte,
-      percentile: pctile(sharpeMVexAnte),
+      percentile: pctileDir(sharpeMVexAnte),
       weights: fit.weights.slice(),
     },
     markowitzExPost: {
       sharpe: sharpeMVtest,
-      percentile: pctile(sharpeMVtest),
+      percentile: pctileDir(sharpeMVtest),
       weights: fit.weights.slice(),
     },
-    equalWeight: { sharpe: sharpeEQtest, percentile: pctile(sharpeEQtest), weights: N_eq },
-    medianRandom: { sharpe: median, percentile: 0.5, weights: [] },
+    equalWeight: { sharpe: sharpeEQtest, percentile: pctileDir(sharpeEQtest), weights: N_eq },
+    medianRandom: { sharpe: medianDir, percentile: 0.5, weights: [] },
     trainStart: dates[0],
     trainEnd: dates[trainDays - 1],
     testStart: dates[trainDays],
@@ -330,6 +441,9 @@ export function runIllusionExperiment(opts: {
     testDays,
     nRandom,
     tickers: tickers.slice(),
+    dirichletNull,
+    concentratedNull,
+    concentrationK,
   };
 }
 
