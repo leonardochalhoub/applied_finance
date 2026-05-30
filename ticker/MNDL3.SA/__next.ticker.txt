@@ -1,0 +1,5 @@
+1:"$Sreact.fragment"
+2:I[24828,["/applied_finance/_next/static/chunks/0twe0.s836b-6.js","/applied_finance/_next/static/chunks/148o-fp5pxq-n.js"],"default"]
+3:I[189,["/applied_finance/_next/static/chunks/0twe0.s836b-6.js","/applied_finance/_next/static/chunks/148o-fp5pxq-n.js"],"default"]
+4:[]
+0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":"$W4","buildId":"chRheCY5tfOonkdNJuBMa"}

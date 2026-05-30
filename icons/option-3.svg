@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Option 3: AF monogram — angular geometric -->
+  <rect width="64" height="64" rx="14" fill="#0a0f1e"/>
+  <!-- A -->
+  <path d="M 12 48 L 22 14 L 28 14 L 38 48 L 32 48 L 30 41 L 20 41 L 18 48 Z M 22 35 L 28 35 L 25 24 Z" fill="#60a5fa"/>
+  <!-- F (right side) -->
+  <path d="M 40 14 L 54 14 L 54 19 L 45 19 L 45 28 L 52 28 L 52 33 L 45 33 L 45 48 L 40 48 Z" fill="#60a5fa"/>
+</svg>

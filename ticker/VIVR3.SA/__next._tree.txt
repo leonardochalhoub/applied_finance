@@ -1,0 +1,3 @@
+:HL["/applied_finance/_next/static/chunks/15grji4_1yvnd.css","style"]
+:HC["/",""]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"ticker","param":null,"prefetchHints":0,"slots":{"children":{"name":"ticker","param":{"type":"d","key":"VIVR3.SA","siblings":null},"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"chRheCY5tfOonkdNJuBMa"}
