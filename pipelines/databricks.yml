@@ -342,7 +342,14 @@ resources:
         # Independent sub-DAG: lê system.billing.* (managed pelo Databricks)
         # filtrado por custom_tags.team='applied-finance' → silver → gold →
         # export do finops_summary.json para a aba /finops.
+        # Both silver tasks read system.billing.* over Delta Sharing (Databricks
+        # delivers the `system` catalog as a managed share). That endpoint
+        # occasionally fails server-side mid-scan and surfaces as a
+        # JsonParseException on 'Request_to_delta_sharing_server_failed_for_query'.
+        # It is transient — a retry clears it — so give these reads a cushion.
         - task_key: silver_finops_daily_spend
+          max_retries: 2
+          min_retry_interval_millis: 60000
           notebook_task:
             notebook_path: ./notebooks/silver/finops_daily_spend.py
             base_parameters:
@@ -350,6 +357,8 @@ resources:
               team_tag: "applied-finance"
 
         - task_key: silver_finops_run_costs
+          max_retries: 2
+          min_retry_interval_millis: 60000
           notebook_task:
             notebook_path: ./notebooks/silver/finops_run_costs.py
             base_parameters:
