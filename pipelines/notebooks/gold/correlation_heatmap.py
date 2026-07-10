@@ -32,6 +32,11 @@ if window_days is not None and len(returns) > window_days:
 
 ticker_cols = [c for c in returns.columns if c != "trading_date"]
 valid = [c for c in ticker_cols if returns[c].notna().all()]
+if len(valid) < 2:
+    log.warning(
+        f"only {len(valid)} ticker(s) have complete data over the {window} window; "
+        f"writing empty correlation artifact"
+    )
 corr = returns[valid].corr().to_numpy()
 
 dim = (
@@ -54,7 +59,10 @@ for i in range(len(valid)):
             "sector_j": dim.get(valid[j], ""),
         })
 
-pairs_df = pd.DataFrame(pairs)
+pairs_df = pd.DataFrame(
+    pairs,
+    columns=["ticker_i", "ticker_j", "correlation", "sector_i", "sector_j"],
+)
 pairs_df = pairs_df.replace({np.nan: None})
 top_pos = (
     pairs_df.sort_values("correlation", ascending=False).head(top_n).to_dict("records")
