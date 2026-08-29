@@ -1,0 +1,709 @@
+{
+  "as_of": "2026-08-29",
+  "source_run_id": "local",
+  "window_label": "1y",
+  "top_correlated": [
+    {
+      "ticker_i": "MMAQ3.SA",
+      "ticker_j": "MMAQ4.SA",
+      "correlation": 1.0,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "BBDC3.SA",
+      "ticker_j": "BBDC4.SA",
+      "correlation": 0.974662196760962,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "PETR3.SA",
+      "ticker_j": "PETR4.SA",
+      "correlation": 0.9689640038355221,
+      "sector_i": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis",
+      "sector_j": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis"
+    },
+    {
+      "ticker_i": "ITSA4.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.9513307466378571,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "GGBR4.SA",
+      "ticker_j": "GOAU4.SA",
+      "correlation": 0.9502151524902487,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ITUB3.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.9413805197878468,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SANB11.SA",
+      "ticker_j": "SANB3.SA",
+      "correlation": 0.9366050757887915,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SANB11.SA",
+      "ticker_j": "SANB4.SA",
+      "correlation": 0.9342274353891143,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SAPR11.SA",
+      "ticker_j": "SAPR4.SA",
+      "correlation": 0.9269032636507665,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "USIM3.SA",
+      "ticker_j": "USIM5.SA",
+      "correlation": 0.9228694265533499,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ITSA4.SA",
+      "ticker_j": "ITUB3.SA",
+      "correlation": 0.9205363052506818,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "ITSA3.SA",
+      "ticker_j": "ITSA4.SA",
+      "correlation": 0.9153357946721346,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BRAP4.SA",
+      "ticker_j": "VALE3.SA",
+      "correlation": 0.9069503832455412,
+      "sector_i": "Financeiro",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "IGTI11.SA",
+      "ticker_j": "MULT3.SA",
+      "correlation": 0.903437589736564,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "KLBN11.SA",
+      "ticker_j": "KLBN4.SA",
+      "correlation": 0.9006927906849446,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "TAEE11.SA",
+      "ticker_j": "TAEE4.SA",
+      "correlation": 0.8997612621581105,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "ALOS3.SA",
+      "ticker_j": "IGTI11.SA",
+      "correlation": 0.8772832274167635,
+      "sector_i": "Consumo N\u00e3o C\u00edclico",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "ITSA3.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.8756170017853571,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SANB3.SA",
+      "ticker_j": "SANB4.SA",
+      "correlation": 0.8735941854687077,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "TAEE3.SA",
+      "ticker_j": "TAEE4.SA",
+      "correlation": 0.8721327315540933,
+      "sector_i": "Bens Industriais",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "KLBN11.SA",
+      "ticker_j": "KLBN3.SA",
+      "correlation": 0.8715285274207102,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ALOS3.SA",
+      "ticker_j": "MULT3.SA",
+      "correlation": 0.8690227413697854,
+      "sector_i": "Consumo N\u00e3o C\u00edclico",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "TAEE11.SA",
+      "ticker_j": "TAEE3.SA",
+      "correlation": 0.8625277536936672,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "POMO3.SA",
+      "ticker_j": "POMO4.SA",
+      "correlation": 0.8617508078892895,
+      "sector_i": "Bens Industriais",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "BRKM3.SA",
+      "ticker_j": "BRKM5.SA",
+      "correlation": 0.8600679130685112,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ENGI11.SA",
+      "ticker_j": "EQTL3.SA",
+      "correlation": 0.8567275220117283,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "ENGI11.SA",
+      "ticker_j": "ENGI4.SA",
+      "correlation": 0.8527883537340508,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "ITSA3.SA",
+      "ticker_j": "ITUB3.SA",
+      "correlation": 0.8526714952279927,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "KLBN3.SA",
+      "ticker_j": "KLBN4.SA",
+      "correlation": 0.8301923219838917,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "GGBR3.SA",
+      "ticker_j": "GGBR4.SA",
+      "correlation": 0.8268316754710859,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "BRAP3.SA",
+      "ticker_j": "BRAP4.SA",
+      "correlation": 0.8267039943497234,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "CURY3.SA",
+      "ticker_j": "DIRR3.SA",
+      "correlation": 0.823979464624527,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SAPR11.SA",
+      "ticker_j": "SAPR3.SA",
+      "correlation": 0.8233453512847179,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "GOAU3.SA",
+      "ticker_j": "GOAU4.SA",
+      "correlation": 0.8097922915297542,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "GGBR3.SA",
+      "ticker_j": "GOAU4.SA",
+      "correlation": 0.8069661499686082,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "BBDC3.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.8055202265990977,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BBDC3.SA",
+      "ticker_j": "ITSA4.SA",
+      "correlation": 0.8008746840222183,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BPAC11.SA",
+      "ticker_j": "ITSA4.SA",
+      "correlation": 0.8004723145681791,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BBDC4.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.7985714622184336,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "MOVI3.SA",
+      "ticker_j": "SIMH3.SA",
+      "correlation": 0.7975123929115343,
+      "sector_i": "Financeiro",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "BBDC4.SA",
+      "ticker_j": "ITSA4.SA",
+      "correlation": 0.794629040953891,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "SIMH3.SA",
+      "ticker_j": "VAMO3.SA",
+      "correlation": 0.7835842108168497,
+      "sector_i": "Bens Industriais",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "BPAC11.SA",
+      "ticker_j": "ITUB4.SA",
+      "correlation": 0.7802325076636988,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "GGBR4.SA",
+      "ticker_j": "GOAU3.SA",
+      "correlation": 0.7799369075289795,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ALOS3.SA",
+      "ticker_j": "BPAC11.SA",
+      "correlation": 0.7753219293885969,
+      "sector_i": "Consumo N\u00e3o C\u00edclico",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BBDC3.SA",
+      "ticker_j": "ITUB3.SA",
+      "correlation": 0.7748816167841225,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BRAP3.SA",
+      "ticker_j": "VALE3.SA",
+      "correlation": 0.7740757067004922,
+      "sector_i": "Financeiro",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "B3SA3.SA",
+      "ticker_j": "BPAC11.SA",
+      "correlation": 0.7721392728920679,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BBDC4.SA",
+      "ticker_j": "ITUB3.SA",
+      "correlation": 0.7710637575811727,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "IGTI11.SA",
+      "ticker_j": "RENT3.SA",
+      "correlation": 0.764991602067412,
+      "sector_i": "Financeiro",
+      "sector_j": "Consumo C\u00edclico"
+    }
+  ],
+  "top_anti_correlated": [
+    {
+      "ticker_i": "BPAC5.SA",
+      "ticker_j": "JOPA4.SA",
+      "correlation": -0.3589616304284231,
+      "sector_i": "Financeiro",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "DOTZ3.SA",
+      "ticker_j": "MMAQ3.SA",
+      "correlation": -0.3249506736683097,
+      "sector_i": "Tecnologia da Informa\u00e7\u00e3o",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "DOTZ3.SA",
+      "ticker_j": "MMAQ4.SA",
+      "correlation": -0.3249506736683097,
+      "sector_i": "Tecnologia da Informa\u00e7\u00e3o",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "JOPA4.SA",
+      "ticker_j": "SHOW3.SA",
+      "correlation": -0.2823802900580164,
+      "sector_i": "Consumo N\u00e3o C\u00edclico",
+      "sector_j": "Consumo C\u00edclico"
+    },
+    {
+      "ticker_i": "BPAR3.SA",
+      "ticker_j": "MBRF3.SA",
+      "correlation": -0.2757657145575148,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "AXIA3.SA",
+      "ticker_j": "SOND6.SA",
+      "correlation": -0.2686895949186572,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "EALT3.SA",
+      "ticker_j": "USIM6.SA",
+      "correlation": -0.26639301630687784,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "CCTY3.SA",
+      "ticker_j": "CGRA3.SA",
+      "correlation": -0.2635296062688656,
+      "sector_i": "Outros",
+      "sector_j": "Consumo C\u00edclico"
+    },
+    {
+      "ticker_i": "CGAS3.SA",
+      "ticker_j": "MWET3.SA",
+      "correlation": -0.2635234619477318,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "BMIN3.SA",
+      "ticker_j": "PATI4.SA",
+      "correlation": -0.2634303997668216,
+      "sector_i": "Financeiro",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BRSR5.SA",
+      "ticker_j": "SOND6.SA",
+      "correlation": -0.2599193207175015,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "DOHL3.SA",
+      "ticker_j": "VLID3.SA",
+      "correlation": -0.2555493448146145,
+      "sector_i": "Outros",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "TRAD3.SA",
+      "ticker_j": "TXRX4.SA",
+      "correlation": -0.2523324605933653,
+      "sector_i": "Tecnologia da Informa\u00e7\u00e3o",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "MEAL3.SA",
+      "ticker_j": "REDE3.SA",
+      "correlation": -0.25191709169357007,
+      "sector_i": "Consumo C\u00edclico",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "DOHL3.SA",
+      "ticker_j": "PTBL3.SA",
+      "correlation": -0.24837680439642273,
+      "sector_i": "Outros",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "RPAD3.SA",
+      "ticker_j": "SBSP3.SA",
+      "correlation": -0.24378067899896172,
+      "sector_i": "Financeiro",
+      "sector_j": "Utilidade P\u00fablica"
+    },
+    {
+      "ticker_i": "HETA4.SA",
+      "ticker_j": "TXRX3.SA",
+      "correlation": -0.24140933851376808,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "DTCY3.SA",
+      "ticker_j": "PLAS3.SA",
+      "correlation": -0.2412627342888334,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "COCE3.SA",
+      "ticker_j": "PEAB4.SA",
+      "correlation": -0.23848878722405306,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "BDLL3.SA",
+      "ticker_j": "MMAQ4.SA",
+      "correlation": -0.23775044752452149,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "BDLL3.SA",
+      "ticker_j": "MMAQ3.SA",
+      "correlation": -0.23775044752452149,
+      "sector_i": "Outros",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "EMBJ3.SA",
+      "ticker_j": "PRIO3.SA",
+      "correlation": -0.23534340230241155,
+      "sector_i": "Outros",
+      "sector_j": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis"
+    },
+    {
+      "ticker_i": "BLAU3.SA",
+      "ticker_j": "FIEI3.SA",
+      "correlation": -0.23503397546131824,
+      "sector_i": "Sa\u00fade",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "DOHL3.SA",
+      "ticker_j": "VAMO3.SA",
+      "correlation": -0.2347357725803704,
+      "sector_i": "Outros",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "COCE3.SA",
+      "ticker_j": "MDNE3.SA",
+      "correlation": -0.23307350324392345,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Financeiro"
+    },
+    {
+      "ticker_i": "BSLI3.SA",
+      "ticker_j": "RPMG3.SA",
+      "correlation": -0.23104656795108813,
+      "sector_i": "Financeiro",
+      "sector_j": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis"
+    },
+    {
+      "ticker_i": "ATED3.SA",
+      "ticker_j": "WDCN3.SA",
+      "correlation": -0.22915365692010858,
+      "sector_i": "Outros",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "BEES4.SA",
+      "ticker_j": "SNSY5.SA",
+      "correlation": -0.2279891358254617,
+      "sector_i": "Financeiro",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "BRKM6.SA",
+      "ticker_j": "RAPT4.SA",
+      "correlation": -0.22759026269688482,
+      "sector_i": "Outros",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "ESTR4.SA",
+      "ticker_j": "GSHP3.SA",
+      "correlation": -0.22744279935321088,
+      "sector_i": "Consumo C\u00edclico",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "JHSF3.SA",
+      "ticker_j": "JOPA4.SA",
+      "correlation": -0.22736626640022894,
+      "sector_i": "Financeiro",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "DTCY3.SA",
+      "ticker_j": "KLBN3.SA",
+      "correlation": -0.22660360707498178,
+      "sector_i": "Outros",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "CEGR3.SA",
+      "ticker_j": "RCSL3.SA",
+      "correlation": -0.22258807317852056,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "BRKM6.SA",
+      "ticker_j": "SEER3.SA",
+      "correlation": -0.22229550739045464,
+      "sector_i": "Outros",
+      "sector_j": "Consumo C\u00edclico"
+    },
+    {
+      "ticker_i": "AMAR3.SA",
+      "ticker_j": "SNSY5.SA",
+      "correlation": -0.21772043986181155,
+      "sector_i": "Consumo C\u00edclico",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "CURY3.SA",
+      "ticker_j": "PRIO3.SA",
+      "correlation": -0.2175225346884476,
+      "sector_i": "Financeiro",
+      "sector_j": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis"
+    },
+    {
+      "ticker_i": "CRPG5.SA",
+      "ticker_j": "MAPT4.SA",
+      "correlation": -0.21731978853279793,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "CRPG3.SA",
+      "ticker_j": "CTSA4.SA",
+      "correlation": -0.21724934473470134,
+      "sector_i": "Materiais B\u00e1sicos",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "CEGR3.SA",
+      "ticker_j": "FHER3.SA",
+      "correlation": -0.21652690452827839,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Materiais B\u00e1sicos"
+    },
+    {
+      "ticker_i": "ARND3.SA",
+      "ticker_j": "MNDL3.SA",
+      "correlation": -0.21628080430210725,
+      "sector_i": "Outros",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "EQPA6.SA",
+      "ticker_j": "VVEO3.SA",
+      "correlation": -0.21587003628846993,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Consumo N\u00e3o C\u00edclico"
+    },
+    {
+      "ticker_i": "BAZA3.SA",
+      "ticker_j": "CBEE3.SA",
+      "correlation": -0.21570410454556588,
+      "sector_i": "Financeiro",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "CGAS3.SA",
+      "ticker_j": "TXRX3.SA",
+      "correlation": -0.2153951920042365,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "AURE3.SA",
+      "ticker_j": "PLAS3.SA",
+      "correlation": -0.21525504495064487,
+      "sector_i": "Utilidade P\u00fablica",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "PATI4.SA",
+      "ticker_j": "TELB3.SA",
+      "correlation": -0.21525133217374187,
+      "sector_i": "Financeiro",
+      "sector_j": "Comunica\u00e7\u00f5es"
+    },
+    {
+      "ticker_i": "MWET3.SA",
+      "ticker_j": "WLMM3.SA",
+      "correlation": -0.2135749160863691,
+      "sector_i": "Consumo N\u00e3o C\u00edclico",
+      "sector_j": "Outros"
+    },
+    {
+      "ticker_i": "MAPT4.SA",
+      "ticker_j": "MATD3.SA",
+      "correlation": -0.21271049766153574,
+      "sector_i": "Outros",
+      "sector_j": "Sa\u00fade"
+    },
+    {
+      "ticker_i": "EMBJ3.SA",
+      "ticker_j": "PETR3.SA",
+      "correlation": -0.21265065061623512,
+      "sector_i": "Outros",
+      "sector_j": "Petr\u00f3leo G\u00e1s e Biocombust\u00edveis"
+    },
+    {
+      "ticker_i": "MAPT4.SA",
+      "ticker_j": "PTBL3.SA",
+      "correlation": -0.212002967504526,
+      "sector_i": "Outros",
+      "sector_j": "Bens Industriais"
+    },
+    {
+      "ticker_i": "EKTR3.SA",
+      "ticker_j": "TRAD3.SA",
+      "correlation": -0.21101168982458524,
+      "sector_i": "Outros",
+      "sector_j": "Tecnologia da Informa\u00e7\u00e3o"
+    }
+  ]
+}

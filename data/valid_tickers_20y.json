@@ -1,0 +1,1372 @@
+{
+  "window_label": "20y",
+  "as_of": "2026-08-29",
+  "source_run_id": "local",
+  "window_start": "2006-12-22",
+  "window_end": "2026-08-27",
+  "n_total": 468,
+  "n_valid": 247,
+  "n_excluded": 221,
+  "exclusions_by_reason": {
+    "insufficient_history": 221
+  },
+  "valid_tickers": [
+    "ABCB4.SA",
+    "ABEV3.SA",
+    "AFLT3.SA",
+    "AGRO3.SA",
+    "AHEB3.SA",
+    "AHEB5.SA",
+    "AHEB6.SA",
+    "ALPA3.SA",
+    "ALPA4.SA",
+    "AMAR3.SA",
+    "AMER3.SA",
+    "APTI4.SA",
+    "AXIA3.SA",
+    "AZEV3.SA",
+    "AZEV4.SA",
+    "B3SA3.SA",
+    "BALM3.SA",
+    "BALM4.SA",
+    "BAZA3.SA",
+    "BBAS3.SA",
+    "BBDC3.SA",
+    "BDLL4.SA",
+    "BEEF3.SA",
+    "BEES3.SA",
+    "BGIP3.SA",
+    "BGIP4.SA",
+    "BHIA3.SA",
+    "BIOM3.SA",
+    "BMEB3.SA",
+    "BMIN3.SA",
+    "BMKS3.SA",
+    "BNBR3.SA",
+    "BPAR3.SA",
+    "BRAP3.SA",
+    "BRAP4.SA",
+    "BRGE3.SA",
+    "BRIV3.SA",
+    "BRKM3.SA",
+    "BRKM5.SA",
+    "BRKM6.SA",
+    "BRSR3.SA",
+    "BRSR5.SA",
+    "BRSR6.SA",
+    "BSLI3.SA",
+    "CALI3.SA",
+    "CASN3.SA",
+    "CBEE3.SA",
+    "CEBR3.SA",
+    "CEBR5.SA",
+    "CEBR6.SA",
+    "CEDO3.SA",
+    "CEEB3.SA",
+    "CEEB5.SA",
+    "CEGR3.SA",
+    "CGAS3.SA",
+    "CGAS5.SA",
+    "CGRA3.SA",
+    "CGRA4.SA",
+    "CLSC3.SA",
+    "CMIG3.SA",
+    "CMIG4.SA",
+    "COCE3.SA",
+    "COCE5.SA",
+    "COCE6.SA",
+    "CPFE3.SA",
+    "CPLE3.SA",
+    "CRIV3.SA",
+    "CRIV4.SA",
+    "CRPG3.SA",
+    "CRPG5.SA",
+    "CRPG6.SA",
+    "CSAN3.SA",
+    "CSMG3.SA",
+    "CSNA3.SA",
+    "CSUD3.SA",
+    "CTKA3.SA",
+    "CTKA4.SA",
+    "CTNM4.SA",
+    "CTSA3.SA",
+    "CTSA4.SA",
+    "CYRE3.SA",
+    "DASA3.SA",
+    "DEXP3.SA",
+    "DOHL3.SA",
+    "DOHL4.SA",
+    "DTCY3.SA",
+    "EALT3.SA",
+    "EALT4.SA",
+    "EGIE3.SA",
+    "EKTR3.SA",
+    "EKTR4.SA",
+    "EMAE4.SA",
+    "EMBJ3.SA",
+    "ENEV3.SA",
+    "ENGI3.SA",
+    "ENMT3.SA",
+    "ENMT4.SA",
+    "EPAR3.SA",
+    "EQPA3.SA",
+    "EQPA6.SA",
+    "ESTR3.SA",
+    "ESTR4.SA",
+    "ETER3.SA",
+    "EUCA3.SA",
+    "EUCA4.SA",
+    "EVEN3.SA",
+    "EZTC3.SA",
+    "FESA3.SA",
+    "FESA4.SA",
+    "FHER3.SA",
+    "FICT3.SA",
+    "FIEI3.SA",
+    "FIGE3.SA",
+    "FRAS3.SA",
+    "FRIO3.SA",
+    "GEPA3.SA",
+    "GEPA4.SA",
+    "GFSA3.SA",
+    "GGBR3.SA",
+    "GGBR4.SA",
+    "GOAU3.SA",
+    "GOAU4.SA",
+    "GPAR3.SA",
+    "GRND3.SA",
+    "GSHP3.SA",
+    "HAGA3.SA",
+    "HAGA4.SA",
+    "HBOR3.SA",
+    "HETA3.SA",
+    "HETA4.SA",
+    "HOOT4.SA",
+    "IGTI3.SA",
+    "INEP3.SA",
+    "INEP4.SA",
+    "ISAE4.SA",
+    "ITSA3.SA",
+    "ITSA4.SA",
+    "ITUB3.SA",
+    "ITUB4.SA",
+    "JFEN3.SA",
+    "JHSF3.SA",
+    "JOPA3.SA",
+    "JOPA4.SA",
+    "KEPL3.SA",
+    "KLBN3.SA",
+    "KLBN4.SA",
+    "LEVE3.SA",
+    "LIGT3.SA",
+    "LOGN3.SA",
+    "LPSB3.SA",
+    "LREN3.SA",
+    "LUPA3.SA",
+    "LUXM3.SA",
+    "MAPT3.SA",
+    "MAPT4.SA",
+    "MBRF3.SA",
+    "MDIA3.SA",
+    "MGEL4.SA",
+    "MNDL3.SA",
+    "MNPR3.SA",
+    "MRVE3.SA",
+    "MSPA3.SA",
+    "MSPA4.SA",
+    "MULT3.SA",
+    "MWET3.SA",
+    "MWET4.SA",
+    "MYPK3.SA",
+    "NEXP3.SA",
+    "NORD3.SA",
+    "ODPV3.SA",
+    "OIBR3.SA",
+    "OIBR4.SA",
+    "PATI3.SA",
+    "PDGR3.SA",
+    "PDTC3.SA",
+    "PEAB3.SA",
+    "PETR3.SA",
+    "PETR4.SA",
+    "PFRM3.SA",
+    "PINE4.SA",
+    "PLAS3.SA",
+    "PMAM3.SA",
+    "PNVL3.SA",
+    "POMO3.SA",
+    "POMO4.SA",
+    "POSI3.SA",
+    "PSSA3.SA",
+    "PTBL3.SA",
+    "PTNT3.SA",
+    "RADL3.SA",
+    "RANI3.SA",
+    "RAPT3.SA",
+    "RAPT4.SA",
+    "RCSL3.SA",
+    "RCSL4.SA",
+    "REDE3.SA",
+    "RENT3.SA",
+    "RIAA3.SA",
+    "ROMI3.SA",
+    "RPAD3.SA",
+    "RPAD5.SA",
+    "RPAD6.SA",
+    "RPMG3.SA",
+    "RSID3.SA",
+    "RSUL4.SA",
+    "SAPR3.SA",
+    "SAPR4.SA",
+    "SAUD3.SA",
+    "SBSP3.SA",
+    "SCAR3.SA",
+    "SHUL4.SA",
+    "SLCE3.SA",
+    "SMTO3.SA",
+    "SNSY5.SA",
+    "SOND3.SA",
+    "SOND5.SA",
+    "SYNE3.SA",
+    "TAEE11.SA",
+    "TAEE3.SA",
+    "TASA3.SA",
+    "TASA4.SA",
+    "TCSA3.SA",
+    "TEKA3.SA",
+    "TEKA4.SA",
+    "TELB3.SA",
+    "TEND3.SA",
+    "TGMA3.SA",
+    "TOTS3.SA",
+    "TPIS3.SA",
+    "TRIS3.SA",
+    "TUPY3.SA",
+    "TXRX3.SA",
+    "UGPA3.SA",
+    "UNIP3.SA",
+    "UNIP5.SA",
+    "UNIP6.SA",
+    "USIM3.SA",
+    "USIM5.SA",
+    "USIM6.SA",
+    "VALE3.SA",
+    "VIVR3.SA",
+    "VLID3.SA",
+    "VULC3.SA",
+    "WEGE3.SA",
+    "WHRL3.SA",
+    "WHRL4.SA",
+    "WLMM4.SA"
+  ],
+  "excluded_tickers": [
+    {
+      "ticker": "AALR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.476
+    },
+    {
+      "ticker": "ADHM3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6813
+    },
+    {
+      "ticker": "ADMF3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0046
+    },
+    {
+      "ticker": "AELP3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5581
+    },
+    {
+      "ticker": "AERI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2827
+    },
+    {
+      "ticker": "AGXY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2504
+    },
+    {
+      "ticker": "ALLD3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2643
+    },
+    {
+      "ticker": "ALOS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3431
+    },
+    {
+      "ticker": "ALPK3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3062
+    },
+    {
+      "ticker": "ALUP11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6427
+    },
+    {
+      "ticker": "ALUP3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4792
+    },
+    {
+      "ticker": "ALUP4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4825
+    },
+    {
+      "ticker": "AMBP3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2988
+    },
+    {
+      "ticker": "AMOB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0837
+    },
+    {
+      "ticker": "ANIM3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6175
+    },
+    {
+      "ticker": "ARML3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.25
+    },
+    {
+      "ticker": "ARND3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2595
+    },
+    {
+      "ticker": "ASAI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.27
+    },
+    {
+      "ticker": "ATED3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0843
+    },
+    {
+      "ticker": "AUAU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0321
+    },
+    {
+      "ticker": "AURE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2187
+    },
+    {
+      "ticker": "AVLL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2768
+    },
+    {
+      "ticker": "AXIA6.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8837
+    },
+    {
+      "ticker": "AZTE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0756
+    },
+    {
+      "ticker": "AZUL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0296
+    },
+    {
+      "ticker": "AZZA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7472
+    },
+    {
+      "ticker": "BAUH4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "BBDC4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "BBSE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6421
+    },
+    {
+      "ticker": "BDLL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8494
+    },
+    {
+      "ticker": "BEES4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8752
+    },
+    {
+      "ticker": "BIED3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.069
+    },
+    {
+      "ticker": "BLAU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2633
+    },
+    {
+      "ticker": "BMEB4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "BMGB4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.328
+    },
+    {
+      "ticker": "BMIN4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "BMOB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2718
+    },
+    {
+      "ticker": "BOBR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3141
+    },
+    {
+      "ticker": "BOBR4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8929
+    },
+    {
+      "ticker": "BPAC11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4607
+    },
+    {
+      "ticker": "BPAC3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4907
+    },
+    {
+      "ticker": "BPAC5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4907
+    },
+    {
+      "ticker": "BPHA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6224
+    },
+    {
+      "ticker": "BRAV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2823
+    },
+    {
+      "ticker": "BRBI11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2522
+    },
+    {
+      "ticker": "BRGE11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8466
+    },
+    {
+      "ticker": "BRGE5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8663
+    },
+    {
+      "ticker": "BRGE6.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8494
+    },
+    {
+      "ticker": "BRGE7.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8792
+    },
+    {
+      "ticker": "BRGE8.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8593
+    },
+    {
+      "ticker": "BRIV4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8478
+    },
+    {
+      "ticker": "BRPR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6877
+    },
+    {
+      "ticker": "BRST3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0851
+    },
+    {
+      "ticker": "BSLI4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0754
+    },
+    {
+      "ticker": "BUET3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0216
+    },
+    {
+      "ticker": "CAMB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7696
+    },
+    {
+      "ticker": "CAML3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4317
+    },
+    {
+      "ticker": "CASH3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2833
+    },
+    {
+      "ticker": "CBAV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2518
+    },
+    {
+      "ticker": "CBMA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5627
+    },
+    {
+      "ticker": "CBMA4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.044
+    },
+    {
+      "ticker": "CCTY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0655
+    },
+    {
+      "ticker": "CEAB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3308
+    },
+    {
+      "ticker": "CEDO4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8931
+    },
+    {
+      "ticker": "CEED3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7819
+    },
+    {
+      "ticker": "CEED4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7488
+    },
+    {
+      "ticker": "CLSC4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7008
+    },
+    {
+      "ticker": "CMIN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.271
+    },
+    {
+      "ticker": "COGN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6942
+    },
+    {
+      "ticker": "CORR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6327
+    },
+    {
+      "ticker": "CORR4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7794
+    },
+    {
+      "ticker": "CREM3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5663
+    },
+    {
+      "ticker": "CSED3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2718
+    },
+    {
+      "ticker": "CTAX3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8321
+    },
+    {
+      "ticker": "CURY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2895
+    },
+    {
+      "ticker": "CVCB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6123
+    },
+    {
+      "ticker": "CXSE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2619
+    },
+    {
+      "ticker": "CYRE4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0323
+    },
+    {
+      "ticker": "DESK3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.251
+    },
+    {
+      "ticker": "DEXP4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2885
+    },
+    {
+      "ticker": "DHBI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5631
+    },
+    {
+      "ticker": "DHBI4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.1925
+    },
+    {
+      "ticker": "DIRR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8034
+    },
+    {
+      "ticker": "DMVF3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2952
+    },
+    {
+      "ticker": "DOTZ3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2577
+    },
+    {
+      "ticker": "ECOR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7867
+    },
+    {
+      "ticker": "ECPR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8379
+    },
+    {
+      "ticker": "ECPR4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8385
+    },
+    {
+      "ticker": "EGGY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0194
+    },
+    {
+      "ticker": "ELPL4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5097
+    },
+    {
+      "ticker": "ENGI11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8058
+    },
+    {
+      "ticker": "ENGI4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "ENJU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2833
+    },
+    {
+      "ticker": "EQPA5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8919
+    },
+    {
+      "ticker": "EQPA7.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8921
+    },
+    {
+      "ticker": "EQTL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8808
+    },
+    {
+      "ticker": "ESPA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2726
+    },
+    {
+      "ticker": "FBMC3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5873
+    },
+    {
+      "ticker": "FBMC4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.575
+    },
+    {
+      "ticker": "FIBR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.576
+    },
+    {
+      "ticker": "FIGE4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.1984
+    },
+    {
+      "ticker": "FIQE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.25
+    },
+    {
+      "ticker": "FLRY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7998
+    },
+    {
+      "ticker": "GGPS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2623
+    },
+    {
+      "ticker": "GMAT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2867
+    },
+    {
+      "ticker": "HAPV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4028
+    },
+    {
+      "ticker": "HBRE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2742
+    },
+    {
+      "ticker": "HBSA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2887
+    },
+    {
+      "ticker": "HBTS5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8929
+    },
+    {
+      "ticker": "HYPE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8794
+    },
+    {
+      "ticker": "IFCM3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2607
+    },
+    {
+      "ticker": "IGTI11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2353
+    },
+    {
+      "ticker": "IMBI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5889
+    },
+    {
+      "ticker": "IMBI4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5325
+    },
+    {
+      "ticker": "INTB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2724
+    },
+    {
+      "ticker": "IRBR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4403
+    },
+    {
+      "ticker": "ISAE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4788
+    },
+    {
+      "ticker": "JALL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2724
+    },
+    {
+      "ticker": "JSLG3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2909
+    },
+    {
+      "ticker": "KLBN11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6069
+    },
+    {
+      "ticker": "LAND3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2484
+    },
+    {
+      "ticker": "LAVV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2917
+    },
+    {
+      "ticker": "LFFE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5798
+    },
+    {
+      "ticker": "LFFE4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5317
+    },
+    {
+      "ticker": "LJQQ3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2952
+    },
+    {
+      "ticker": "LOGG3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3722
+    },
+    {
+      "ticker": "LUXM4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8929
+    },
+    {
+      "ticker": "LWSA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3194
+    },
+    {
+      "ticker": "MATD3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2601
+    },
+    {
+      "ticker": "MDNE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3185
+    },
+    {
+      "ticker": "MEAL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7423
+    },
+    {
+      "ticker": "MELK3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2883
+    },
+    {
+      "ticker": "MGEL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8692
+    },
+    {
+      "ticker": "MGLU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7359
+    },
+    {
+      "ticker": "MILS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7847
+    },
+    {
+      "ticker": "MLAS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.251
+    },
+    {
+      "ticker": "MMAQ3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5482
+    },
+    {
+      "ticker": "MMAQ4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8823
+    },
+    {
+      "ticker": "MOTV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0671
+    },
+    {
+      "ticker": "MOVI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4498
+    },
+    {
+      "ticker": "MTIG3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7696
+    },
+    {
+      "ticker": "MTRE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3188
+    },
+    {
+      "ticker": "MTSA4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8931
+    },
+    {
+      "ticker": "NATU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6623
+    },
+    {
+      "ticker": "NEOE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3397
+    },
+    {
+      "ticker": "NGRD3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2714
+    },
+    {
+      "ticker": "NUTR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7651
+    },
+    {
+      "ticker": "OBTC3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0438
+    },
+    {
+      "ticker": "ODER4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.427
+    },
+    {
+      "ticker": "OFSA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5714
+    },
+    {
+      "ticker": "OGXP3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5748
+    },
+    {
+      "ticker": "ONCO3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2429
+    },
+    {
+      "ticker": "OPCT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2716
+    },
+    {
+      "ticker": "ORVR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2714
+    },
+    {
+      "ticker": "OSXB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8048
+    },
+    {
+      "ticker": "PASS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0153
+    },
+    {
+      "ticker": "PATI4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8933
+    },
+    {
+      "ticker": "PEAB4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8927
+    },
+    {
+      "ticker": "PGMN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2917
+    },
+    {
+      "ticker": "PINE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6528
+    },
+    {
+      "ticker": "PLPL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2897
+    },
+    {
+      "ticker": "PRIO3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7595
+    },
+    {
+      "ticker": "PRML3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5238
+    },
+    {
+      "ticker": "PRNR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3181
+    },
+    {
+      "ticker": "PRVI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0216
+    },
+    {
+      "ticker": "PTNT4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.881
+    },
+    {
+      "ticker": "QUAL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.728
+    },
+    {
+      "ticker": "RAIZ4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.249
+    },
+    {
+      "ticker": "RDOR3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2786
+    },
+    {
+      "ticker": "RECV3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2613
+    },
+    {
+      "ticker": "RENT4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0325
+    },
+    {
+      "ticker": "RJCP3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3583
+    },
+    {
+      "ticker": "RNEW3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6254
+    },
+    {
+      "ticker": "RNEW4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4563
+    },
+    {
+      "ticker": "RVEE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0641
+    },
+    {
+      "ticker": "SANB11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8087
+    },
+    {
+      "ticker": "SANB3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8306
+    },
+    {
+      "ticker": "SANB4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8306
+    },
+    {
+      "ticker": "SAPR11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4192
+    },
+    {
+      "ticker": "SBFG3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3579
+    },
+    {
+      "ticker": "SCLO3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.044
+    },
+    {
+      "ticker": "SCLO4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.044
+    },
+    {
+      "ticker": "SEER3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6173
+    },
+    {
+      "ticker": "SEQL3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2867
+    },
+    {
+      "ticker": "SHOW3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7327
+    },
+    {
+      "ticker": "SIMH3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2897
+    },
+    {
+      "ticker": "SJOS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5903
+    },
+    {
+      "ticker": "SJOS4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5819
+    },
+    {
+      "ticker": "SLED3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8377
+    },
+    {
+      "ticker": "SLED4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8381
+    },
+    {
+      "ticker": "SMFT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2522
+    },
+    {
+      "ticker": "SOJA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2619
+    },
+    {
+      "ticker": "SOND6.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8923
+    },
+    {
+      "ticker": "SULT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.044
+    },
+    {
+      "ticker": "SULT4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5331
+    },
+    {
+      "ticker": "TAEE4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4518
+    },
+    {
+      "ticker": "TECN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7276
+    },
+    {
+      "ticker": "TELB4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8925
+    },
+    {
+      "ticker": "TENE5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8367
+    },
+    {
+      "ticker": "TERI3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5429
+    },
+    {
+      "ticker": "TFCO4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2849
+    },
+    {
+      "ticker": "TKNO4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8796
+    },
+    {
+      "ticker": "TOKY3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.0627
+    },
+    {
+      "ticker": "TRAD3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2502
+    },
+    {
+      "ticker": "TTEN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2514
+    },
+    {
+      "ticker": "TXRX4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8925
+    },
+    {
+      "ticker": "UCAS3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.6883
+    },
+    {
+      "ticker": "VALE5.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5813
+    },
+    {
+      "ticker": "VAMO3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2732
+    },
+    {
+      "ticker": "VITT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.245
+    },
+    {
+      "ticker": "VIVA3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.3341
+    },
+    {
+      "ticker": "VSPT3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.7758
+    },
+    {
+      "ticker": "VSTE3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.8429
+    },
+    {
+      "ticker": "VTRU3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.1099
+    },
+    {
+      "ticker": "VVAR11.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2345
+    },
+    {
+      "ticker": "VVAR4.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.1389
+    },
+    {
+      "ticker": "VVEO3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2486
+    },
+    {
+      "ticker": "WDCN3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.25
+    },
+    {
+      "ticker": "WEST3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.2714
+    },
+    {
+      "ticker": "WIZC3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.5427
+    },
+    {
+      "ticker": "WLMM3.SA",
+      "reason": "insufficient_history",
+      "coverage": 0.4431
+    }
+  ],
+  "shrinkage_target": "none",
+  "shrinkage_intensity": 0.0,
+  "min_eigenvalue": 1.6698347695950334e-11
+}
